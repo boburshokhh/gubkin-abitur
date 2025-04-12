@@ -360,6 +360,7 @@
                   <select 
                     v-model="form.direction" 
                     class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                    @change="onDirectionChange"
                   >
                     <option value="">Выберите направление</option>
                     <option v-for="direction in directions" :key="direction.id" :value="direction.id">
@@ -367,6 +368,45 @@
                     </option>
                   </select>
                   <p v-if="errors.direction" class="mt-1 text-sm text-red-600">{{ errors.direction }}</p>
+                </div>
+                
+                <!-- Выбор профиля, если доступен для направления -->
+                <div v-if="availableProfiles.length > 0">
+                  <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <span v-if="selectedDirection?.program_type === 'specialist'">Выберите специализацию</span>
+                    <span v-else>Выберите профиль подготовки</span>
+                  </label>
+                  <select 
+                    v-model="form.profile" 
+                    class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                    @change="onProfileChange"
+                  >
+                    <option value="">
+                      <span v-if="selectedDirection?.program_type === 'specialist'">Выберите специализацию</span>
+                      <span v-else>Выберите профиль подготовки</span>
+                    </option>
+                    <option v-for="profile in availableProfiles" :key="profile.id" :value="profile.id">
+                      {{ profile.name }}
+                    </option>
+                  </select>
+                  <p v-if="errors.profile" class="mt-1 text-sm text-red-600">{{ errors.profile }}</p>
+                </div>
+                
+                <!-- Выбор специальности, если доступна для профиля -->
+                <div v-if="availableSpecialties.length > 0">
+                  <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Выберите специальность
+                  </label>
+                  <select 
+                    v-model="form.specialty" 
+                    class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                  >
+                    <option value="">Выберите специальность</option>
+                    <option v-for="specialty in availableSpecialties" :key="specialty.id" :value="specialty.id">
+                      {{ specialty.code }} - {{ specialty.name }}
+                    </option>
+                  </select>
+                  <p v-if="errors.specialty" class="mt-1 text-sm text-red-600">{{ errors.specialty }}</p>
                 </div>
                 
                 <div>
@@ -495,6 +535,17 @@
                       <span class="text-sm text-gray-500">Направление:</span>
                       <p>{{ getDirectionName(form.direction) }}</p>
                     </div>
+                    <div v-if="form.profile">
+                      <span class="text-sm text-gray-500">
+                        <span v-if="selectedDirection?.program_type === 'specialist'">Специализация:</span>
+                        <span v-else>Профиль подготовки:</span>
+                      </span>
+                      <p>{{ getProfileName(form.profile) }}</p>
+                    </div>
+                    <div v-if="form.specialty">
+                      <span class="text-sm text-gray-500">Специальность:</span>
+                      <p>{{ getSpecialtyName(form.specialty) }}</p>
+                    </div>
                     <div>
                       <span class="text-sm text-gray-500">Форма обучения:</span>
                       <p>{{ form.studyForm === 'full-time' ? 'Очная' : '' }}</p>
@@ -587,11 +638,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { BaseCard, BaseInput, BaseButton, BaseLoader } from '@/components/ui';
-import { useApplicationStore } from '@/stores/application';
+import { BaseButton, BaseCard } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth';
+import { useApplicationStore } from '@/stores/application';
+import { useToast } from 'vue-toastification';
+import { directions, profiles, specialties } from '@/api/supabase';
 
 const router = useRouter();
 const appStore = useApplicationStore();
@@ -672,6 +725,8 @@ const form = ref({
   
   // Направление обучения
   direction: '',
+  profile: '',
+  specialty: '',
   studyForm: 'full-time',
   fundingForm: 'budget',
   
@@ -710,6 +765,72 @@ const selectedDirection = computed(() => {
   if (!form.value.direction) return null;
   return directions.value.find(d => d.id === form.value.direction);
 });
+
+// Доступные профили для выбранного направления
+const availableProfiles = ref([]);
+
+// Доступные специальности для выбранного профиля
+const availableSpecialties = ref([]);
+
+// Обработчик изменения направления
+const onDirectionChange = async () => {
+  form.value.profile = '';
+  form.value.specialty = '';
+  availableProfiles.value = [];
+  availableSpecialties.value = [];
+  
+  if (!form.value.direction) return;
+  
+  try {
+    // Загружаем профили для выбранного направления
+    const { data: profilesData, error } = await profiles.getByDirectionId(form.value.direction);
+    
+    if (error) throw error;
+    
+    if (profilesData && profilesData.length > 0) {
+      availableProfiles.value = profilesData;
+    }
+  } catch (error) {
+    console.error('Ошибка при загрузке профилей:', error);
+    toast.error('Не удалось загрузить профили для выбранного направления');
+  }
+};
+
+// Обработчик изменения профиля
+const onProfileChange = async () => {
+  form.value.specialty = '';
+  availableSpecialties.value = [];
+  
+  if (!form.value.profile) return;
+  
+  try {
+    // Загружаем специальности для выбранного профиля
+    const { data: specialtiesData, error } = await specialties.getByProfileId(form.value.profile);
+    
+    if (error) throw error;
+    
+    if (specialtiesData && specialtiesData.length > 0) {
+      availableSpecialties.value = specialtiesData;
+    }
+  } catch (error) {
+    console.error('Ошибка при загрузке специальностей:', error);
+    toast.error('Не удалось загрузить специальности для выбранного профиля');
+  }
+};
+
+// Получение названия профиля
+const getProfileName = (profileId) => {
+  if (!profileId) return '';
+  const profile = availableProfiles.value.find(p => p.id === profileId);
+  return profile ? profile.name : '';
+};
+
+// Получение названия специальности
+const getSpecialtyName = (specialtyId) => {
+  if (!specialtyId) return '';
+  const specialty = availableSpecialties.value.find(s => s.id === specialtyId);
+  return specialty ? `${specialty.code} - ${specialty.name}` : '';
+};
 
 // Обработка загрузки файлов
 const onFileChange = async (event, fieldName) => {
@@ -815,7 +936,7 @@ const getDirectionName = (id) => {
   return direction ? direction.name : '';
 };
 
-// Валидация формы по шагам
+// Валидация шага
 const validateStep = (step) => {
   const newErrors = {};
   
@@ -824,17 +945,14 @@ const validateStep = (step) => {
     if (!form.value.firstName) newErrors.firstName = 'Введите имя';
     if (!form.value.birthDate) newErrors.birthDate = 'Выберите дату рождения';
     if (!form.value.phone) newErrors.phone = 'Введите номер телефона';
-    if (!form.value.email) newErrors.email = 'Введите email';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email)) {
-      newErrors.email = 'Введите корректный email';
-    }
+    if (!form.value.email) newErrors.email = 'Введите адрес электронной почты';
     if (!form.value.gender) newErrors.gender = 'Выберите пол';
   }
   
   else if (step === 2) {
     if (!form.value.passportSeries) newErrors.passportSeries = 'Введите серию и номер паспорта';
-    if (!form.value.passportIssueDate) newErrors.passportIssueDate = 'Выберите дату выдачи';
-    if (!form.value.passportIssuedBy) newErrors.passportIssuedBy = 'Укажите, кем выдан паспорт';
+    if (!form.value.passportIssueDate) newErrors.passportIssueDate = 'Выберите дату выдачи паспорта';
+    if (!form.value.passportIssuedBy) newErrors.passportIssuedBy = 'Введите название выдавшего органа';
     if (!form.value.passportScan) newErrors.passportScan = 'Загрузите скан паспорта';
   }
   
@@ -849,6 +967,17 @@ const validateStep = (step) => {
   
   else if (step === 4) {
     if (!form.value.direction) newErrors.direction = 'Выберите направление обучения';
+    
+    // Если для направления есть профили, валидируем выбор профиля
+    if (availableProfiles.value.length > 0 && !form.value.profile) {
+      newErrors.profile = 'Выберите профиль подготовки';
+    }
+    
+    // Если для профиля есть специальности, валидируем выбор специальности
+    if (availableSpecialties.value.length > 0 && !form.value.specialty) {
+      newErrors.specialty = 'Выберите специальность';
+    }
+    
     if (!form.value.studyForm) newErrors.studyForm = 'Выберите форму обучения';
     if (!form.value.fundingForm) newErrors.fundingForm = 'Выберите форму финансирования';
   }
@@ -875,133 +1004,108 @@ const prevStep = () => {
   }
 };
 
+// Вспомогательная функция для загрузки документа
+const uploadDocument = async (applicationId, documentTypeId, file) => {
+  try {
+    submissionStatus.value = `Загрузка документа ${documentTypeId === 1 ? 'паспорта' : 'об образовании'}...`;
+    
+    const { success, error } = await appStore.uploadDocument(
+      applicationId, 
+      documentTypeId, 
+      file
+    );
+    
+    if (!success) {
+      throw new Error(error || 'Ошибка загрузки документа');
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Ошибка при загрузке документа типа ${documentTypeId}:`, error);
+    return { success: false, error };
+  }
+};
+
 // Отправка формы
 const submitForm = async () => {
-  if (isSubmitting.value) return; // Предотвращаем двойную отправку
-  if (!validateStep(currentStep.value)) return;
+  if (!validateStep(currentStep.value)) {
+    return;
+  }
   
   isSubmitting.value = true;
   submissionProgress.value = 10;
   submissionStatus.value = 'Подготовка данных...';
   
   try {
-    // Таймаут для имитации начальной загрузки и предотвращения слишком быстрых изменений UI
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // 1. Создаем заявку в БД
-    submissionStatus.value = 'Создание заявления...';
-    submissionProgress.value = 20;
-    
+    // Создаем объект данных для API
     const applicationData = {
       direction_id: form.value.direction,
-      passport_series: form.value.passportSeries,
-      passport_issue_date: form.value.passportIssueDate,
-      passport_issued_by: form.value.passportIssuedBy,
-      education_level: form.value.educationLevel,
-      education_institution: form.value.educationInstitution,
-      education_graduation_year: parseInt(form.value.educationGraduationYear, 10),
-      document_number: form.value.documentNumber,
-      document_date: form.value.documentDate,
+      profile_id: form.value.profile || null,
+      specialty_id: form.value.specialty || null,
       study_form: form.value.studyForm,
       funding_form: form.value.fundingForm,
+      academic_year: new Date().getFullYear(),
+      education_level: form.value.educationLevel,
+      education_institution: form.value.educationInstitution,
+      education_graduation_year: form.value.educationGraduationYear,
+      education_document_number: form.value.documentNumber,
+      education_document_date: form.value.documentDate
     };
-
-    // Генерируем уникальный идентификатор для отслеживания этой отправки
-    const submissionId = Date.now().toString();
-    // Сохраняем в sessionStorage, чтобы избежать дублирования при перезагрузке страницы
-    sessionStorage.setItem('lastSubmissionId', submissionId);
-
-    // Обновляем профиль пользователя, если есть изменения
-    const profileUpdateData = {};
     
-    // Проверяем только те поля, которые могли быть изменены в форме 
-    // и не были заблокированы для редактирования
-    if (!authStore.profile?.birth_date && form.value.birthDate) {
-      profileUpdateData.birth_date = form.value.birthDate;
+    submissionProgress.value = 30;
+    submissionStatus.value = 'Создание заявления...';
+    
+    // Создаем заявку
+    const { success, data, error } = await appStore.createApplication(applicationData);
+    
+    if (!success) {
+      throw new Error(error || 'Не удалось создать заявку');
     }
     
-    if (Object.keys(profileUpdateData).length > 0) {
-      submissionStatus.value = 'Обновление профиля...';
-      submissionProgress.value = 30;
-      
-      const profileUpdateResult = await authStore.updateProfile(profileUpdateData);
-      if (!profileUpdateResult.success) {
-        throw new Error(profileUpdateResult.error || 'Ошибка обновления профиля');
-      }
-    }
-
-    submissionStatus.value = 'Сохранение заявления...';
-    submissionProgress.value = 40;
-
-    const { success: createSuccess, data: newApplication, error: createError } = await appStore.createApplication(applicationData);
-
-    if (!createSuccess || !newApplication) {
-      throw new Error(createError || 'Ошибка создания заявки');
-    }
-
-    // 2. Загружаем документы
+    const applicationId = data.id;
+    submissionProgress.value = 50;
     submissionStatus.value = 'Загрузка документов...';
-    submissionProgress.value = 60;
     
-    const documentUploadPromises = [];
-    const getDocTypeId = (name) => documentTypes.value.find(dt => dt.name === name)?.id;
-
-    if (form.value.passportScan) {
-      const docTypeId = getDocTypeId('passport');
-      if (docTypeId) {
-        documentUploadPromises.push(appStore.uploadDocument(newApplication.id, docTypeId, form.value.passportScan));
-      }
-    }
-    if (form.value.educationScan) {
-      const docTypeId = getDocTypeId('education_document');
-      if (docTypeId) {
-        documentUploadPromises.push(appStore.uploadDocument(newApplication.id, docTypeId, form.value.educationScan));
-      }
-    }
-
-    const uploadResults = await Promise.all(documentUploadPromises);
-    const failedUploads = uploadResults.filter(res => !res.success);
-
-    if (failedUploads.length > 0) {
-      console.error('Ошибки загрузки документов:', failedUploads);
-      throw new Error('Не удалось загрузить все необходимые документы.');
-    }
-
-    // 3. Отправляем заявку на рассмотрение (меняем статус на 'submitted')
-    submissionStatus.value = 'Отправка заявления на рассмотрение...';
-    submissionProgress.value = 80;
+    // Загружаем документы
+    await Promise.all([
+      uploadDocument(applicationId, 1, form.value.passportScan), // ID 1 для паспорта
+      uploadDocument(applicationId, 2, form.value.educationScan)  // ID 2 для образования
+    ]);
     
-    const { success: submitSuccess, error: submitError } = await appStore.submitApplication(newApplication.id);
-    if (!submitSuccess) {
-      throw new Error(submitError || 'Ошибка отправки заявки на рассмотрение');
-    }
-
-    submissionStatus.value = 'Завершение...';
-    submissionProgress.value = 95;
+    submissionProgress.value = 90;
+    submissionStatus.value = 'Завершение процесса...';
     
-    // Небольшая задержка для плавного окончания прогресса
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Обновляем профиль пользователя, если нужно
+    if (!authStore.profile || 
+        authStore.profile.last_name !== form.value.lastName || 
+        authStore.profile.first_name !== form.value.firstName) {
+      
+      await authStore.updateProfile({
+        last_name: form.value.lastName,
+        first_name: form.value.firstName,
+        middle_name: form.value.middleName,
+        phone: form.value.phone,
+        gender: form.value.gender,
+        birth_date: form.value.birthDate
+      });
+    }
     
     submissionProgress.value = 100;
-    applicationNumber.value = newApplication.id; // Используем реальный ID заявки
-    isSubmitted.value = true;
-
-    // Очищаем временные URL для превью
-    Object.keys(filePreview.value).forEach(key => {
-      if (filePreview.value[key]?.url) {
-        URL.revokeObjectURL(filePreview.value[key].url);
-      }
-    });
-
-  } catch (err) {
-    console.error('Ошибка отправки формы:', err);
-    errors.value.submit = err.message || 'Произошла ошибка при отправке заявления.';
-    // Если произошла ошибка, откатываем прогресс и показываем сообщение
-    submissionStatus.value = `Ошибка: ${err.message || 'Не удалось отправить заявление'}`;
-    submissionProgress.value = 0;
+    submissionStatus.value = 'Заявление успешно отправлено!';
     
-    // Задержка, чтобы пользователь успел увидеть сообщение об ошибке 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Устанавливаем успешное завершение
+    isSubmitted.value = true;
+    applicationNumber.value = applicationId.toString().padStart(6, '0');
+    
+    // Немного ждем, чтобы пользователь увидел 100%
+    setTimeout(() => {
+      toast.success('Заявление успешно отправлено!');
+    }, 500);
+    
+  } catch (error) {
+    console.error('Ошибка при отправке заявления:', error);
+    toast.error('Произошла ошибка при отправке заявления. Пожалуйста, попробуйте позже.');
+    submissionStatus.value = 'Ошибка: ' + (error.message || 'Неизвестная ошибка');
   } finally {
     isSubmitting.value = false;
   }

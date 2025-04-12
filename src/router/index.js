@@ -1,12 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from 'vue-toastification'
 import HomePage from '@/views/HomePage.vue'
-import DirectionsPage from '@/views/DirectionsPage.vue'
-import DirectionDetailsPage from '@/views/DirectionDetailsPage.vue'
-import RegisterPage from '@/views/RegisterPage.vue'
-import FaqPage from '@/views/FaqPage.vue'
-import NotFoundPage from '@/views/NotFoundPage.vue'
 import AuthPage from '@/views/AuthPage.vue'
+import NotFoundPage from '@/views/NotFoundPage.vue'
+import { watch } from 'vue'
 
 const routes = [
   {
@@ -40,12 +38,16 @@ const routes = [
     component: () => import('@/views/AuthCallbackPage.vue'),
     meta: {
       title: 'Подтверждение авторизации - Приёмная кампания Губкинского университета'
+    },
+    beforeEnter: (to, from, next) => {
+      console.log('Обработка auth callback маршрута');
+      next();
     }
   },
   {
     path: '/directions',
     name: 'directions',
-    component: DirectionsPage,
+    component: () => import('@/views/DirectionsPage.vue'),
     meta: {
       title: 'Направления обучения - Приёмная кампания Губкинского университета'
     }
@@ -53,7 +55,7 @@ const routes = [
   {
     path: '/directions/:id',
     name: 'direction-details',
-    component: DirectionDetailsPage,
+    component: () => import('@/views/DirectionDetailsPage.vue'),
     meta: {
       title: 'Детали направления - Приёмная кампания Губкинского университета'
     }
@@ -61,7 +63,7 @@ const routes = [
   {
     path: '/register',
     name: 'register',
-    component: RegisterPage,
+    component: () => import('@/views/RegisterPage.vue'),
     meta: {
       title: 'Подать документы - Приёмная кампания Губкинского университета',
       requiresAuth: true
@@ -70,7 +72,7 @@ const routes = [
   {
     path: '/faq',
     name: 'faq',
-    component: FaqPage,
+    component: () => import('@/views/FaqPage.vue'),
     meta: {
       title: 'Вопросы и ответы - Приёмная кампания Губкинского университета'
     }
@@ -112,6 +114,28 @@ const routes = [
       requiresAuth: true
     }
   },
+  // Маршруты для админ-панели
+  {
+    path: '/admin',
+    name: 'admin',
+    component: () => import('@/views/AdminPage.vue'),
+    meta: {
+      title: 'Панель администратора - Приёмная кампания Губкинского университета',
+      requiresAuth: true,
+      requiresAdmin: true
+    }
+  },
+  // Маршрут для панели сотрудника приемной комиссии
+  {
+    path: '/reviewer',
+    name: 'reviewer',
+    component: () => import('@/views/ReviewerPage.vue'),
+    meta: {
+      title: 'Панель сотрудника приемной комиссии - Приёмная кампания Губкинского университета',
+      requiresAuth: true,
+      requiresReviewer: true
+    }
+  },
   // Маршрут для страницы "Не найдено"
   {
     path: '/:pathMatch(.*)*',
@@ -124,42 +148,102 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  scrollBehavior() {
-    // Всегда прокручиваем страницу в верх при переходе
-    return { top: 0 }
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    } else {
+      return { top: 0 }
+    }
   }
 })
 
-// Защита маршрутов и обновление заголовка страницы
+// --- Восстанавливаем исходный beforeEach хук (или модифицированный без isRouteLoading) ---
 router.beforeEach(async (to, from, next) => {
   // Устанавливаем заголовок страницы
-  document.title = to.meta.title || 'Приёмная кампания Губкинского университета'
+  document.title = to.meta.title || 'Приёмная кампания Губкинского университета';
   
-  // Проверка требований аутентификации и прав доступа
+  const authStore = useAuthStore();
+  const toast = useToast();
+  
+  // Ожидание инициализации аутентификации (если нужно)
+  if (authStore.loading) {
+    console.log('Ожидание инициализации аутентификации...')
+    await new Promise(resolve => {
+        const checkLoading = setInterval(() => {
+            if (!authStore.loading) {
+                clearInterval(checkLoading);
+                resolve();
+            }
+        }, 50);
+    });
+    console.log('Инициализация аутентификации завершена');
+  }
+  
+  // Перед проверкой доступа обновляем сессию, если пользователь уже авторизован
+  if (authStore.isAuthenticated) {
+    try {
+      const { success } = await authStore.refreshSession();
+      
+      if (!success || !authStore.isAuthenticated) {
+        console.log('Сессия недействительна, необходимо войти заново');
+        localStorage.removeItem('supabase.auth.token');
+        toast.error('Сессия истекла. Пожалуйста, войдите снова.');
+        
+        return next({
+          path: '/auth',
+          query: { redirect: to.fullPath }
+        });
+      }
+    } catch (err) {
+      console.error('Ошибка проверки сессии:', err);
+    }
+  }
+  
+  // Проверка требований аутентификации
   if (to.matched.some(record => record.meta.requiresAuth)) {
-    const authStore = useAuthStore();
-    
-    // Если не авторизован, перенаправляем на страницу входа
     if (!authStore.isAuthenticated) {
-      next({
+      console.log('Доступ запрещен: требуется авторизация');
+      toast.error('Необходимо войти в систему');
+      return next({
         path: '/auth',
         query: { redirect: to.fullPath }
       });
-      return;
+    }
+  }
+  
+  // Проверка прав администратора
+  if (to.matched.some(record => record.meta.requiresAdmin)) {
+    if (!authStore.isAdmin) {
+      toast.error('У вас нет прав администратора для доступа к этой странице');
+      return next('/');
+    }
+  }
+  
+  // Проверка прав сотрудника приемной комиссии
+  if (to.matched.some(record => record.meta.requiresReviewer)) {
+    if (!authStore.isReviewer) {
+      toast.error('У вас нет прав сотрудника для доступа к этой странице');
+      return next('/');
     }
   }
   
   // Если маршрут только для гостей, и пользователь авторизован
   if (to.matched.some(record => record.meta.guestOnly)) {
-    const authStore = useAuthStore();
     if (authStore.isAuthenticated) {
-      next('/dashboard');
-      return;
+      // Перенаправляем на дашборд или соответствующую страницу по роли
+      if (authStore.isAdmin) {
+        return next('/admin');
+      } else if (authStore.isReviewer) {
+        return next('/reviewer');
+      } else {
+        return next('/dashboard');
+      }
     }
   }
-  
+
+  // Если все проверки пройдены
   next();
 });
 

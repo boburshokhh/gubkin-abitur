@@ -20,6 +20,62 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 })
 
+// Настраиваем обработчики аутентификации
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('Supabase Auth event:', event, 'Session exists:', !!session);
+  
+  // При смене статуса аутентификации сохраняем информацию в localStorage 
+  // для диагностических целей и для упрощения восстановления состояния
+  if (event) {
+    localStorage.setItem('supabase.auth.lastEvent', event);
+    localStorage.setItem('supabase.auth.lastEventTime', new Date().toISOString());
+    
+    // Обработка событий аутентификации для обновления состояния приложения
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      // Импортируем getActiveStore динамически, чтобы избежать циклических зависимостей
+      import('pinia').then(({ getActivePinia }) => {
+        const pinia = getActivePinia();
+        if (pinia) {
+          // Находим все хранилища, включая auth store
+          const stores = pinia._s;
+          // Ищем auth store по токену
+          const authStore = Array.from(stores.values()).find(s => s.$id === 'auth');
+          if (authStore && session?.user) {
+            // Обновляем пользователя в store
+            authStore.user = session.user;
+            // Инициализируем auth store
+            authStore.initAuth();
+          }
+        }
+      }).catch(err => {
+        console.error('Ошибка при обновлении хранилища:', err);
+      });
+    } else if (event === 'SIGNED_OUT') {
+      // При выходе очищаем состояние пользователя в store
+      import('pinia').then(({ getActivePinia }) => {
+        const pinia = getActivePinia();
+        if (pinia) {
+          const stores = pinia._s;
+          const authStore = Array.from(stores.values()).find(s => s.$id === 'auth');
+          if (authStore) {
+            authStore.user = null;
+            authStore.profile = null;
+            authStore.userRole = null;
+          }
+        }
+      }).catch(err => {
+        console.error('Ошибка при обновлении хранилища:', err);
+      });
+    }
+  }
+  
+  // Если сессия отсутствует, но токен все еще присутствует, 
+  // это может быть признаком несогласованности состояния
+  if (!session && localStorage.getItem('supabase.auth.token')) {
+    console.warn('Потенциальное несоответствие: токен есть, но сессия отсутствует');
+  }
+});
+
 /* 
 НАСТРОЙКА SUPABASE (выполнить в SQL Editor):
 
@@ -77,89 +133,202 @@ FOR ALL USING (
 
 // Функции для работы с аутентификацией
 export const auth = {
-  // Регистрация нового пользователя
-  async signUp({ email, password, firstName, lastName }) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName
-        },
-        emailRedirectTo: `${siteUrl}/auth/callback`
-      }
-    })
-    return { data, error }
+  // Получение текущей сессии
+  getSession: async () => {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      console.log('getSession result:', !!data?.session, 'error:', !!error);
+      return { data, error };
+    } catch (err) {
+      console.error('Ошибка получения сессии:', err);
+      return { data: { session: null }, error: err };
+    }
   },
-
-  // Получение сессии пользователя
-  async getSession() {
-    const { data, error } = await supabase.auth.getSession();
-    return { data, error }
+  
+  // Обновление сессии
+  refreshSession: async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      console.log('refreshSession result:', !!data?.session, 'error:', !!error);
+      return { data, error };
+    } catch (err) {
+      console.error('Ошибка обновления сессии:', err);
+      return { data: { session: null }, error: err };
+    }
+  },
+  
+  // Регистрация
+  signUp: async ({ email, password, options }) => {
+    try {
+      // Формируем корректный URL для редиректа (можно оставить, если нужно)
+      let redirectTo = options?.emailRedirectTo;
+      if (!redirectTo) {
+        if (siteUrl.endsWith('/')) {
+          redirectTo = `${siteUrl}auth/callback`;
+        } else {
+          redirectTo = `${siteUrl}/auth/callback`;
+        }
+      }
+      
+      console.log('URL для редиректа:', redirectTo);
+      console.log('Параметры регистрации (options):', options);
+      
+      // Передаем email, password и options напрямую в supabase.auth.signUp
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { // Убедимся, что options передаются правильно
+          ...options, // Копируем все переданные опции
+          emailRedirectTo: redirectTo // Убеждаемся, что emailRedirectTo установлен
+        }
+      });
+      
+      // Дополнительная проверка ответа
+      console.log('Ответ signUp:', {
+        success: !error,
+        userData: data?.user?.user_metadata,
+        error
+      });
+      
+      // Резервное обновление метаданных (можно оставить на всякий случай)
+      if (data?.user && options?.data && (!data.user.user_metadata?.first_name || !data.user.user_metadata?.last_name)) {
+        console.log('Обновляем метаданные пользователя после регистрации...');
+        try {
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: options.data // Используем данные из options
+          });
+          
+          if (updateError) {
+            console.error('Ошибка обновления метаданных:', updateError);
+          } else {
+            console.log('Метаданные успешно обновлены');
+          }
+        } catch (updateErr) {
+          console.error('Исключение при обновлении метаданных:', updateErr);
+        }
+      }
+      
+      return { data, error };
+    } catch (err) {
+      console.error('Ошибка регистрации:', err);
+      return { data: null, error: err };
+    }
+  },
+  
+  // Вход
+  signIn: async ({ email, password }) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      return { data, error };
+    } catch (err) {
+      console.error('Ошибка входа:', err);
+      return { data: null, error: err };
+    }
+  },
+  
+  // Выход
+  signOut: async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      return { error };
+    } catch (err) {
+      console.error('Ошибка выхода:', err);
+      return { error: err };
+    }
   },
 
   // Отправка кода подтверждения email
-  async sendEmailVerification(email) {
-    const { data, error } = await supabase.auth.resend({
-      type: 'signup',
-      email: email,
-      options: {
-        emailRedirectTo: `${siteUrl}/auth/callback`,
+  sendEmailVerification: async (email) => {
+    try {
+      // Формируем корректный URL для редиректа
+      // Убедимся, что URL формируется правильно и не содержит двойных слешей
+      let redirectTo;
+      
+      // Проверка, заканчивается ли siteUrl на слеш
+      if (siteUrl.endsWith('/')) {
+        redirectTo = `${siteUrl}auth/callback`;
+      } else {
+        redirectTo = `${siteUrl}/auth/callback`;
       }
-    })
-    return { data, error }
+      
+      console.log('URL для редиректа при верификации:', redirectTo);
+      
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: redirectTo
+        }
+      });
+      
+      return { error };
+    } catch (err) {
+      console.error('Ошибка отправки кода подтверждения:', err);
+      return { error: err };
+    }
   },
-
-  // Отправка кода подтверждения email с OTP (без перехода по ссылке)
-  async sendOtpToEmail(email) {
-    const { data, error } = await supabase.auth.signInWithOtp({
-      email: email,
+  
+  // Отправка OTP кода на email
+  sendOtpToEmail: async (email) => {
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
       options: {
         // Не указываем emailRedirectTo для получения только OTP кода
         shouldCreateUser: false // Не создавать нового пользователя, только отправить код
       }
-    })
-    return { data, error }
+      });
+      
+      return { error };
+    } catch (err) {
+      console.error('Ошибка отправки OTP кода:', err);
+      return { error: err };
+    }
   },
-
-  // Подтверждение email по коду
-  async verifyOtp(email, token, type = 'email') {
+  
+  // Подтверждение кода OTP
+  verifyOtp: async (email, token) => {
+    try {
     const { data, error } = await supabase.auth.verifyOtp({
       email,
       token,
-      type
-    })
-    return { data, error }
-  },
-
-  // Вход пользователя
-  async signIn({ email, password }) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
-    return { data, error }
-  },
-
-  // Выход пользователя
-  async signOut() {
-    const { error } = await supabase.auth.signOut()
-    return { error }
-  },
-
-  // Получение текущего пользователя
-  async getUser() {
-    const { data, error } = await supabase.auth.getUser()
-    return { data, error }
+        type: 'email'
+      });
+      
+      return { data, error };
+    } catch (err) {
+      console.error('Ошибка подтверждения OTP:', err);
+      return { data: null, error: err };
+    }
   },
 
   // Сброс пароля
-  async resetPassword(email) {
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/reset-password`
-    })
-    return { data, error }
+  resetPassword: async (email) => {
+    try {
+      // Формируем корректный URL для редиректа
+      let redirectTo;
+      
+      // Проверка, заканчивается ли siteUrl на слеш
+      if (siteUrl.endsWith('/')) {
+        redirectTo = `${siteUrl}reset-password`;
+      } else {
+        redirectTo = `${siteUrl}/reset-password`;
+      }
+      
+      console.log('URL для редиректа при сбросе пароля:', redirectTo);
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectTo
+      });
+      return { error };
+    } catch (err) {
+      console.error('Ошибка сброса пароля:', err);
+      return { error: err };
+    }
   }
 }
 
@@ -325,24 +494,242 @@ export const users = {
 export const directions = {
   // Получить все направления
   async getAll() {
+    console.log('API: загрузка всех направлений');
     const { data, error } = await supabase
       .from('directions')
       .select('*')
-      .eq('is_active', true)
+      .order('name');
+
+    console.log('API: получено направлений:', data?.length, 'Ошибка:', error);
+    return { data, error };
+  },
+
+  // Получить направление по ID
+  async getById(id) {
+    console.log('API: загрузка направления по ID:', id);
+    const { data, error } = await supabase
+      .from('directions')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    console.log('API: результат загрузки направления:', data ? 'найдено' : 'не найдено', 'Ошибка:', error);
+    return { data, error };
+  },
+  
+  // Создать новое направление
+  async create(directionData) {
+    console.log('API: создание нового направления', directionData);
+    
+    // Проверяем обязательные поля
+    if (!directionData.code || !directionData.name || !directionData.slug) {
+      console.error('API: отсутствуют обязательные поля для создания направления');
+      return { 
+        data: null, 
+        error: new Error('Отсутствуют обязательные поля (code, name, slug)')
+      };
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('directions')
+        .insert(directionData)
+        .select()
+        .single();
+        
+      console.log('API: результат создания направления:', data ? 'успешно' : 'ошибка', 'Ошибка:', error);
+      return { data, error };
+    } catch (err) {
+      console.error('API: исключение при создании направления:', err);
+      return { data: null, error: err };
+    }
+  },
+  
+  // Обновить направление
+  async update(id, directionData) {
+    console.log('API: обновление направления с ID:', id, directionData);
+    
+    if (!id) {
+      console.error('API: отсутствует ID для обновления направления');
+      return { 
+        data: null, 
+        error: new Error('Отсутствует ID направления для обновления')
+      };
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('directions')
+        .update(directionData)
+        .eq('id', id)
+        .select()
+        .single();
+        
+      console.log('API: результат обновления направления:', data ? 'успешно' : 'ошибка', 'Ошибка:', error);
+      return { data, error };
+    } catch (err) {
+      console.error('API: исключение при обновлении направления:', err);
+      return { data: null, error: err };
+    }
+  },
+  
+  // Удалить направление
+  async delete(id) {
+    console.log('API: удаление направления с ID:', id);
+    
+    if (!id) {
+      console.error('API: отсутствует ID для удаления направления');
+      return { error: new Error('Отсутствует ID направления для удаления') };
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('directions')
+        .delete()
+        .eq('id', id);
+        
+      console.log('API: результат удаления направления. Ошибка:', error);
+      return { error };
+    } catch (err) {
+      console.error('API: исключение при удалении направления:', err);
+      return { error: err };
+    }
+  }
+}
+
+// Функции для работы с профилями
+export const profiles = {
+  // Получить все профили
+  async getAll() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*, direction:direction_id(*)')
       .order('name')
 
     return { data, error }
   },
 
-  // Получить направление по ID
+  // Получить профиль по ID
   async getById(id) {
     const { data, error } = await supabase
-      .from('directions')
-      .select('*')
+      .from('profiles')
+      .select('*, direction:direction_id(*)')
       .eq('id', id)
       .single()
 
     return { data, error }
+  },
+  
+  // Получить профили по ID направления
+  async getByDirectionId(directionId) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('direction_id', directionId)
+      .order('name')
+
+    return { data, error }
+  },
+  
+  // Создать новый профиль
+  async create(profileData) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert(profileData)
+      .select()
+      .single()
+      
+    return { data, error }
+  },
+  
+  // Обновить профиль
+  async update(id, profileData) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(profileData)
+      .eq('id', id)
+      .select()
+      .single()
+      
+    return { data, error }
+  },
+  
+  // Удалить профиль
+  async delete(id) {
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id)
+      
+    return { error }
+  }
+}
+
+// Функции для работы со специальностями
+export const specialties = {
+  // Получить все специальности
+  async getAll() {
+    const { data, error } = await supabase
+      .from('specialties')
+      .select('*, profile:profile_id(*)')
+      .order('name')
+
+    return { data, error }
+  },
+
+  // Получить специальность по ID
+  async getById(id) {
+    const { data, error } = await supabase
+      .from('specialties')
+      .select('*, profile:profile_id(*)')
+      .eq('id', id)
+      .single()
+
+    return { data, error }
+  },
+  
+  // Получить специальности по ID профиля
+  async getByProfileId(profileId) {
+    const { data, error } = await supabase
+      .from('specialties')
+      .select('*')
+      .eq('profile_id', profileId)
+      .order('name')
+
+    return { data, error }
+  },
+  
+  // Создать новую специальность
+  async create(specialtyData) {
+    const { data, error } = await supabase
+      .from('specialties')
+      .insert(specialtyData)
+      .select()
+      .single()
+      
+    return { data, error }
+  },
+  
+  // Обновить специальность
+  async update(id, specialtyData) {
+    const { data, error } = await supabase
+      .from('specialties')
+      .update(specialtyData)
+      .eq('id', id)
+      .select()
+      .single()
+      
+    return { data, error }
+  },
+  
+  // Удалить специальность
+  async delete(id) {
+    const { error } = await supabase
+      .from('specialties')
+      .delete()
+      .eq('id', id)
+      
+    return { error }
   }
 }
 
@@ -353,36 +740,76 @@ export const applications = {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
 
+    try {
     const { data, error } = await supabase
       .from('applications')
       .select(`
         *,
-        direction:directions(*),
-        status:application_statuses(*)
+          direction:direction_id(id, name),
+          user:user_id(id, first_name, last_name, email)
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
 
     return { data, error }
+    } catch (err) {
+      console.error('Ошибка получения заявок:', err)
+      return { data: null, error: err }
+    }
   },
 
-  // Получить заявку по ID
+  // Получить одну заявку по ID
   async getById(id) {
+    try {
     const { data, error } = await supabase
       .from('applications')
       .select(`
         *,
-        direction:directions(*),
-        status:application_statuses(*),
-        documents:documents(
-          *,
-          document_type:document_types(*)
-        )
+          direction:direction_id(id, name),
+          user:user_id(id, first_name, last_name, email),
+          documents:id(id, document_type_id, file_path, updated_at, document_type:document_type_id(id, name))
       `)
       .eq('id', id)
       .single()
 
     return { data, error }
+    } catch (err) {
+      console.error('Ошибка получения заявки:', err)
+      return { data: null, error: err }
+    }
+  },
+
+  // Получить статистику по заявкам
+  async getStatistics() {
+    try {
+      // Получаем статистику по дням за последний месяц
+      const { data: dailyStats, error: dailyError } = await supabase
+        .rpc('get_applications_daily_stats')
+
+      // Получаем статистику по направлениям
+      const { data: directionStats, error: directionError } = await supabase
+        .rpc('get_applications_by_direction')
+
+      // Получаем статистику по статусам
+      const { data: statusStats, error: statusError } = await supabase
+        .rpc('get_applications_by_status')
+
+      if (dailyError || directionError || statusError) {
+        throw new Error(dailyError?.message || directionError?.message || statusError?.message);
+      }
+
+      return { 
+        data: {
+          dailyStats: dailyStats || [],
+          directionStats: directionStats || [],
+          statusStats: statusStats || [] 
+        }, 
+        error: null 
+      }
+    } catch (err) {
+      console.error('Ошибка получения статистики:', err)
+      return { data: null, error: err }
+    }
   },
 
   // Создать новую заявку
@@ -390,26 +817,22 @@ export const applications = {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
 
-    // Получаем ID статуса "черновик"
-    const { data: statusData } = await supabase
-      .from('application_statuses')
-      .select('id')
-      .eq('name', 'draft')
-      .single()
-
-    if (!statusData) return { data: null, error: new Error('Не удалось получить статус заявки') }
-
+    try {
     const { data, error } = await supabase
       .from('applications')
       .insert({
         ...applicationData,
         user_id: user.id,
-        status_id: statusData.id
+          status: 'draft' // Черновик
       })
       .select()
       .single()
 
     return { data, error }
+    } catch (err) {
+      console.error('Ошибка создания заявки:', err)
+      return { data: null, error: err }
+    }
   },
 
   // Обновить заявку
@@ -492,7 +915,8 @@ export const documents = {
         file_name: file.name,
         file_path: filePath,
         file_size: file.size,
-        file_type: file.type
+        file_type: file.type,
+        updated_at: new Date()
       })
       .select()
       .single()
@@ -508,8 +932,318 @@ export const documents = {
       .order('name')
 
     return { data, error }
+  },
+
+  // Обновить документ
+  async update(documentId, documentData) {
+    const { data, error } = await supabase
+      .from('documents')
+      .update({
+        document_type_id: documentData.document_type_id,
+        file_path: documentData.file_path,
+        updated_at: new Date()
+      })
+      .eq('id', documentId)
+      .select();
+
+    return { data, error }
   }
 }
+
+// Функции для работы с Excel экспортом
+export const excelExport = {
+  // Получить данные всех абитуриентов для экспорта в Excel
+  async getAllApplicantsData() {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_all_applicants_data');
+      
+      if (error) {
+        console.error('Ошибка получения данных абитуриентов:', error);
+        
+        // Проверка на конкретные коды ошибок PostgreSQL
+        if (error.code === '42804') {
+          // Ошибка несоответствия типов - попробуем получить и преобразовать данные вручную
+          try {
+            // Выполняем прямой SQL запрос с преобразованием типов
+            const { data: rawData, error: rawError } = await supabase
+              .from('applications')
+              .select(`
+                id,
+                user_id (id, email, first_name, last_name, middle_name, phone, birth_date, gender),
+                direction_id (id, code, name),
+                status_id (id, name),
+                passport_series,
+                passport_issue_date,
+                passport_issued_by,
+                education_level,
+                education_institution,
+                education_graduation_year,
+                document_number,
+                document_date,
+                study_form,
+                funding_form,
+                admin_comment,
+                created_at
+              `)
+              .order('created_at', { ascending: false });
+              
+            if (rawError) throw rawError;
+            
+            // Преобразуем данные в нужный формат
+            const formattedData = rawData.map(item => ({
+              user_id: item.user_id.id,
+              email: item.user_id.email,
+              first_name: item.user_id.first_name,
+              last_name: item.user_id.last_name,
+              middle_name: item.user_id.middle_name,
+              phone: item.user_id.phone,
+              birth_date: item.user_id.birth_date,
+              gender: item.user_id.gender,
+              application_id: item.id,
+              direction_code: item.direction_id.code,
+              direction_name: item.direction_id.name,
+              application_status: item.status_id.name,
+              passport_series: item.passport_series,
+              passport_issue_date: item.passport_issue_date,
+              passport_issued_by: item.passport_issued_by,
+              education_level: item.education_level,
+              education_institution: item.education_institution,
+              education_graduation_year: item.education_graduation_year,
+              document_number: item.document_number,
+              document_date: item.document_date,
+              study_form: item.study_form,
+              funding_form: item.funding_form,
+              admin_comment: item.admin_comment,
+              application_created_at: item.created_at,
+              documents_count: 0, // Заполним позже
+              doc_passport: '',
+              doc_education: ''
+            }));
+            
+            return { success: true, data: formattedData };
+          } catch (backupErr) {
+            console.error('Ошибка при попытке обойти проблему с типами данных:', backupErr);
+            return { success: false, error: 'Проблема с типами данных в базе данных. Обратитесь к администратору.' };
+          }
+        }
+        
+        return { success: false, error: error.message };
+      }
+      
+      return { success: true, data };
+    } catch (err) {
+      console.error('Ошибка получения данных абитуриентов:', err);
+      return { success: false, error: err.message };
+    }
+  },
+  
+  // Получить детальные данные абитуриента по ID пользователя
+  async getApplicantDataById(userId) {
+    try {
+      if (!userId) {
+        return { success: false, error: 'ID пользователя не указан' };
+      }
+      
+      const { data, error } = await supabase
+        .rpc('get_applicant_data_by_id', { p_user_id: userId })
+      
+      if (error) {
+        console.error('Ошибка получения данных абитуриента:', error);
+        return { success: false, error: error.message };
+      }
+      
+      return { success: true, data };
+    } catch (err) {
+      console.error('Ошибка получения данных абитуриента:', err);
+      return { success: false, error: err.message };
+    }
+  },
+  
+  // Получить детальные данные абитуриента по ID заявления
+  async getApplicantDataByApplicationId(applicationId) {
+    try {
+      if (!applicationId) {
+        return { success: false, error: 'ID заявления не указан' };
+      }
+      
+      const { data, error } = await supabase
+        .rpc('get_applicant_data_by_application_id', { p_application_id: applicationId })
+      
+      if (error) {
+        console.error('Ошибка получения данных заявления:', error);
+        return { success: false, error: error.message };
+      }
+      
+      return { success: true, data };
+    } catch (err) {
+      console.error('Ошибка получения данных заявления:', err);
+      return { success: false, error: err.message };
+    }
+  },
+  
+  // Конвертация данных в Excel-файл и его скачивание
+  // Зависимости: необходимо установить пакет exceljs
+  // npm install exceljs
+  async downloadExcel(data, fileName = 'applicants-data.xlsx') {
+    try {
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        console.error('Отсутствуют данные для экспорта');
+        return { success: false, error: 'Отсутствуют данные для экспорта' };
+      }
+      
+      // Динамически импортируем библиотеку exceljs
+      const ExcelJS = await import('exceljs').then(module => module.default);
+      
+      // Создаем новую книгу Excel
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Абитуриенты');
+      
+      // Определяем заголовки на русском языке
+      const headers = {
+        user_id: 'ID пользователя',
+        email: 'Email',
+        first_name: 'Имя',
+        last_name: 'Фамилия',
+        middle_name: 'Отчество',
+        phone: 'Телефон',
+        birth_date: 'Дата рождения',
+        gender: 'Пол',
+        application_id: 'ID заявки',
+        direction_code: 'Код направления',
+        direction_name: 'Название направления',
+        application_status: 'Статус заявки',
+        passport_series: 'Серия и номер паспорта',
+        passport_issue_date: 'Дата выдачи паспорта',
+        passport_issued_by: 'Кем выдан паспорт',
+        education_level: 'Уровень образования',
+        education_institution: 'Учебное заведение',
+        education_graduation_year: 'Год окончания',
+        document_number: 'Номер документа об образовании',
+        document_date: 'Дата выдачи документа',
+        study_form: 'Форма обучения',
+        funding_form: 'Форма финансирования',
+        admin_comment: 'Комментарий администратора',
+        application_created_at: 'Дата создания заявки',
+        documents_count: 'Количество документов',
+        doc_passport: 'Скан паспорта',
+        doc_education: 'Скан документа об образовании',
+        document_id: 'ID документа',
+        document_type: 'Тип документа',
+        document_file_name: 'Имя файла',
+        document_file_path: 'Путь к файлу',
+        document_file_size: 'Размер файла (байт)',
+        document_file_type: 'Тип файла',
+        document_status: 'Статус документа',
+        document_comment: 'Комментарий к документу',
+        document_created_at: 'Дата загрузки документа'
+      };
+      
+      // Получаем список полей из первой записи
+      const firstRecord = data[0];
+      const fields = Object.keys(firstRecord);
+      
+      // Добавляем заголовки колонок
+      const headerRow = fields.map(field => headers[field] || field);
+      worksheet.addRow(headerRow);
+      
+      // Стиль для заголовков
+      worksheet.getRow(1).eachCell(cell => {
+        cell.font = { bold: true };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }
+        };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+      
+      // Добавляем данные
+      data.forEach(record => {
+        const rowData = fields.map(field => {
+          const value = record[field];
+          
+          // Форматирование дат
+          if (field.includes('date') && value) {
+            if (typeof value === 'string' && value.includes('T')) {
+              // Для полных дат с временем
+              return new Date(value).toLocaleString('ru-RU');
+            } else {
+              // Для дат без времени
+              return new Date(value).toLocaleDateString('ru-RU');
+            }
+          }
+          
+          // Форматирование пола
+          if (field === 'gender') {
+            return value === 'male' ? 'Мужской' : value === 'female' ? 'Женский' : value;
+          }
+          
+          // Форматирование формы обучения
+          if (field === 'study_form') {
+            return value === 'full-time' ? 'Очная' : 
+                   value === 'part-time' ? 'Заочная' : 
+                   value === 'distance' ? 'Дистанционная' : value;
+          }
+          
+          // Форматирование формы финансирования
+          if (field === 'funding_form') {
+            return value === 'budget' ? 'Бюджет' : 
+                   value === 'contract' ? 'Контракт' : value;
+          }
+          
+          // Форматирование уровня образования
+          if (field === 'education_level') {
+            return value === 'high-school' ? 'Среднее общее' : 
+                   value === 'college' ? 'Среднее профессиональное' : 
+                   value === 'bachelor' ? 'Высшее - бакалавриат' : 
+                   value === 'master' ? 'Высшее - магистратура' : value;
+          }
+          
+          return value;
+        });
+        worksheet.addRow(rowData);
+      });
+      
+      // Автоподбор ширины колонок
+      worksheet.columns.forEach(column => {
+        let maxLength = 0;
+        column.eachCell({ includeEmpty: true }, cell => {
+          const cellLength = cell.value ? cell.value.toString().length : 10;
+          if (cellLength > maxLength) {
+            maxLength = cellLength;
+          }
+        });
+        column.width = Math.min(maxLength + 2, 50); // Ограничиваем максимальную ширину
+      });
+      
+      // Генерируем excel файл
+      const buffer = await workbook.xlsx.writeBuffer();
+      
+      // Создаем Blob и ссылку для скачивания
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      
+      // Создаем ссылку для скачивания и "нажимаем" на нее
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Ошибка экспорта в Excel:', err);
+      return { success: false, error: err.message };
+    }
+  }
+};
 
 // Функции для взаимодействия с API администратора (удалены, так как функциональность администратора больше не поддерживается)
 
@@ -519,5 +1253,8 @@ export default {
   users,
   applications,
   directions,
-  documents
+  profiles,
+  specialties,
+  documents,
+  excelExport
 } 

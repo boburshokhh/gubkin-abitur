@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from './App.vue'
 import router from './router'
 import './assets/main.css'
@@ -10,13 +11,17 @@ import { useAuthStore } from './stores/auth'
 import Toast from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
 
-const app = createApp(App)
+// Создаем экземпляр Pinia и добавляем плагин для сохранения состояния
 const pinia = createPinia()
+pinia.use(piniaPluginPersistedstate)
 
-// Конфигурация для Toast
+// Опции для уведомлений
 const toastOptions = {
+  transition: 'Vue-Toastification__bounce',
+  maxToasts: 3,
+  newestOnTop: true,
   position: 'top-right',
-  timeout: 3000,
+  timeout: 5000,
   closeOnClick: true,
   pauseOnFocusLoss: true,
   pauseOnHover: true,
@@ -29,9 +34,17 @@ const toastOptions = {
   rtl: false
 }
 
+// Создаем приложение и подключаем плагины
+const app = createApp(App)
 app.use(pinia)
 app.use(router)
 app.use(Toast, toastOptions)
+
+// Обработка ошибок
+app.config.errorHandler = (err, vm, info) => {
+  console.error('Vue Global Error:', err)
+  console.error('Error Info:', info)
+}
 
 // Инициализация аутентификации перед маунтом приложения
 const authStore = useAuthStore(pinia)

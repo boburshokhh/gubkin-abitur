@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { applications, documents, directions } from '../api/supabase'
+import { applications, documents, directions, excelExport } from '../api/supabase'
 
 export const useApplicationStore = defineStore('application', () => {
   // Состояние
@@ -34,6 +34,26 @@ export const useApplicationStore = defineStore('application', () => {
       console.error('Ошибка загрузки заявок:', err)
       error.value = err.message || 'Не удалось загрузить заявки'
       return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Получить статистику по заявкам
+  async function getApplicationsStatistics() {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const { data, error: statsError } = await applications.getStatistics()
+      
+      if (statsError) throw statsError
+      
+      return { success: true, data }
+    } catch (err) {
+      console.error('Ошибка получения статистики:', err)
+      error.value = err.message || 'Не удалось получить статистику заявок'
+      return { success: false, error: error.value }
     } finally {
       isLoading.value = false
     }
@@ -249,6 +269,75 @@ export const useApplicationStore = defineStore('application', () => {
     }
   }
 
+  // Экспорт данных всех абитуриентов в Excel
+  async function exportAllApplicantsToExcel() {
+    try {
+      const { success, data, error } = await excelExport.getAllApplicantsData();
+      
+      if (!success || !data) {
+        console.error('Ошибка получения данных для экспорта:', error);
+        return { success: false, error: error || 'Не удалось получить данные для экспорта' };
+      }
+      
+      // Скачиваем Excel файл
+      const exportResult = await excelExport.downloadExcel(data, 'all-applicants.xlsx');
+      
+      return exportResult;
+    } catch (err) {
+      console.error('Ошибка экспорта данных в Excel:', err);
+      return { success: false, error: err.message };
+    }
+  }
+  
+  // Экспорт данных конкретного абитуриента в Excel
+  async function exportApplicantToExcel(userId) {
+    try {
+      if (!userId) {
+        return { success: false, error: 'ID пользователя не указан' };
+      }
+      
+      const { success, data, error } = await excelExport.getApplicantDataById(userId);
+      
+      if (!success || !data) {
+        console.error('Ошибка получения данных абитуриента для экспорта:', error);
+        return { success: false, error: error || 'Не удалось получить данные абитуриента' };
+      }
+      
+      // Скачиваем Excel файл
+      const userName = data[0] ? `${data[0].last_name || ''}_${data[0].first_name || ''}` : 'applicant';
+      const exportResult = await excelExport.downloadExcel(data, `${userName}.xlsx`);
+      
+      return exportResult;
+    } catch (err) {
+      console.error('Ошибка экспорта данных абитуриента в Excel:', err);
+      return { success: false, error: err.message };
+    }
+  }
+  
+  // Экспорт данных заявления в Excel
+  async function exportApplicationToExcel(applicationId) {
+    try {
+      if (!applicationId) {
+        return { success: false, error: 'ID заявления не указан' };
+      }
+      
+      const { success, data, error } = await excelExport.getApplicantDataByApplicationId(applicationId);
+      
+      if (!success || !data) {
+        console.error('Ошибка получения данных заявления для экспорта:', error);
+        return { success: false, error: error || 'Не удалось получить данные заявления' };
+      }
+      
+      // Скачиваем Excel файл
+      const exportResult = await excelExport.downloadExcel(data, `application-${applicationId}.xlsx`);
+      
+      return exportResult;
+    } catch (err) {
+      console.error('Ошибка экспорта данных заявления в Excel:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
   return {
     userApplications,
     currentApplication,
@@ -267,6 +356,10 @@ export const useApplicationStore = defineStore('application', () => {
     loadDirections,
     loadDocuments,
     loadDocumentTypes,
-    uploadDocument
+    uploadDocument,
+    getApplicationsStatistics,
+    exportAllApplicantsToExcel,
+    exportApplicantToExcel,
+    exportApplicationToExcel
   }
 }) 

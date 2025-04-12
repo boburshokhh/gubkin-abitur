@@ -2,48 +2,8 @@
   <main class="container mx-auto px-4 py-6 md:py-8">
     <h1 class="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Мой профиль</h1>
 
-    <!-- Навигационные кнопки -->
-    <div class="bg-white shadow rounded-lg mb-6 md:mb-8 p-3 md:p-4">
-      <div class="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4">
-        <router-link 
-          to="/dashboard/applications" 
-          class="px-3 md:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center sm:justify-start"
-          :class="[$route.path.includes('/dashboard/applications') && !$route.params.id ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200']"
-        >
-          <span class="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Мои заявления
-          </span>
-        </router-link>
-        
-        <router-link 
-          to="/dashboard/profile" 
-          class="px-3 md:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center sm:justify-start"
-          :class="[$route.path === '/dashboard/profile' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200']"
-        >
-          <span class="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            Мой профиль
-          </span>
-        </router-link>
-        
-        <router-link 
-          to="/register" 
-          class="px-3 md:px-4 py-2 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center justify-center sm:justify-start"
-        >
-          <span class="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Подать новое заявление
-          </span>
-        </router-link>
-      </div>
-    </div>
+    <!-- Навигационные кнопки (только для абитуриентов) -->
+    <DashboardNavigation v-if="!authStore.isAdmin && !authStore.isReviewer" />
 
     <div v-if="isLoading" class="flex justify-center my-12">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -63,95 +23,13 @@
 
     <div v-else>
       <!-- Основная информация о профиле -->
-      <div class="bg-white shadow rounded-lg overflow-hidden mb-6 md:mb-8">
-        <div class="bg-primary-600 px-4 py-3 md:px-6 md:py-4">
-          <h2 class="text-lg md:text-xl font-medium text-white">Основная информация</h2>
-        </div>
-        <div class="p-4 md:p-6">
-          <div class="mb-6 grid grid-cols-1 gap-4 md:gap-6">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <div class="flex flex-col sm:flex-row sm:items-center">
-                <span class="text-gray-900">{{ authStore.user?.email }}</span>
-                <span 
-                  :class="[
-                    'mt-1 sm:mt-0 sm:ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', 
-                    authStore.isEmailConfirmed ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                  ]"
-                >
-                  {{ authStore.isEmailConfirmed ? 'Подтвержден' : 'Не подтвержден' }}
-                </span>
-                <button 
-                  v-if="!authStore.isEmailConfirmed" 
-                  @click="resendVerification" 
-                  class="mt-2 sm:mt-0 sm:ml-2 text-xs text-primary-600 hover:text-primary-800"
-                  :disabled="isResendingVerification"
-                >
-                  {{ isResendingVerification ? 'Отправка...' : 'Отправить код подтверждения' }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <form @submit.prevent="saveProfile">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div>
-                <label for="first_name" class="block text-sm font-medium text-gray-700">Имя</label>
-                <input 
-                  id="first_name" 
-                  v-model="form.first_name" 
-                  type="text" 
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                />
-              </div>
-              
-              <div>
-                <label for="last_name" class="block text-sm font-medium text-gray-700">Фамилия</label>
-                <input 
-                  id="last_name" 
-                  v-model="form.last_name" 
-                  type="text" 
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                />
-              </div>
-              
-              <div>
-                <label for="middle_name" class="block text-sm font-medium text-gray-700">Отчество</label>
-                <input 
-                  id="middle_name" 
-                  v-model="form.middle_name" 
-                  type="text" 
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                />
-              </div>
-              
-              <div>
-                <label for="phone" class="block text-sm font-medium text-gray-700">Телефон</label>
-                <input 
-                  id="phone" 
-                  v-model="form.phone" 
-                  type="tel" 
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            <div class="mt-6 flex justify-center sm:justify-end">
-              <button 
-                type="submit" 
-                class="w-full sm:w-auto inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                :disabled="isSaving"
-              >
-                <svg v-if="isSaving" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                {{ isSaving ? 'Сохранение...' : 'Сохранить изменения' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+      <ProfileForm 
+        :profile-data="profileData" 
+        :is-saving="isSavingProfile" 
+        @save="saveProfile"
+        @resend-verification="handleResendVerification"
+        class="mb-6 md:mb-8"
+      />
 
       <!-- Изменение пароля -->
       <div class="bg-white shadow rounded-lg overflow-hidden mb-6 md:mb-8">
@@ -271,31 +149,26 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { ref, reactive, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { supabase } from '@/api/supabase';
+import DashboardNavigation from '@/components/dashboard/DashboardNavigation.vue';
+import ProfileForm from '@/components/profile/ProfileForm.vue';
 
 const router = useRouter();
-const route = useRoute();
 const authStore = useAuthStore();
 
 const isLoading = ref(true);
-const isSaving = ref(false);
+const isSavingProfile = ref(false);
 const isChangingPassword = ref(false);
-const isResendingVerification = ref(false);
 const error = ref('');
 const passwordError = ref('');
 const showSuccessMessage = ref(false);
 const successMessage = ref('');
 
-// Форма для данных профиля
-const form = reactive({
-  first_name: '',
-  last_name: '',
-  middle_name: '',
-  phone: ''
-});
+// Реактивные данные для формы профиля
+const profileData = ref({});
 
 // Форма для изменения пароля
 const passwordForm = reactive({
@@ -307,18 +180,13 @@ const passwordForm = reactive({
 // Загрузка данных профиля
 onMounted(async () => {
   try {
-    // Если профиль уже есть в store, используем его
-    if (authStore.profile) {
-      initForm(authStore.profile);
-      isLoading.value = false;
-      return;
+    if (!authStore.profile) {
+      await authStore.initAuth();
     }
     
-    // Иначе загружаем профиль
-    await authStore.initAuth();
-    
     if (authStore.profile) {
-      initForm(authStore.profile);
+      // Передаем копию, чтобы избежать прямой мутации
+      profileData.value = { ...authStore.profile }; 
     } else {
       error.value = 'Не удалось загрузить данные профиля';
     }
@@ -330,22 +198,15 @@ onMounted(async () => {
   }
 });
 
-// Заполнение формы данными профиля
-const initForm = (profile) => {
-  form.first_name = profile.first_name || '';
-  form.last_name = profile.last_name || '';
-  form.middle_name = profile.middle_name || '';
-  form.phone = profile.phone || '';
-};
-
-// Сохранение данных профиля
-const saveProfile = async () => {
-  isSaving.value = true;
-  
+// Сохранение данных профиля (обработчик события от ProfileForm)
+const saveProfile = async (formData) => {
+  isSavingProfile.value = true;
   try {
-    const result = await authStore.updateProfile(form);
+    const result = await authStore.updateProfile(formData);
     
     if (result.success) {
+      // Обновляем локальные данные после успешного сохранения
+      profileData.value = { ...formData }; 
       showSuccessNotification('Данные профиля успешно сохранены');
     } else {
       error.value = result.error || 'Не удалось сохранить данные профиля';
@@ -354,7 +215,7 @@ const saveProfile = async () => {
     console.error('Ошибка при сохранении профиля:', err);
     error.value = 'Не удалось сохранить данные профиля';
   } finally {
-    isSaving.value = false;
+    isSavingProfile.value = false;
   }
 };
 
@@ -420,11 +281,9 @@ const changePassword = async () => {
   }
 };
 
-// Отправка кода подтверждения email
-const resendVerification = async () => {
-  if (!authStore.user?.email || isResendingVerification.value) return;
-  
-  isResendingVerification.value = true;
+// Отправка кода подтверждения email (обработчик события от ProfileForm)
+const handleResendVerification = async () => {
+  if (!authStore.user?.email) return;
   
   try {
     const result = await authStore.sendVerificationEmail(authStore.user.email);
@@ -437,8 +296,6 @@ const resendVerification = async () => {
   } catch (err) {
     console.error('Ошибка при отправке кода подтверждения:', err);
     error.value = 'Не удалось отправить код подтверждения';
-  } finally {
-    isResendingVerification.value = false;
   }
 };
 

@@ -1,11 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
     <div class="sm:mx-auto sm:w-full sm:max-w-md">
-      <img 
-        class="mx-auto h-24 w-auto" 
-        src="@/assets/logo.svg" 
-        alt="Логотип" 
-      />
       <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
         {{ success ? 'Успешно!' : 'Обработка...' }}
       </h2>
@@ -62,48 +57,160 @@ const loading = ref(true);
 const success = ref(false);
 const error = ref('');
 
+// Функция для декодирования сообщений об ошибках
+const formatErrorMessage = (message) => {
+  if (!message) return 'Неизвестная ошибка';
+  
+  // Проверяем, если сообщение содержит +, то оно, возможно, закодировано
+  if (message.includes('+')) {
+    try {
+      // Пробуем декодировать
+      return decodeURIComponent(message.replace(/\+/g, ' '));
+    } catch (e) {
+      console.error('Ошибка при декодировании сообщения:', e);
+      return message;
+    }
+  }
+  
+  return message;
+};
+
+// Функция для извлечения и обработки параметров из хэша URL
+const parseHashParams = (hashStr) => {
+  const params = {};
+  if (!hashStr) return params;
+  
+  try {
+    const parts = hashStr.split('&');
+    for (const part of parts) {
+      const [key, value] = part.split('=');
+      if (key && value) {
+        // Используем декодирование для всех значений
+        params[key] = decodeURIComponent(value.replace(/\+/g, ' '));
+      }
+    }
+  } catch (e) {
+    console.error('Ошибка при обработке хэш-параметров:', e);
+  }
+  
+  return params;
+};
+
 onMounted(async () => {
   try {
-    // Проверяем наличие token_hash в URL для подтверждения email
+    console.log('Начало обработки callback');
+    console.log('URL:', window.location.href);
+    
+    // Извлекаем хэш из URL, пропуская первый символ '#'
+    const hashStr = window.location.hash.substring(1);
+    console.log('Исходный хэш:', hashStr);
+    
+    // Используем улучшенную функцию для парсинга хэш-параметров
+    const hashParams = parseHashParams(hashStr);
+    
+    const accessToken = hashParams.access_token;
+    const refreshToken = hashParams.refresh_token;
+    const type = hashParams.type;
+    const errorCode = hashParams.error_code;
+    const errorDescription = hashParams.error_description;
+    
+    console.log('Обработанные хэш параметры:', { 
+      hasAccessToken: !!accessToken, 
+      hasRefreshToken: !!refreshToken,
+      type,
+      errorCode: errorCode || 'нет',
+      errorDesc: errorDescription ? '(присутствует)' : 'нет'
+    });
+    
+    // Проверяем наличие ошибок в hash
+    if (errorCode || errorDescription) {
+      console.error('Получена ошибка аутентификации:', errorCode, errorDescription);
+      // Используем форматированное сообщение об ошибке
+      error.value = formatErrorMessage(errorDescription) || 'Произошла ошибка при аутентификации';
+      loading.value = false;
+      return;
+    }
+    
+    // Получаем query параметры
     const queryParams = new URLSearchParams(window.location.search);
     const tokenHash = queryParams.get('token_hash');
-    const type = queryParams.get('type');
-    const redirectTo = queryParams.get('redirectTo') || '/';
+    const queryType = queryParams.get('type');
+    const queryErrorCode = queryParams.get('error_code');
+    const queryErrorDescription = queryParams.get('error_description');
     
-    if (tokenHash && type) {
+    // Проверяем наличие ошибок в query
+    if (queryErrorCode || queryErrorDescription) {
+      console.error('Получена ошибка в query:', queryErrorCode, queryErrorDescription);
+      // Также форматируем сообщение об ошибке из query-параметров
+      error.value = formatErrorMessage(queryErrorDescription) || 'Произошла ошибка при аутентификации';
+      loading.value = false;
+      return;
+    }
+    
+    console.log('Query параметры:', {
+      hasTokenHash: !!tokenHash,
+      type: queryType
+    });
+    
+    // Обрабатываем разные сценарии аутентификации
+    if (accessToken) {
+      console.log('Обработка сценария с access_token');
+      
+      // Устанавливаем токены в сессию
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      });
+      
+      if (sessionError) {
+        console.error('Ошибка установки сессии:', sessionError);
+        throw sessionError;
+      }
+      
+      console.log('Сессия успешно установлена');
+      
+      // Обновляем данные пользователя в store
+      await authStore.initAuth();
+      success.value = true;
+      
+      // Перенаправляем на главную страницу через 2 секунды
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 2000);
+    } else if (tokenHash && queryType) {
+      console.log('Обработка верификации через token_hash');
+      
       // Обрабатываем подтверждение email
       const { error: verifyError } = await supabase.auth.verifyOtp({
-        type,
+        type: queryType,
         token_hash: tokenHash
       });
       
       if (verifyError) {
-        error.value = `Ошибка подтверждения: ${verifyError.message}`;
-        success.value = false;
-        return;
+        console.error('Ошибка верификации:', verifyError);
+        // Форматируем сообщение об ошибке верификации
+        error.value = formatErrorMessage(verifyError.message) || 'Ошибка подтверждения email';
+        throw verifyError;
       }
+      
+      console.log('Email успешно подтвержден');
+      
+      // Обновляем данные пользователя из сессии
+      await authStore.initAuth();
+      success.value = true;
+      
+      // Перенаправляем на главную страницу через 2 секунды
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 2000);
+    } else {
+      console.error('Не найдены необходимые параметры для аутентификации');
+      error.value = 'Ссылка аутентификации некорректна или устарела';
     }
-    
-    // Обновляем данные пользователя из сессии
-    const { error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      error.value = sessionError.message;
-      success.value = false;
-      return;
-    }
-    
-    // Обновляем данные пользователя в store
-    await authStore.initAuth();
-    success.value = true;
-    
-    // Перенаправляем на главную страницу через 2 секунды
-    setTimeout(() => {
-      router.push(redirectTo);
-    }, 2000);
   } catch (err) {
     console.error('Ошибка при обработке callback:', err);
-    error.value = 'Что-то пошло не так при обработке аутентификации';
+    // Форматируем сообщение об ошибке из исключения
+    error.value = formatErrorMessage(err.message) || 'Что-то пошло не так при обработке аутентификации';
     success.value = false;
   } finally {
     loading.value = false;

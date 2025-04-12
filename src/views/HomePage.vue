@@ -8,7 +8,7 @@
             Приёмная кампания 2024/2025
           </h1>
           <p class="text-lg md:text-xl opacity-90 mb-8">
-            Подай документы онлайн для поступления в Ташкентский филиал Университета Губкина
+            Подай документы онлайн для поступления в Филиал РГУ нефти и газа (НИУ) имени И.М. Губкина в городе Ташкенте
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center">
             <BaseButton tag="router-link" to="/register" size="lg" variant="light" class="font-semibold">
@@ -26,7 +26,7 @@
     <section class="py-12 md:py-20 bg-white">
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
         <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
-          Почему Ташкентский филиал Университета Губкина?
+          Почему Филиал РГУ нефти и газа (НИУ) имени И.М. Губкина в городе Ташкенте?
         </h2>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -42,7 +42,7 @@
               </div>
             </template>
             <p class="text-gray-600">
-              Наш университет оснащен современными учебными аудиториями, лабораториями и уникальными тренажерами для практического обучения.
+              Наш Филиал оснащен современными учебными аудиториями, лабораториями и уникальными тренажерами для практического обучения.
             </p>
           </BaseCard>
           
