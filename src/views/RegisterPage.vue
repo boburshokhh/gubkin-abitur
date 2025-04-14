@@ -363,7 +363,7 @@
                     @change="onDirectionChange"
                   >
                     <option value="">Выберите направление</option>
-                    <option v-for="direction in directions" :key="direction.id" :value="direction.id">
+                    <option v-for="direction in availableDirections" :key="direction.id" :value="direction.id">
                       {{ direction.name }}
                     </option>
                   </select>
@@ -680,7 +680,7 @@ onMounted(async () => {
 });
 
 // Направления подготовки из хранилища
-const directions = computed(() => appStore.allDirections);
+const availableDirections = computed(() => appStore.allDirections);
 // Типы документов из хранилища
 const documentTypes = computed(() => appStore.documentTypes);
 
@@ -763,7 +763,7 @@ const stepTitle = computed(() => {
 // Выбранное направление
 const selectedDirection = computed(() => {
   if (!form.value.direction) return null;
-  return directions.value.find(d => d.id === form.value.direction);
+  return availableDirections.value.find(d => d.id === form.value.direction);
 });
 
 // Доступные профили для выбранного направления
@@ -932,7 +932,7 @@ const getEducationLevelName = (level) => {
 
 // Получение названия направления
 const getDirectionName = (id) => {
-  const direction = directions.value.find(d => d.id === id);
+  const direction = availableDirections.value.find(d => d.id === id);
   return direction ? direction.name : '';
 };
 
@@ -1052,7 +1052,7 @@ const submitForm = async () => {
       education_document_date: form.value.documentDate
     };
     
-    submissionProgress.value = 30;
+      submissionProgress.value = 30;
     submissionStatus.value = 'Создание заявления...';
     
     // Создаем заявку
