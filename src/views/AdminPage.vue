@@ -71,17 +71,8 @@
         <EducationalProgramsManager />
       </div>
 
-      <div v-else-if="currentTab === 'applications'" class="px-2 py-4 sm:px-0 sm:py-6">
-        <div class="border-4 border-dashed border-gray-200 rounded-lg h-64 sm:h-96 flex items-center justify-center">
-          <div class="text-center px-4">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">
-              Управление заявками
-            </h3>
-            <p class="text-gray-500 text-sm sm:text-base">
-              Здесь будет размещен функционал управления заявками абитуриентов
-            </p>
-          </div>
-        </div>
+      <div v-else-if="currentTab === 'applications'" class="px-2 sm:px-0">
+        <ApplicationsManager />
       </div>
     </main>
   </div>
@@ -95,6 +86,7 @@ import { useToast } from 'vue-toastification';
 import UsersManagement from './admin/UsersManagement.vue';
 import StatisticsView from './admin/StatisticsView.vue';
 import EducationalProgramsManager from './admin/educational-programs/EducationalProgramsManager.vue';
+import ApplicationsManager from './admin/ApplicationsManager.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();

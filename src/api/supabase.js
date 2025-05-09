@@ -745,8 +745,8 @@ export const applications = {
       .from('applications')
       .select(`
         *,
-          direction:direction_id(id, name),
-          user:user_id(id, first_name, last_name, email)
+        direction:direction_id (id, name),
+        user:user_id (id, first_name, last_name, email)
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
@@ -765,9 +765,9 @@ export const applications = {
       .from('applications')
       .select(`
         *,
-          direction:direction_id(id, name),
-          user:user_id(id, first_name, last_name, email),
-          documents:id(id, document_type_id, file_path, updated_at, document_type:document_type_id(id, name))
+        direction:direction_id (id, name),
+        user:user_id (id, first_name, last_name, email),
+        documents(id, document_type_id, file_path, file_name, file_size, updated_at, document_type:document_type_id(id, name))
       `)
       .eq('id', id)
       .single()
@@ -814,21 +814,40 @@ export const applications = {
 
   // Создать новую заявку
   async create(applicationData) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
-
     try {
-    const { data, error } = await supabase
-      .from('applications')
-      .insert({
-        ...applicationData,
-        user_id: user.id,
-          status: 'draft' // Черновик
-      })
-      .select()
-      .single()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
 
-    return { data, error }
+      // Форматирование номера телефона родителя для корректного сохранения
+      let parentPhone = applicationData.parent_phone;
+      if (parentPhone && !parentPhone.startsWith('+998')) {
+        parentPhone = '+998 ' + parentPhone;
+      }
+      
+      const { data, error } = await supabase
+        .from('applications')
+        .insert({
+          user_id: user.id,
+          direction_id: applicationData.direction_id,
+          status_id: 1, // Статус "Черновик"
+          passport_series: applicationData.passport_series,
+          passport_issue_date: applicationData.passport_issue_date,
+          passport_issued_by: applicationData.passport_issued_by,
+          education_level: applicationData.education_level,
+          education_institution: applicationData.education_institution,
+          education_graduation_year: applicationData.education_graduation_year,
+          document_number: applicationData.education_document_number || applicationData.document_number,
+          document_date: applicationData.education_document_date || applicationData.document_date,
+          study_form: applicationData.study_form || 'full-time', // По умолчанию "очная"
+          funding_form: applicationData.funding_form,
+          accommodation_needed: applicationData.accommodation_needed || false,
+          olympiad_participant: applicationData.olympiad_participant || false,
+          parent_phone: parentPhone // Добавляем телефон родителя
+        })
+        .select('*, direction:direction_id(*)')
+        .single()
+
+      return { data, error }
     } catch (err) {
       console.error('Ошибка создания заявки:', err)
       return { data: null, error: err }
@@ -877,7 +896,7 @@ export const documents = {
       .from('documents')
       .select(`
         *,
-        document_type:document_types(*)
+        document_type:document_type_id (id, name)
       `)
       .eq('application_id', applicationId)
 

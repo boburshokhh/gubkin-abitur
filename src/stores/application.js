@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { applications, documents, directions, excelExport } from '../api/supabase'
+import * as applicationsApi from '../api/applications'
+import * as documentsApi from '../api/documents'
+import * as directionsApi from '../api/directions'
+import { excelExport, supabase } from '../api/supabase'
 
 export const useApplicationStore = defineStore('application', () => {
   // Состояние
@@ -9,6 +12,7 @@ export const useApplicationStore = defineStore('application', () => {
   const applicationDocuments = ref([])
   const allDirections = ref([])
   const documentTypes = ref([])
+  const regions = ref([])
   const isLoading = ref(false)
   const error = ref(null)
 
@@ -24,7 +28,7 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
 
     try {
-      const { data, error: loadError } = await applications.getAll()
+      const { data, error: loadError } = await applicationsApi.getAll()
       
       if (loadError) throw loadError
       
@@ -45,7 +49,7 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
 
     try {
-      const { data, error: statsError } = await applications.getStatistics()
+      const { data, error: statsError } = await applicationsApi.getStatistics()
       
       if (statsError) throw statsError
       
@@ -66,7 +70,7 @@ export const useApplicationStore = defineStore('application', () => {
     currentApplication.value = null
 
     try {
-      const { data, error: loadError } = await applications.getById(id)
+      const { data, error: loadError } = await applicationsApi.getById(id)
       
       if (loadError) throw loadError
       
@@ -91,7 +95,13 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
 
     try {
-      const { data, error: createError } = await applications.create(applicationData)
+      // Убедимся, что для формы обучения установлено значение по умолчанию
+      const applicationWithDefaults = {
+        ...applicationData,
+        study_form: applicationData.study_form || 'full-time' // Устанавливаем 'full-time' если значение не задано
+      }
+
+      const { data, error: createError } = await applicationsApi.create(applicationWithDefaults)
       
       if (createError) throw createError
       
@@ -115,7 +125,7 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
 
     try {
-      const { data, error: updateError } = await applications.update(id, applicationData)
+      const { data, error: updateError } = await applicationsApi.update(id, applicationData)
       
       if (updateError) throw updateError
       
@@ -147,7 +157,7 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
 
     try {
-      const { data, error: submitError } = await applications.submit(id)
+      const { data, error: submitError } = await applicationsApi.submit(id)
       
       if (submitError) throw submitError
       
@@ -179,7 +189,7 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
 
     try {
-      const { data, error: loadError } = await directions.getAll()
+      const { data, error: loadError } = await directionsApi.getAll()
       
       if (loadError) throw loadError
       
@@ -200,7 +210,7 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
 
     try {
-      const { data, error: loadError } = await documents.getByApplicationId(applicationId)
+      const { data, error: loadError } = await documentsApi.getByApplicationId(applicationId)
       
       if (loadError) throw loadError
       
@@ -221,7 +231,7 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
 
     try {
-      const { data, error: loadError } = await documents.getTypes()
+      const { data, error: loadError } = await documentsApi.getTypes()
       
       if (loadError) throw loadError
       
@@ -242,7 +252,7 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
 
     try {
-      const { data, error: uploadError, publicUrl } = await documents.upload(
+      const { data, error: uploadError, publicUrl } = await documentsApi.upload(
         applicationId, 
         documentTypeId, 
         file
@@ -250,13 +260,11 @@ export const useApplicationStore = defineStore('application', () => {
       
       if (uploadError) throw uploadError
       
+      // Если успешно, добавляем документ в список
       if (data) {
-        // Добавляем документ в список если он уже загружен
-        applicationDocuments.value.push({
-          ...data,
-          document_type: documentTypes.value.find(type => type.id === documentTypeId),
-          publicUrl
-        })
+        // Добавляем publicUrl к документу для удобства
+        data.publicUrl = publicUrl
+        applicationDocuments.value.push(data)
       }
       
       return { success: true, data }
@@ -268,98 +276,154 @@ export const useApplicationStore = defineStore('application', () => {
       isLoading.value = false
     }
   }
-
-  // Экспорт данных всех абитуриентов в Excel
-  async function exportAllApplicantsToExcel() {
+  
+  // Загрузить регионы
+  async function loadRegions() {
+    isLoading.value = true
+    error.value = null
+    
     try {
-      const { success, data, error } = await excelExport.getAllApplicantsData();
+      // Предполагаем, что в supabase.js есть соответствующий метод
+      const { data, error: loadError } = await supabase
+        .from('regions')
+        .select('*')
+        .order('name')
       
-      if (!success || !data) {
-        console.error('Ошибка получения данных для экспорта:', error);
-        return { success: false, error: error || 'Не удалось получить данные для экспорта' };
+      if (loadError) throw loadError
+      
+      regions.value = data || []
+      return true
+    } catch (err) {
+      console.error('Ошибка загрузки регионов:', err)
+      error.value = err.message || 'Не удалось загрузить регионы'
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Экспорт всех абитуриентов в Excel
+  async function exportAllApplicantsToExcel() {
+    isLoading.value = true
+    error.value = null
+    
+    try {
+      const result = await excelExport.getAllApplicantsData()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Не удалось получить данные для экспорта')
       }
       
-      // Скачиваем Excel файл
-      const exportResult = await excelExport.downloadExcel(data, 'all-applicants.xlsx');
-      
-      return exportResult;
+      await excelExport.downloadExcel(result.data, 'all-applicants.xlsx')
+      return { success: true }
     } catch (err) {
-      console.error('Ошибка экспорта данных в Excel:', err);
-      return { success: false, error: err.message };
+      console.error('Ошибка экспорта в Excel:', err)
+      error.value = err.message || 'Не удалось экспортировать данные'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
     }
   }
   
-  // Экспорт данных конкретного абитуриента в Excel
+  // Экспорт данных одного абитуриента в Excel
   async function exportApplicantToExcel(userId) {
+    isLoading.value = true
+    error.value = null
+    
     try {
-      if (!userId) {
-        return { success: false, error: 'ID пользователя не указан' };
+      const result = await excelExport.getApplicantDataById(userId)
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Не удалось получить данные для экспорта')
       }
       
-      const { success, data, error } = await excelExport.getApplicantDataById(userId);
-      
-      if (!success || !data) {
-        console.error('Ошибка получения данных абитуриента для экспорта:', error);
-        return { success: false, error: error || 'Не удалось получить данные абитуриента' };
-      }
-      
-      // Скачиваем Excel файл
-      const userName = data[0] ? `${data[0].last_name || ''}_${data[0].first_name || ''}` : 'applicant';
-      const exportResult = await excelExport.downloadExcel(data, `${userName}.xlsx`);
-      
-      return exportResult;
+      await excelExport.downloadExcel(result.data, `applicant-${userId}.xlsx`)
+      return { success: true }
     } catch (err) {
-      console.error('Ошибка экспорта данных абитуриента в Excel:', err);
-      return { success: false, error: err.message };
+      console.error('Ошибка экспорта в Excel:', err)
+      error.value = err.message || 'Не удалось экспортировать данные'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
     }
   }
   
   // Экспорт данных заявления в Excel
   async function exportApplicationToExcel(applicationId) {
+    isLoading.value = true
+    error.value = null
+    
     try {
-      if (!applicationId) {
-        return { success: false, error: 'ID заявления не указан' };
+      const result = await excelExport.getApplicantDataByApplicationId(applicationId)
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Не удалось получить данные для экспорта')
       }
       
-      const { success, data, error } = await excelExport.getApplicantDataByApplicationId(applicationId);
-      
-      if (!success || !data) {
-        console.error('Ошибка получения данных заявления для экспорта:', error);
-        return { success: false, error: error || 'Не удалось получить данные заявления' };
-      }
-      
-      // Скачиваем Excel файл
-      const exportResult = await excelExport.downloadExcel(data, `application-${applicationId}.xlsx`);
-      
-      return exportResult;
+      await excelExport.downloadExcel(result.data, `application-${applicationId}.xlsx`)
+      return { success: true }
     } catch (err) {
-      console.error('Ошибка экспорта данных заявления в Excel:', err);
-      return { success: false, error: err.message };
+      console.error('Ошибка экспорта в Excel:', err)
+      error.value = err.message || 'Не удалось экспортировать данные'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  // Создать запись о сертификате олимпиады
+  async function createOlympiadCertificate(certificateData) {
+    isLoading.value = true
+    error.value = null
+    
+    try {
+      const { data, error: certError } = await supabase
+        .from('olympiad_certificates')
+        .insert(certificateData)
+        .select()
+      
+      if (certError) throw certError
+      
+      return { success: true, data }
+    } catch (err) {
+      console.error('Ошибка создания записи о сертификате:', err)
+      error.value = err.message || 'Не удалось создать запись о сертификате'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
     }
   }
 
   return {
+    // Состояние
     userApplications,
     currentApplication,
     applicationDocuments,
     allDirections,
     documentTypes,
+    regions,
     isLoading,
     error,
+
+    // Геттеры
     hasApplications,
     applicationById,
+
+    // Действия
     loadUserApplications,
     loadApplication,
-    createApplication,
-    updateApplication,
-    submitApplication,
     loadDirections,
     loadDocuments,
     loadDocumentTypes,
+    loadRegions,
+    createApplication,
+    updateApplication,
+    submitApplication,
     uploadDocument,
     getApplicationsStatistics,
     exportAllApplicantsToExcel,
     exportApplicantToExcel,
-    exportApplicationToExcel
+    exportApplicationToExcel,
+    createOlympiadCertificate
   }
 }) 
