@@ -1,59 +1,44 @@
 <template>
-  <component
-    :is="tag"
+  <button
     :type="type"
-    :to="to"
     :class="[
-      'inline-flex items-center justify-center rounded-md font-medium focus:outline-none transition-colors',
+      'flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2',
       sizeClasses,
       variantClasses,
-      {'opacity-50 cursor-not-allowed': disabled},
-      {'w-full': block},
-      className
+      disabled ? 'opacity-50 cursor-not-allowed' : '',
+      loading ? 'relative !text-transparent' : ''
     ]"
-    :disabled="disabled"
-    @click="$emit('click', $event)"
+    :disabled="disabled || loading"
+    v-bind="$attrs"
   >
-    <span class="flex items-center">
-      <slot name="prefix"></slot>
-      <slot></slot>
-      <slot name="suffix"></slot>
-    </span>
-    
-    <span v-if="loading" class="ml-2">
-      <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <slot />
+    <!-- Спиннер загрузки -->
+    <div v-if="loading" class="absolute inset-0 flex items-center justify-center">
+      <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
-    </span>
-  </component>
+    </div>
+  </button>
 </template>
 
 <script setup>
 import { computed } from 'vue';
 
 const props = defineProps({
-  tag: {
-    type: String,
-    default: 'button'
-  },
-  type: {
-    type: String,
-    default: 'button'
-  },
-  to: {
-    type: [String, Object],
-    default: undefined
-  },
   variant: {
     type: String,
-    default: 'primary',
-    validator: (value) => ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark', 'link'].includes(value)
+    default: 'default',
+    validator: (value) => ['default', 'primary', 'danger', 'outline', 'ghost'].includes(value)
   },
   size: {
     type: String,
     default: 'md',
     validator: (value) => ['sm', 'md', 'lg'].includes(value)
+  },
+  type: {
+    type: String,
+    default: 'button'
   },
   disabled: {
     type: Boolean,
@@ -62,51 +47,26 @@ const props = defineProps({
   loading: {
     type: Boolean,
     default: false
-  },
-  block: {
-    type: Boolean,
-    default: false
-  },
-  className: {
-    type: String,
-    default: ''
   }
 });
 
-defineEmits(['click']);
-
-// Классы для размера кнопки
+// Классы для размеров
 const sizeClasses = computed(() => {
-  switch (props.size) {
-    case 'sm': return 'px-3 py-1.5 text-sm';
-    case 'lg': return 'px-6 py-3 text-lg';
-    default: return 'px-4 py-2 text-base';
-  }
+  return {
+    sm: 'h-8 px-3 text-xs',
+    md: 'h-10 px-4 py-2',
+    lg: 'h-12 px-6 py-3 text-base'
+  }[props.size];
 });
 
-// Классы для варианта (цвета) кнопки
+// Классы для вариантов
 const variantClasses = computed(() => {
-  switch (props.variant) {
-    case 'primary':
-      return 'bg-primary-600 hover:bg-primary-700 text-white shadow-sm focus:ring-2 focus:ring-primary-500 focus:ring-offset-2';
-    case 'secondary':
-      return 'bg-gray-200 hover:bg-gray-300 text-gray-800 shadow-sm focus:ring-2 focus:ring-gray-400 focus:ring-offset-2';
-    case 'success':
-      return 'bg-green-600 hover:bg-green-700 text-white shadow-sm focus:ring-2 focus:ring-green-500 focus:ring-offset-2';
-    case 'danger':
-      return 'bg-red-600 hover:bg-red-700 text-white shadow-sm focus:ring-2 focus:ring-red-500 focus:ring-offset-2';
-    case 'warning':
-      return 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm focus:ring-2 focus:ring-amber-400 focus:ring-offset-2';
-    case 'info':
-      return 'bg-blue-500 hover:bg-blue-600 text-white shadow-sm focus:ring-2 focus:ring-blue-400 focus:ring-offset-2';
-    case 'light':
-      return 'bg-gray-100 hover:bg-gray-200 text-gray-800 shadow-sm focus:ring-2 focus:ring-gray-200 focus:ring-offset-2';
-    case 'dark':
-      return 'bg-gray-800 hover:bg-gray-900 text-white shadow-sm focus:ring-2 focus:ring-gray-700 focus:ring-offset-2';
-    case 'link':
-      return 'bg-transparent hover:bg-gray-100 text-primary-600 hover:text-primary-800 focus:ring-0';
-    default:
-      return 'bg-primary-600 hover:bg-primary-700 text-white shadow-sm focus:ring-2 focus:ring-primary-500 focus:ring-offset-2';
-  }
+  return {
+    default: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
+    primary: 'bg-primary-600 text-white hover:bg-primary-700',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
+    outline: 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50',
+    ghost: 'bg-transparent text-gray-700 hover:bg-gray-100'
+  }[props.variant];
 });
 </script> 

@@ -280,6 +280,7 @@ const navigationLinks = [
   { to: '/directions', text: 'Направления' },
   { to: '/faq', text: 'Вопросы и ответы' },
   { to: '/contacts', text: 'Контакты' },
+  { to: '/statistics', text: 'Статистика' },
 ];
 
 // Вычисляемые свойства

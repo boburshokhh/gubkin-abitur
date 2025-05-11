@@ -1,143 +1,32 @@
 <template>
   <div>
-    <div class="bg-white shadow rounded-lg p-4 mb-6">
-      <h2 class="text-xl font-bold mb-4">Управление направлениями подготовки</h2>
-      <p class="text-gray-600 mb-4">Добавление, редактирование и удаление направлений бакалавриата и специалитета.</p>
-      
-      <div class="flex gap-2 mb-4">
-        <BaseButton @click="openDirectionModal()" variant="primary">
-          Добавить направление
-        </BaseButton>
-      </div>
-      
-      <!-- Фильтры и поиск -->
-      <div class="flex flex-wrap gap-4 mb-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Тип программы</label>
-          <select 
-            v-model="filters.programType" 
-            class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-          >
-            <option value="">Все</option>
-            <option value="bachelor">Бакалавриат</option>
-            <option value="specialist">Специалитет</option>
-          </select>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Область</label>
-          <select 
-            v-model="filters.field" 
-            class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-          >
-            <option value="">Все</option>
-            <option value="oil">Нефтегазовое дело</option>
-            <option value="economics">Экономика</option>
-            <option value="management">Менеджмент</option>
-            <option value="geology">Геология</option>
-          </select>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Поиск</label>
-          <input 
-            v-model="filters.search" 
-            type="text" 
-            class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-            placeholder="Поиск по названию или коду"
-          />
-        </div>
-      </div>
-    </div>
+    <!-- Фильтры -->
+    <DirectionFilters 
+      v-model="filters"
+      :fields="filteredFields"
+      :total-count="filteredDirections.length"
+      @add="openDirectionModal()"
+    />
     
-    <!-- Таблица направлений -->
-    <div class="bg-white shadow rounded-lg overflow-hidden">
-      <div v-if="isLoading" class="p-8 text-center">
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600 mb-4"></div>
-        <p class="text-gray-500">Загрузка данных...</p>
-      </div>
-      
-      <div v-else-if="filteredDirections.length === 0" class="p-8 text-center">
-        <p class="text-gray-500">Направления не найдены</p>
-      </div>
-      
-      <table v-else class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Код
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Название
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Тип
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Область
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Статус
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Профили
-            </th>
-            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Действия
-            </th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="direction in filteredDirections" :key="direction.id">
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-              {{ direction.code }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {{ direction.name }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {{ direction.program_type === 'bachelor' ? 'Бакалавриат' : 'Специалитет' }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {{ getFieldName(direction.field) }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <span 
-                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                :class="direction.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
-              >
-                {{ direction.is_active ? 'Активно' : 'Неактивно' }}
-              </span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {{ profilesCount[direction.id] || 0 }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <button 
-                @click="openDirectionModal(direction)" 
-                class="text-primary-600 hover:text-primary-900 mr-4"
-              >
-                Редактировать
-              </button>
-              <button 
-                @click="confirmDeleteDirection(direction)" 
-                class="text-red-600 hover:text-red-900"
-              >
-                Удалить
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <!-- Список направлений -->
+    <DirectionList 
+      :items="filteredDirections"
+      :loading="isLoading"
+      :direction-subjects-map="directionSubjectsMap"
+      :subjects-data="subjectsData"
+      :field-mapping="fieldMapping"
+      @edit="openDirectionModal"
+      @delete="confirmDeleteDirection"
+    />
     
     <!-- Модальное окно направления -->
     <BaseModal 
       v-model="showDirectionModal"
       :title="isEditMode ? 'Редактирование направления' : 'Добавление направления'" 
       @close="closeDirectionModal"
+      class="w-full sm:w-11/12 md:w-4/5 lg:w-3/5 xl:w-3/5 mx-auto"
     >
-      <form @submit.prevent="saveDirection" class="direction-form space-y-4">
+      <form @submit.prevent="saveDirection" class="direction-form space-y-4 overflow-y-auto max-h-[80vh]">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="col-span-1">
             <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -195,6 +84,7 @@
             <select 
               v-model="currentDirection.program_type" 
               required
+              @change="handleProgramTypeChange"
               class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
             >
               <option value="bachelor">Бакалавриат</option>
@@ -209,10 +99,9 @@
               required
               class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
             >
-              <option value="oil">Нефтегазовое дело</option>
-              <option value="economics">Экономика</option>
-              <option value="management">Менеджмент</option>
-              <option value="geology">Геология</option>
+              <option v-for="field in availableFields" :key="field.value" :value="field.value">
+                {{ field.label }}
+              </option>
             </select>
           </div>
           
@@ -274,6 +163,65 @@
               placeholder="ИТ, Программирование, Наука"
             />
           </div>
+          
+          <!-- Новая секция для выбора предметов для экзамена -->
+          <div class="col-span-2 border-t border-gray-200 pt-4 mt-2">
+            <h3 class="text-lg font-medium text-gray-900 mb-3">Предметы для экзамена</h3>
+            
+            <div v-if="isLoadingSubjects" class="py-2">
+              <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-600 mr-2"></div>
+              <span class="text-sm text-gray-500">Загрузка предметов...</span>
+            </div>
+            
+            <div v-else class="space-y-3">
+              <div class="flex flex-wrap gap-2">
+                <div 
+                  v-for="subject in subjectsData" 
+                  :key="subject.id" 
+                  class="flex-1 min-w-[160px] max-w-full sm:max-w-[200px]"
+                >
+                  <label class="flex items-center p-2 border rounded-md w-full cursor-pointer" 
+                    :class="isSubjectSelected(subject.id) ? 'bg-primary-50 border-primary-300' : 'border-gray-300'"
+                  >
+                    <input 
+                      type="checkbox" 
+                      :value="subject.id" 
+                      v-model="selectedSubjectIds"
+                      class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <span class="ml-2 text-sm truncate">{{ subject.name }}</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div v-if="selectedSubjectIds.length > 0" class="mt-4 space-y-3">
+                <h4 class="font-medium text-sm text-gray-700">Минимальные баллы для выбранных предметов:</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div v-for="subjectId in selectedSubjectIds" :key="subjectId" 
+                       class="flex items-center gap-3 border p-2 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    <div class="flex-grow">
+                      <span class="text-sm font-medium">{{ getSubjectName(subjectId) }}</span>
+                    </div>
+                    <div class="w-24 flex items-center">
+                      <input 
+                        v-model="subjectScores[subjectId]" 
+                        type="number" 
+                        min="0" 
+                        max="100" 
+                        class="block w-full pl-3 pr-2 py-1 text-base border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                        placeholder="Мин. балл"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div v-if="selectedSubjectIds.length === 0" class="text-sm text-gray-500 italic bg-gray-50 p-3 rounded-md">
+                Выберите хотя бы один предмет для экзамена
+              </div>
+            </div>
+          </div>
         </div>
         
         <div class="mt-6 flex justify-end gap-3">
@@ -310,57 +258,35 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
-import { directions, profiles } from '@/api/supabase';
+import { directions, profiles, subjects } from '@/api/supabase';
 import { BaseButton, BaseModal } from '@/components/ui';
 import { useToast } from 'vue-toastification';
+import DirectionFilters from '@/components/admin/directions/DirectionFilters.vue';
+import DirectionList from '@/components/admin/directions/DirectionList.vue';
+import useDirections from '@/composables/useDirections';
 
 const toast = useToast();
 
-// Состояние загрузки
-const isLoading = ref(false);
-const isSaving = ref(false);
-const isDeleting = ref(false);
-
-// Модальные окна
-const showDirectionModal = ref(false);
-const showDeleteModal = ref(false);
-const isEditMode = ref(false);
-
-// Данные направлений и профилей
-const directionsData = ref([]);
-const profilesCount = ref({});
-
-// Текущее направление для редактирования
-const defaultDirection = {
-  code: '',
-  slug: '',
-  name: '',
-  description: '',
-  field: 'oil',
-  icon_type: 'book',
-  program_type: 'bachelor',
-  duration: '',
-  places: '',
-  is_active: true,
-  tags: []
-};
-
-const currentDirection = ref({ ...defaultDirection });
-const directionToDelete = ref(null);
-const tagsInput = ref('');
+// Используем composable для работы с направлениями
+const {
+  isLoading, 
+  isSaving, 
+  isDeleting,
+  isLoadingSubjects,
+  directionsData,
+  subjectsData,
+  directionSubjectsMap,
+  fetchData, 
+  fetchSubjects,
+  getFieldName,
+  deleteDirection: removeDirection
+} = useDirections();
 
 // Фильтры
 const filters = reactive({
   programType: '',
   field: '',
   search: ''
-});
-
-// Добавляем состояние для ошибок формы
-const formErrors = reactive({
-  code: '',
-  name: '',
-  slug: ''
 });
 
 // Фильтрованные направления
@@ -386,74 +312,193 @@ const filteredDirections = computed(() => {
   return filtered;
 });
 
-// Получение названия области обучения
-const getFieldName = (fieldId) => {
-  const fields = {
-    'oil': 'Нефтегазовое дело',
-    'economics': 'Экономика',
-    'management': 'Менеджмент',
-    'geology': 'Геология'
-  };
+// Маппинг полей для использования в компонентах
+const fieldMapping = computed(() => {
+  const result = {};
   
-  return fields[fieldId] || fieldId;
+  // Бакалавриат
+  result['oil_bachelor'] = 'Нефтегазовое дело (21.03.01)';
+  result['economics_bachelor'] = 'Экономика (38.03.01)';
+  result['management_bachelor'] = 'Менеджмент (38.03.02)';
+  result['geology_bachelor'] = 'Геология (21.03.01)';
+  
+  // Специалитет
+  result['oil_tech_specialist'] = 'Нефтегазовые техника и технологии (21.05.06)';
+  result['geology_tech_specialist'] = 'Технология геологической разведки (21.05.03)';
+  
+  // Старые значения для совместимости
+  result['oil'] = 'Нефтегазовое дело';
+  result['economics'] = 'Экономика';
+  result['management'] = 'Менеджмент';
+  result['geology'] = 'Геология';
+  
+  return result;
+});
+
+// Фильтрованные области в зависимости от выбранного типа программы
+const filteredFields = computed(() => {
+  // Если не выбран тип программы, возвращаем все возможные области
+  if (!filters.programType) {
+    return [
+      // Для бакалавриата
+      { value: 'oil_bachelor', label: 'Нефтегазовое дело (21.03.01)' },
+      { value: 'economics_bachelor', label: 'Экономика (38.03.01)' },
+      { value: 'management_bachelor', label: 'Менеджмент (38.03.02)' },
+      { value: 'geology_bachelor', label: 'Геология (21.03.01)' },
+      // Для специалитета
+      { value: 'oil_tech_specialist', label: 'Нефтегазовые техника и технологии (21.05.06)' },
+      { value: 'geology_tech_specialist', label: 'Технология геологической разведки (21.05.03)' },
+      // Старые значения для совместимости
+      { value: 'oil', label: 'Нефтегазовое дело' },
+      { value: 'economics', label: 'Экономика' },
+      { value: 'management', label: 'Менеджмент' },
+      { value: 'geology', label: 'Геология' }
+    ];
+  }
+  
+  // Для бакалавриата
+  if (filters.programType === 'bachelor') {
+    return [
+      { value: 'oil_bachelor', label: 'Нефтегазовое дело (21.03.01)' },
+      { value: 'economics_bachelor', label: 'Экономика (38.03.01)' },
+      { value: 'management_bachelor', label: 'Менеджмент (38.03.02)' },
+      { value: 'geology_bachelor', label: 'Геология (21.03.01)' },
+      // Для обратной совместимости
+      { value: 'oil', label: 'Нефтегазовое дело' },
+      { value: 'economics', label: 'Экономика' },
+      { value: 'management', label: 'Менеджмент' },
+      { value: 'geology', label: 'Геология' }
+    ];
+  }
+  
+  // Для специалитета
+  if (filters.programType === 'specialist') {
+    return [
+      { value: 'oil_tech_specialist', label: 'Нефтегазовые техника и технологии (21.05.06)' },
+      { value: 'geology_tech_specialist', label: 'Технология геологической разведки (21.05.03)' }
+    ];
+  }
+  
+  return [];
+});
+
+// Модальные окна
+const showDirectionModal = ref(false);
+const showDeleteModal = ref(false);
+const isEditMode = ref(false);
+
+// Текущее направление для редактирования
+const defaultDirection = {
+  code: '',
+  slug: '',
+  name: '',
+  description: '',
+  field: 'oil',
+  icon_type: 'book',
+  program_type: 'bachelor',
+  duration: '',
+  places: '',
+  is_active: true,
+  tags: []
 };
 
-// Загрузка данных
-const fetchData = async () => {
-  isLoading.value = true;
+const currentDirection = ref({ ...defaultDirection });
+const directionToDelete = ref(null);
+const tagsInput = ref('');
+const selectedSubjectIds = ref([]);
+const subjectScores = ref({});
+
+// Добавляем состояние для ошибок формы
+const formErrors = ref({
+  code: '',
+  name: '',
+  slug: ''
+});
+
+// Вычисляемое свойство для доступных областей в зависимости от типа программы
+const availableFields = computed(() => {
+  if (currentDirection.value.program_type === 'bachelor') {
+    return [
+      { value: 'oil_bachelor', label: 'Нефтегазовое дело (21.03.01)' },
+      { value: 'economics_bachelor', label: 'Экономика (38.03.01)' },
+      { value: 'management_bachelor', label: 'Менеджмент (38.03.02)' },
+      { value: 'geology_bachelor', label: 'Геология (21.03.01)' }
+    ];
+  } else if (currentDirection.value.program_type === 'specialist') {
+    return [
+      { value: 'oil_tech_specialist', label: 'Нефтегазовые техника и технологии (21.05.06)' },
+      { value: 'geology_tech_specialist', label: 'Технология геологической разведки (21.05.03)' }
+    ];
+  }
   
-  try {
-    // Получаем направления
-    const { data: fetchedDirections, error: directionsError } = await directions.getAll();
-    
-    if (directionsError) throw directionsError;
-    
-    directionsData.value = fetchedDirections || [];
-    
-    // Получаем количество профилей для каждого направления
-    const { data: allProfiles, error: profilesError } = await profiles.getAll();
-    
-    if (profilesError) throw profilesError;
-    
-    // Считаем профили по направлениям
-    const countByDirection = {};
-    
-    if (allProfiles) {
-      allProfiles.forEach(profile => {
-        if (!countByDirection[profile.direction_id]) {
-          countByDirection[profile.direction_id] = 0;
-        }
-        countByDirection[profile.direction_id]++;
-      });
-    }
-    
-    profilesCount.value = countByDirection;
-    
-  } catch (error) {
-    console.error('Ошибка при загрузке данных:', error);
-    toast.error('Не удалось загрузить данные направлений');
-  } finally {
-    isLoading.value = false;
+  // По умолчанию возвращаем пустой массив
+  return [];
+});
+
+// Обработчик изменения типа программы
+const handleProgramTypeChange = () => {
+  const fieldsForCurrentType = availableFields.value.map(f => f.value);
+  
+  // Если текущее значение поля не входит в список доступных для нового типа программы,
+  // устанавливаем первое доступное значение
+  if (!fieldsForCurrentType.includes(currentDirection.value.field) && fieldsForCurrentType.length > 0) {
+    currentDirection.value.field = fieldsForCurrentType[0];
   }
 };
 
+// Функции для работы с предметами
+const isSubjectSelected = (subjectId) => {
+  return selectedSubjectIds.value.includes(subjectId);
+};
+
+const getSubjectName = (subjectId) => {
+  const subject = subjectsData.value.find(s => s.id === subjectId);
+  return subject ? subject.name : 'Неизвестный предмет';
+};
+
 // Открытие модального окна для создания/редактирования
-const openDirectionModal = (direction = null) => {
+const openDirectionModal = async (direction = null) => {
   try {
-    console.log('Открытие модального окна. Данные направления:', direction);
+    // Сбрасываем выбранные предметы и баллы
+    selectedSubjectIds.value = [];
+    subjectScores.value = {};
     
     if (direction) {
       // Режим редактирования
       isEditMode.value = true;
       currentDirection.value = { ...direction };
       tagsInput.value = direction.tags ? direction.tags.join(', ') : '';
-      console.log('Режим редактирования. Текущее направление:', currentDirection.value);
+      
+      // Загружаем связанные предметы
+      try {
+        const { data: directionSubjects, error } = await subjects.getByDirectionId(direction.id);
+        
+        if (error) throw error;
+        
+        if (directionSubjects && directionSubjects.length > 0) {
+          // Заполняем выбранные предметы и их баллы
+          selectedSubjectIds.value = directionSubjects.map(ds => ds.subject_id);
+          
+          // Заполняем минимальные баллы
+          directionSubjects.forEach(ds => {
+            subjectScores.value[ds.subject_id] = ds.min_score;
+          });
+        }
+      } catch (error) {
+        console.error('Ошибка при загрузке предметов направления:', error);
+        toast.error('Не удалось загрузить предметы для направления');
+      }
     } else {
       // Режим создания
       isEditMode.value = false;
       currentDirection.value = { ...defaultDirection };
+      // При создании нового направления устанавливаем поле по умолчанию
+      if (currentDirection.value.program_type === 'bachelor' && availableFields.value.length > 0) {
+        currentDirection.value.field = availableFields.value[0].value;
+      } else if (currentDirection.value.program_type === 'specialist' && availableFields.value.length > 0) {
+        currentDirection.value.field = availableFields.value[0].value;
+      }
       tagsInput.value = '';
-      console.log('Режим создания. Шаблон направления:', currentDirection.value);
     }
     
     showDirectionModal.value = true;
@@ -465,13 +510,17 @@ const openDirectionModal = (direction = null) => {
 
 // Закрытие модального окна
 const closeDirectionModal = () => {
-  console.log('Закрытие модального окна');
   showDirectionModal.value = false;
   // Сбрасываем ошибки формы
-  Object.keys(formErrors).forEach(key => formErrors[key] = '');
+  formErrors.value = {
+    code: '',
+    name: '',
+    slug: ''
+  };
   currentDirection.value = { ...defaultDirection };
   tagsInput.value = '';
-  console.log('Модальное окно закрыто, данные сброшены');
+  selectedSubjectIds.value = [];
+  subjectScores.value = {};
 };
 
 // Функция валидации формы
@@ -479,20 +528,24 @@ const validateForm = () => {
   let isValid = true;
   
   // Сбрасываем ошибки
-  Object.keys(formErrors).forEach(key => formErrors[key] = '');
+  formErrors.value = {
+    code: '',
+    name: '',
+    slug: ''
+  };
   
   if (!currentDirection.value.code?.trim()) {
-    formErrors.code = 'Код направления обязателен';
+    formErrors.value.code = 'Код направления обязателен';
     isValid = false;
   }
   
   if (!currentDirection.value.name?.trim()) {
-    formErrors.name = 'Название обязательно';
+    formErrors.value.name = 'Название обязательно';
     isValid = false;
   }
   
   if (!currentDirection.value.slug?.trim()) {
-    formErrors.slug = 'URL-slug обязателен';
+    formErrors.value.slug = 'URL-slug обязателен';
     isValid = false;
   }
   
@@ -502,12 +555,9 @@ const validateForm = () => {
 // Сохранение направления
 const saveDirection = async (event) => {
   event.preventDefault();
-  console.log('Начало сохранения направления');
-  console.log('Текущие данные:', currentDirection.value);
   
   // Проверяем валидность формы
   if (!validateForm()) {
-    console.log('Форма не прошла валидацию');
     toast.error('Пожалуйста, заполните все обязательные поля');
     return;
   }
@@ -520,8 +570,6 @@ const saveDirection = async (event) => {
       .map(tag => tag.trim())
       .filter(tag => tag);
     
-    console.log('Обработанные теги:', tags);
-    
     // Формируем объект для сохранения
     const directionToSave = {
       ...currentDirection.value,
@@ -529,23 +577,45 @@ const saveDirection = async (event) => {
       updated_at: new Date().toISOString()
     };
     
-    console.log('Объект для сохранения:', directionToSave);
-    
     let result;
     
     if (isEditMode.value) {
-      console.log('Обновление существующего направления:', directionToSave.id);
       result = await directions.update(directionToSave.id, directionToSave);
     } else {
-      console.log('Создание нового направления');
       directionToSave.created_at = new Date().toISOString();
       result = await directions.create(directionToSave);
     }
     
-    console.log('Результат API запроса:', result);
-    
     if (result.error) {
       throw result.error;
+    }
+    
+    // Сохраняем связи с предметами
+    const directionId = result.data.id;
+    
+    // Удаляем старые связи и создаем новые
+    if (selectedSubjectIds.value.length > 0) {
+      // Сначала удаляем существующие связи
+      const { error: deleteError } = await subjects.deleteDirectionSubjects(directionId);
+      
+      if (deleteError) {
+        console.error('Ошибка при удалении старых связей с предметами:', deleteError);
+        toast.warning('Возникли проблемы при обновлении предметов');
+      }
+      
+      // Создаем новые связи
+      const subjectsToSave = selectedSubjectIds.value.map(subjectId => ({
+        direction_id: directionId,
+        subject_id: subjectId,
+        min_score: subjectScores.value[subjectId] || 40
+      }));
+      
+      const { error: saveSubjectsError } = await subjects.saveDirectionSubjects(subjectsToSave);
+      
+      if (saveSubjectsError) {
+        console.error('Ошибка при сохранении связей с предметами:', saveSubjectsError);
+        toast.warning('Возникли проблемы при сохранении предметов');
+      }
     }
     
     toast.success(isEditMode.value 
@@ -579,22 +649,16 @@ const cancelDelete = () => {
 const deleteDirection = async () => {
   if (!directionToDelete.value) return;
   
-  isDeleting.value = true;
-  
   try {
-    const { error } = await directions.delete(directionToDelete.value.id);
+    // Вызываем метод удаления из composable
+    const success = await removeDirection(directionToDelete.value.id);
     
-    if (error) throw error;
-    
-    toast.success('Направление успешно удалено');
-    cancelDelete();
-    fetchData();
-    
+    if (success) {
+      cancelDelete();
+    }
   } catch (error) {
     console.error('Ошибка при удалении направления:', error);
     toast.error('Не удалось удалить направление');
-  } finally {
-    isDeleting.value = false;
   }
 };
 

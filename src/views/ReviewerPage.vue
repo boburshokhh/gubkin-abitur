@@ -14,98 +14,184 @@
             <span class="inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-purple-100 text-purple-800">
               Сотрудник приемной комиссии
             </span>
+
           </div>
         </div>
       </div>
     </header>
 
-    <main class="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
-      <!-- Навигация -->
-      <div class="mb-4 sm:mb-6 border-b border-gray-200 overflow-x-auto">
-        <nav class="-mb-px flex space-x-4 sm:space-x-8 pb-1" aria-label="Tabs">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            @click="currentTab = tab.id"
-            class="whitespace-nowrap py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex-shrink-0"
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <!-- Навигационные вкладки -->
+      <div class="border-b border-gray-200 mb-6">
+        <nav class="flex -mb-px space-x-6 sm:space-x-8 overflow-x-auto">
+          <button 
+            @click="currentTab = 'applications'" 
             :class="[
-              currentTab === tab.id
+              'py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
+              currentTab === 'applications'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             ]"
           >
-            {{ tab.name }}
+            <span class="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Заявки абитуриентов
+            </span>
+          </button>
+          
+          <button
+            @click="currentTab = 'settings'" 
+            :class="[
+              'py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
+              currentTab === 'settings'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+          >
+            <span class="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Настройки
+            </span>
           </button>
         </nav>
       </div>
 
       <!-- Содержимое вкладок -->
-      <div v-if="currentTab === 'dashboard'" class="px-2 py-4 sm:px-0 sm:py-6">
-        <div class="border-4 border-dashed border-gray-200 rounded-lg h-64 sm:h-96 flex items-center justify-center">
-          <div class="text-center px-4">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">
-              Добро пожаловать в панель сотрудника приемной комиссии
-            </h3>
-            <p class="text-gray-500 text-sm sm:text-base">
-              Здесь будет размещен функционал для обработки заявок абитуриентов
-            </p>
+      <div v-if="currentTab === 'applications'" class="px-2 sm:px-0">
+        <ApplicationsManager />
+      </div>
+
+      <div v-else-if="currentTab === 'settings'" class="px-2 sm:px-0">
+        <div class="bg-white shadow rounded-lg p-6">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">Настройки профиля</h2>
+          <div class="space-y-6">
+            <div>
+              <h3 class="text-lg font-medium text-gray-900">Личные данные</h3>
+              <p class="mt-1 text-sm text-gray-500">
+                Обновите свои персональные данные и контактную информацию
+              </p>
+              <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                <div class="sm:col-span-3">
+                  <label for="first_name" class="block text-sm font-medium text-gray-700">Имя</label>
+                  <div class="mt-1">
+                    <input 
+                      type="text" 
+                      id="first_name" 
+                      v-model="profile.first_name"
+                      class="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    >
+                  </div>
+                </div>
+
+                <div class="sm:col-span-3">
+                  <label for="last_name" class="block text-sm font-medium text-gray-700">Фамилия</label>
+                  <div class="mt-1">
+                    <input 
+                      type="text" 
+                      id="last_name" 
+                      v-model="profile.last_name"
+                      class="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    >
+                  </div>
+                </div>
+
+                <div class="sm:col-span-4">
+                  <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                  <div class="mt-1">
+                    <input 
+                      type="email" 
+                      id="email" 
+                      v-model="profile.email"
+                      disabled
+                      class="bg-gray-100 shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    >
+                  </div>
+                </div>
+
+                <div class="sm:col-span-4">
+                  <label for="phone" class="block text-sm font-medium text-gray-700">Телефон</label>
+                  <div class="mt-1">
+                    <input 
+                      type="tel" 
+                      id="phone" 
+                      v-model="profile.phone"
+                      class="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    >
+                  </div>
           </div>
         </div>
       </div>
 
-      <div v-else-if="currentTab === 'applications'" class="px-2 py-4 sm:px-0 sm:py-6">
-        <div class="border-4 border-dashed border-gray-200 rounded-lg h-64 sm:h-96 flex items-center justify-center">
-          <div class="text-center px-4">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">
-              Управление заявками
-            </h3>
-            <p class="text-gray-500 text-sm sm:text-base">
-              Здесь будет размещен функционал для просмотра и обработки заявок абитуриентов
-            </p>
+            <div class="pt-5">
+              <div class="flex justify-end">
+                <button 
+                  type="button" 
+                  class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  Отмена
+                </button>
+                <button 
+                  type="button" 
+                  @click="updateProfile"
+                  class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      <div v-else-if="currentTab === 'educational-programs'" class="px-2 sm:px-0">
-        <EducationalProgramsManager />
       </div>
-    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
-import EducationalProgramsManager from './admin/educational-programs/EducationalProgramsManager.vue';
+import ApplicationsManager from '@/components/application/ApplicationsManager.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const toast = useToast();
+const currentTab = ref('applications');
 
-// Определение доступных вкладок
-const tabs = [
-  { id: 'dashboard', name: 'Обзор' },
-  { id: 'applications', name: 'Заявки абитуриентов' },
-  { id: 'educational-programs', name: 'Образовательные программы' }
-];
-
-// Текущая активная вкладка
-const currentTab = ref('dashboard');
-
-// Проверяем права доступа при монтировании компонента
-onMounted(async () => {
-  // Загружаем профиль и роль пользователя
-  await authStore.initAuth();
-  
-  if (!authStore.isReviewer) {
-    toast.error('У вас нет прав для доступа к панели сотрудника приемной комиссии');
-    router.push('/');
-  } else {
-    toast.success('Добро пожаловать, сотрудник приемной комиссии!');
-  }
+// Профиль пользователя для редактирования
+const profile = ref({
+  first_name: authStore.profile?.first_name || '',
+  last_name: authStore.profile?.last_name || '',
+  email: authStore.profile?.email || '',
+  phone: authStore.profile?.phone || ''
 });
+
+// Выход из системы
+async function logout() {
+  await authStore.signOut();
+  router.push('/login');
+}
+
+// Обновление профиля
+async function updateProfile() {
+  try {
+    await authStore.updateProfile({
+      first_name: profile.value.first_name,
+      last_name: profile.value.last_name,
+      phone: profile.value.phone
+    });
+    
+    toast.success('Профиль успешно обновлен');
+  } catch (error) {
+    console.error('Ошибка при обновлении профиля:', error);
+    toast.error('Не удалось обновить профиль');
+  }
+}
 </script>
 
 <style scoped>

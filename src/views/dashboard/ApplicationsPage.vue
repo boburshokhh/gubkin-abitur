@@ -87,13 +87,68 @@
           <span 
             :class="[
               'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium self-start sm:self-auto', 
-              getStatusClass(application.status)
+              getStatusClass(application.status?.id)
             ]"
           >
-            {{ getStatusText(application.status) }}
+            {{ application.status?.name || 'Неизвестный статус' }}
           </span>
         </div>
         <div class="p-4 md:p-6">
+          <!-- Статус и последний комментарий -->
+          <div class="mb-6 border rounded-lg overflow-hidden">
+            <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-200">
+              <!-- Текущий статус -->
+              <div class="p-4">
+                <div class="flex items-start">
+                  <div class="flex-shrink-0">
+                    <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <h3 class="text-sm font-medium text-gray-900">Текущий статус</h3>
+                    <div class="mt-1">
+                      <span 
+                        :class="[
+                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', 
+                          getStatusClass(application.status?.id)
+                        ]"
+                      >
+                        {{ application.status?.name || 'Неизвестный статус' }}
+                      </span>
+                      <p class="mt-1 text-sm text-gray-500">
+                        Обновлено: {{ formatDate(application.updated_at) }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Последний комментарий -->
+              <div class="p-4">
+                <div class="flex items-start">
+                  <div class="flex-shrink-0">
+                    <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <h3 class="text-sm font-medium text-gray-900">Последний комментарий</h3>
+                    <div class="mt-1">
+                      <p class="text-sm text-gray-900">
+                        {{ application.last_comment || 'Комментариев пока нет' }}
+                      </p>
+                      <p v-if="application.last_comment_date" class="mt-1 text-xs text-gray-500">
+                        {{ formatDate(application.last_comment_date) }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Основная информация -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-6">
             <div>
               <h3 class="text-gray-500 text-sm font-medium mb-1">Направление обучения</h3>
@@ -110,42 +165,6 @@
             <div>
               <h3 class="text-gray-500 text-sm font-medium mb-1">Финансирование</h3>
               <p class="text-gray-900">{{ getFundingFormText(application.funding_form) }}</p>
-            </div>
-          </div>
-          
-          <div v-if="application.status === 'additional_info'" class="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
-            <div class="flex flex-col sm:flex-row">
-              <svg class="h-5 w-5 text-yellow-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <div>
-                <h4 class="text-sm font-medium text-yellow-800">Требуется дополнительная информация</h4>
-                <p class="mt-1 text-sm text-yellow-700">{{ application.admin_comment || 'Пожалуйста, свяжитесь с приемной комиссией для уточнения деталей.' }}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div v-if="application.status === 'rejected'" class="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <div class="flex flex-col sm:flex-row">
-              <svg class="h-5 w-5 text-red-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <h4 class="text-sm font-medium text-red-800">Заявление отклонено</h4>
-                <p class="mt-1 text-sm text-red-700">{{ application.admin_comment || 'Причина отклонения не указана. Свяжитесь с приемной комиссией для получения дополнительной информации.' }}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div v-if="application.status === 'approved'" class="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
-            <div class="flex flex-col sm:flex-row">
-              <svg class="h-5 w-5 text-green-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <div>
-                <h4 class="text-sm font-medium text-green-800">Заявление одобрено</h4>
-                <p class="mt-1 text-sm text-green-700">{{ application.admin_comment || 'Поздравляем! Ваше заявление принято. Ожидайте дальнейших инструкций от приемной комиссии.' }}</p>
-              </div>
             </div>
           </div>
           
@@ -201,29 +220,23 @@ const formatDate = (dateString) => {
 };
 
 // Получение текста для статуса заявления
-const getStatusText = (status) => {
+const getStatusText = (statusId) => {
   const statusMap = {
-    'draft': 'Черновик',
-    'submitted': 'На рассмотрении',
-    'reviewing': 'Проверяется',
-    'additional_info': 'Требуется уточнение',
-    'approved': 'Одобрено',
-    'rejected': 'Отклонено'
+    10: 'Подана',
+    11: 'Принята',
+    12: 'Отклонена'
   };
-  return statusMap[status] || 'Неизвестный статус';
+  return statusMap[statusId] || 'Неизвестный статус';
 };
 
 // Получение класса для отображения статуса
-const getStatusClass = (status) => {
+const getStatusClass = (statusId) => {
   const classMap = {
-    'draft': 'bg-gray-100 text-gray-800',
-    'submitted': 'bg-blue-100 text-blue-800',
-    'reviewing': 'bg-purple-100 text-purple-800',
-    'additional_info': 'bg-yellow-100 text-yellow-800',
-    'approved': 'bg-green-100 text-green-800',
-    'rejected': 'bg-red-100 text-red-800'
+    10: 'bg-blue-100 text-blue-800',
+    11: 'bg-green-100 text-green-800',
+    12: 'bg-red-100 text-red-800'
   };
-  return classMap[status] || 'bg-gray-100 text-gray-800';
+  return classMap[statusId] || 'bg-gray-100 text-gray-800';
 };
 
 // Получение текста для формы обучения

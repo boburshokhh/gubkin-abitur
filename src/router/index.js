@@ -77,6 +77,14 @@ const routes = [
       title: 'Вопросы и ответы - Приёмная кампания Губкинского университета'
     }
   },
+  {
+    path: '/statistics',
+    name: 'statistics',
+    component: () => import('@/views/StatisticsOverview.vue'),
+    meta: {
+      title: 'Статистика приёмной кампании - Приёмная кампания Губкинского университета'
+    }
+  },
   // Маршруты личного кабинета (требуют авторизации)
   {
     path: '/dashboard',

@@ -409,46 +409,11 @@ const resetFile = (fieldName) => {
 
 // Форматирование номера телефона
 const formatPhoneNumber = (field) => {
-  let value = form.value[field];
-  
-  // Удаляем все нецифровые символы
-  value = value.replace(/\D/g, '');
-  
-  if (value.startsWith('998')) {
-    value = value.substring(3);
+  // Оставляем номер как есть, без форматирования и валидации
+  // Можно добавить + в начало, если нужно отображать со знаком плюса
+  if (form.value[field] && !form.value[field].startsWith('+')) {
+    form.value[field] = '+' + form.value[field];
   }
-  
-  if (value.length > 9) {
-    value = value.substring(0, 9);
-  }
-  
-  if (value.length > 0) {
-    let formattedValue = '';
-    
-    if (value.length > 0) {
-      formattedValue += value.substring(0, Math.min(2, value.length));
-    }
-    
-    if (value.length > 2) {
-      formattedValue += ' ' + value.substring(2, Math.min(5, value.length));
-    }
-    
-    if (value.length > 5) {
-      formattedValue += ' ' + value.substring(5, Math.min(7, value.length));
-    }
-    
-    if (value.length > 7) {
-      formattedValue += ' ' + value.substring(7, 9);
-    }
-    
-    form.value[field] = formattedValue;
-  }
-};
-
-// Валидация номера телефона
-const validateUzbekPhoneNumber = (phone) => {
-  const phoneRegex = /^(\+998[\s]?)?\d{2}[\s]?\d{3}[\s]?\d{2}[\s]?\d{2}$/;
-  return phoneRegex.test(phone) || phoneRegex.test('+998 ' + phone);
 };
 
 // Валидация шага
@@ -463,14 +428,10 @@ const validateStep = (step) => {
     
     if (!form.value.phone) {
       newErrors.phone = 'Введите номер телефона';
-    } else if (!validateUzbekPhoneNumber(form.value.phone)) {
-      newErrors.phone = 'Введите корректный номер телефона Узбекистана (+998 XX XXX XX XX)';
     }
     
     if (!form.value.parentPhone) {
       newErrors.parentPhone = 'Введите номер телефона родителя';
-    } else if (!validateUzbekPhoneNumber(form.value.parentPhone)) {
-      newErrors.parentPhone = 'Введите корректный номер телефона Узбекистана (+998 XX XXX XX XX)';
     }
     
     if (!form.value.email) newErrors.email = 'Введите адрес электронной почты';
@@ -566,8 +527,9 @@ const submitForm = async () => {
   submissionStatus.value = 'Подготовка данных...';
   
   try {
-    const phoneFormatted = form.value.phone ? (form.value.phone.startsWith('+998') ? form.value.phone : '+998 ' + form.value.phone) : '';
-    const parentPhoneFormatted = form.value.parentPhone ? (form.value.parentPhone.startsWith('+998') ? form.value.parentPhone : '+998 ' + form.value.parentPhone) : '';
+    // Сохраняем номера без + в базе данных (просто удаляем + если он есть)
+    const phoneFormatted = form.value.phone ? form.value.phone.replace(/^\+/, '') : '';
+    const parentPhoneFormatted = form.value.parentPhone ? form.value.parentPhone.replace(/^\+/, '') : '';
     
     const applicationData = {
       direction_id: form.value.direction,

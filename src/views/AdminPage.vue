@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen bg-gray-100">
-    <!-- Верхняя панель -->
     <header class="bg-white shadow">
       <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
@@ -26,7 +25,6 @@
     </header>
 
     <main class="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
-      <!-- Навигация -->
       <div class="mb-4 sm:mb-6 border-b border-gray-200 overflow-x-auto">
         <nav class="-mb-px flex space-x-4 sm:space-x-8 pb-1" aria-label="Tabs">
           <button
@@ -45,7 +43,6 @@
         </nav>
       </div>
 
-      <!-- Содержимое вкладок -->
       <div v-if="currentTab === 'dashboard'" class="px-2 py-4 sm:px-0 sm:py-6">
         <div class="border-4 border-dashed border-gray-200 rounded-lg h-64 sm:h-96 flex items-center justify-center">
           <div class="text-center px-4">
@@ -86,13 +83,12 @@ import { useToast } from 'vue-toastification';
 import UsersManagement from './admin/UsersManagement.vue';
 import StatisticsView from './admin/StatisticsView.vue';
 import EducationalProgramsManager from './admin/educational-programs/EducationalProgramsManager.vue';
-import ApplicationsManager from './admin/ApplicationsManager.vue';
+import ApplicationsManager from '@/components/application/ApplicationsManager.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const toast = useToast();
 
-// Определение доступных вкладок
 const tabs = computed(() => {
   const baseTabs = [
     { id: 'dashboard', name: 'Панель управления' },
@@ -101,7 +97,6 @@ const tabs = computed(() => {
     { id: 'educational-programs', name: 'Образовательные программы' },
   ];
   
-  // Вкладка управления пользователями доступна только для администраторов
   if (authStore.isAdmin && !authStore.isReviewer) {
     baseTabs.push({ id: 'users', name: 'Управление пользователями' });
   }
@@ -109,19 +104,15 @@ const tabs = computed(() => {
   return baseTabs;
 });
 
-// Текущая активная вкладка
 const currentTab = ref('dashboard');
 
-// Функция для получения названия роли
 const getRoleName = () => {
   if (authStore.isReviewer) return 'Сотрудник приемной комиссии';
   if (authStore.isAdmin) return 'Администратор';
   return 'Пользователь';
 };
 
-// Проверяем права доступа при монтировании компонента
 onMounted(async () => {
-  // Загружаем профиль и роль пользователя
   await authStore.initAuth();
   
   if (!authStore.isAdmin && !authStore.isReviewer) {
@@ -134,7 +125,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Дополнительные стили для улучшения адаптивности */
 @media (max-width: 640px) {
   /* Стили для очень маленьких экранов */
   .max-w-7xl {

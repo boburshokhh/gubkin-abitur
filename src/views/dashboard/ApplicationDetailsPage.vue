@@ -69,10 +69,10 @@
           <span 
             :class="[
               'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium max-w-fit', 
-              getStatusClass(application.status)
+              getStatusClass(application.status_id)
             ]"
           >
-            {{ getStatusText(application.status) }}
+            {{ getStatusText(application.status_id) }}
           </span>
         </div>
       </div>
@@ -179,10 +179,10 @@
                   <span 
                     :class="[
                       'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', 
-                      getStatusClass(application.status)
+                      getStatusClass(application.status_id)
                     ]"
                   >
-                    {{ getStatusText(application.status) }}
+                    {{ getStatusText(application.status_id) }}
                   </span>
                 </div>
               </div>
@@ -193,7 +193,7 @@
             </div>
             
             <!-- Показываем уведомления в зависимости от статуса -->
-            <div v-if="application.status === 'additional_info'" class="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <div v-if="application.status_id === 'additional_info'" class="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
               <div class="flex flex-col sm:flex-row">
                 <svg class="h-5 w-5 text-yellow-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -205,7 +205,7 @@
               </div>
             </div>
             
-            <div v-if="application.status === 'rejected'" class="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+            <div v-if="application.status_id === 'rejected'" class="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
               <div class="flex flex-col sm:flex-row">
                 <svg class="h-5 w-5 text-red-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -217,7 +217,7 @@
               </div>
             </div>
             
-            <div v-if="application.status === 'approved'" class="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
+            <div v-if="application.status_id === 'approved'" class="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
               <div class="flex flex-col sm:flex-row">
                 <svg class="h-5 w-5 text-green-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -232,7 +232,7 @@
             <!-- Кнопки действий -->
             <div class="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-4">
               <button 
-                v-if="application.status === 'draft'"
+                v-if="application.status_id === 'draft'"
                 @click="submitApplication"
                 class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 :disabled="isSubmitting"
@@ -339,16 +339,19 @@
           <div v-else-if="activeTab === 'history'">
             <div class="relative">
               <div class="absolute top-0 bottom-0 left-3 w-0.5 bg-gray-200"></div>
-              <div v-if="applicationHistory.length" class="space-y-6 relative z-10">
+              <div v-if="isHistoryLoading" class="flex justify-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              </div>
+              <div v-else-if="applicationHistory.length" class="space-y-6 relative z-10">
                 <div 
-                  v-for="(historyItem, index) in applicationHistory" 
-                  :key="index" 
+                  v-for="historyItem in sortedHistory" 
+                  :key="historyItem.id" 
                   class="flex items-start"
                 >
                   <div 
                     :class="[
                       'flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-1 -ml-3', 
-                      getHistoryStatusColor(historyItem.status)
+                      getHistoryStatusColor(historyItem.status_id)
                     ]"
                   >
                     <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -357,10 +360,9 @@
                   </div>
                   <div class="ml-4">
                     <div class="flex flex-col sm:flex-row sm:items-center">
-                      <h4 class="text-sm font-medium text-gray-900">{{ getStatusText(historyItem.status) }}</h4>
-                      <span class="sm:ml-2 text-xs text-gray-500">{{ formatDate(historyItem.date) }}</span>
+                      <h4 class="text-sm font-medium text-gray-900">{{ getStatusText(historyItem.status_id) }}</h4>
+                      <span class="sm:ml-2 text-xs text-gray-500">{{ formatDate(historyItem.created_at) }}</span>
                     </div>
-                    <p class="mt-1 text-sm text-gray-600">{{ historyItem.comment || 'Без комментария' }}</p>
                   </div>
                 </div>
               </div>
@@ -378,15 +380,36 @@
 
           <!-- Вкладка с комментариями -->
           <div v-else-if="activeTab === 'comments'">
-            <div v-if="application.admin_comment" class="mb-6 rounded-lg border border-gray-200 p-4">
-              <div class="flex flex-col sm:flex-row">
-                <svg class="h-5 w-5 text-gray-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                </svg>
-                <div>
-                  <h4 class="text-sm font-medium text-gray-800">Комментарий приёмной комиссии</h4>
-                  <p class="mt-1 text-sm text-gray-600">{{ application.admin_comment }}</p>
-                  <p class="mt-2 text-xs text-gray-500">{{ formatDate(application.updated_at) }}</p>
+            <div v-if="sortedComments.length" class="space-y-4">
+              <div 
+                v-for="historyItem in sortedComments" 
+                :key="historyItem.id" 
+                class="rounded-lg border border-gray-200 p-4"
+              >
+                <div class="flex flex-col sm:flex-row">
+                  <div class="flex items-start">
+                    <div 
+                      :class="[
+                        'flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-3', 
+                        getHistoryStatusColor(historyItem.status_id)
+                      ]"
+                    >
+                      <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div class="flex items-center mb-1">
+                        <h4 class="text-sm font-medium text-gray-800">{{ getStatusText(historyItem.status_id) }}</h4>
+                        <span class="mx-2 text-gray-300">•</span>
+                        <span class="text-xs text-gray-500">{{ formatDate(historyItem.created_at) }}</span>
+                      </div>
+                      <p class="text-sm text-gray-600">{{ historyItem.comment }}</p>
+                      <div v-if="historyItem.created_by_user" class="mt-2 text-xs text-gray-500">
+                        Комментарий от: {{ historyItem.created_by_user.first_name }} {{ historyItem.created_by_user.last_name }}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -396,7 +419,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                 </svg>
                 <h3 class="text-gray-900 font-medium">Комментариев нет</h3>
-                <p class="text-gray-500 mt-1">Приёмная комиссия пока не оставила комментариев</p>
+                <p class="text-gray-500 mt-1">К этому заявлению пока не оставлено комментариев</p>
               </div>
             </div>
           </div>
@@ -410,7 +433,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useApplicationStore } from '@/stores/application';
-import { supabase } from '@/api/supabase';
+import { supabase, applications } from '@/api/supabase';
 
 const route = useRoute();
 const router = useRouter();
@@ -424,25 +447,20 @@ const activeTab = ref('details');
 // Получаем заявление из хранилища
 const application = computed(() => appStore.currentApplication);
 
-// Примерные данные для истории (в реальном приложении это будет загружаться с сервера)
-const applicationHistory = ref([
-  { 
-    status: 'draft', 
-    date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), 
-    comment: 'Заявление создано и сохранено как черновик' 
-  },
-  { 
-    status: 'submitted', 
-    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
-    comment: 'Заявление отправлено на рассмотрение' 
-  },
-  { 
-    status: 'reviewing', 
-    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), 
-    comment: 'Заявление взято в работу специалистом приёмной комиссии' 
-  },
-  // Можно добавить больше истории по необходимости
-]);
+// История изменений статусов
+const applicationHistory = ref([]);
+const isHistoryLoading = ref(false);
+
+// Добавляем computed свойства для сортировки истории и комментариев
+const sortedHistory = computed(() => {
+  return [...applicationHistory.value].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+});
+
+const sortedComments = computed(() => {
+  return [...applicationHistory.value]
+    .filter(item => item.comment)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+});
 
 // Загрузка данных при монтировании компонента
 onMounted(async () => {
@@ -454,9 +472,13 @@ onMounted(async () => {
   
   isLoading.value = true;
   try {
+    // Загружаем данные заявления
     const success = await appStore.loadApplication(applicationId);
     if (!success) {
       error.value = appStore.error || 'Не удалось загрузить данные заявления';
+    } else {
+      // Загружаем историю изменений статуса
+      await loadApplicationHistory(applicationId);
     }
   } catch (err) {
     console.error('Ошибка при загрузке заявления:', err);
@@ -466,9 +488,41 @@ onMounted(async () => {
   }
 });
 
+// Загрузка истории изменений статусов
+async function loadApplicationHistory(applicationId) {
+  isHistoryLoading.value = true;
+  try {
+    const { data, error: historyError } = await applications.getApplicationHistory(applicationId);
+    
+    if (historyError) {
+      console.error('Ошибка при загрузке истории заявления:', historyError);
+      return;
+    }
+    
+    if (data && data.length > 0) {
+      applicationHistory.value = data;
+    } else {
+      // Если истории нет, добавляем исходное создание заявки
+      if (application.value) {
+        applicationHistory.value = [{
+          id: 'initial',
+          status_id: application.value.status_id,
+          created_at: application.value.created_at,
+          application_id: application.value.id,
+          comment: 'Заявление создано'
+        }];
+      }
+    }
+  } catch (err) {
+    console.error('Ошибка при загрузке истории:', err);
+  } finally {
+    isHistoryLoading.value = false;
+  }
+}
+
 // Отправка заявления на рассмотрение
 async function submitApplication() {
-  if (!application.value || application.value.status !== 'draft') return;
+  if (!application.value || application.value.status_id !== 'draft') return;
   
   isSubmitting.value = true;
   try {
@@ -476,12 +530,9 @@ async function submitApplication() {
     if (!result.success) {
       throw new Error(result.error || 'Не удалось отправить заявление');
     }
-    // Добавляем запись в историю
-    applicationHistory.value.push({
-      status: 'submitted',
-      date: new Date().toISOString(),
-      comment: 'Заявление отправлено на рассмотрение'
-    });
+    
+    // Обновляем историю после успешной отправки заявления
+    await loadApplicationHistory(application.value.id);
   } catch (err) {
     console.error('Ошибка при отправке заявления:', err);
     error.value = err.message;
@@ -541,42 +592,33 @@ function formatDate(dateString) {
 }
 
 // Получение текста для статуса заявления
-function getStatusText(status) {
+function getStatusText(statusId) {
   const statusMap = {
-    'draft': 'Черновик',
-    'submitted': 'На рассмотрении',
-    'reviewing': 'Проверяется',
-    'additional_info': 'Требуется уточнение',
-    'approved': 'Одобрено',
-    'rejected': 'Отклонено'
+    10: 'Подана',
+    11: 'Принята',
+    12: 'Отклонена'
   };
-  return statusMap[status] || 'Неизвестный статус';
+  return statusMap[statusId] || 'Неизвестный статус';
 }
 
 // Получение класса для отображения статуса
-function getStatusClass(status) {
+function getStatusClass(statusId) {
   const classMap = {
-    'draft': 'bg-gray-100 text-gray-800',
-    'submitted': 'bg-blue-100 text-blue-800',
-    'reviewing': 'bg-purple-100 text-purple-800',
-    'additional_info': 'bg-yellow-100 text-yellow-800',
-    'approved': 'bg-green-100 text-green-800',
-    'rejected': 'bg-red-100 text-red-800'
+    10: 'bg-blue-100 text-blue-800',
+    11: 'bg-green-100 text-green-800',
+    12: 'bg-red-100 text-red-800'
   };
-  return classMap[status] || 'bg-gray-100 text-gray-800';
+  return classMap[statusId] || 'bg-gray-100 text-gray-800';
 }
 
 // Получение цвета для истории изменений
-function getHistoryStatusColor(status) {
+function getHistoryStatusColor(statusId) {
   const colorMap = {
-    'draft': 'bg-gray-500',
-    'submitted': 'bg-blue-500',
-    'reviewing': 'bg-purple-500',
-    'additional_info': 'bg-yellow-500',
-    'approved': 'bg-green-500',
-    'rejected': 'bg-red-500'
+    10: 'bg-blue-500',
+    11: 'bg-green-500',
+    12: 'bg-red-500'
   };
-  return colorMap[status] || 'bg-gray-500';
+  return colorMap[statusId] || 'bg-gray-500';
 }
 
 // Получение текста для формы обучения

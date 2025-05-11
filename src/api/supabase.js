@@ -500,6 +500,25 @@ export const directions = {
       .select('*')
       .order('name');
 
+    if (data && !error) {
+      // Загружаем информацию о предметах для каждого направления
+      for (const direction of data) {
+        const { data: subjectsData, error: subjectsError } = await supabase
+          .from('direction_subjects')
+          .select('*, subject:subject_id(*)')
+          .eq('direction_id', direction.id);
+        
+        if (subjectsData && !subjectsError) {
+          // Формируем данные для вступительных испытаний
+          direction.exam_details = subjectsData.map(item => ({
+            subject: item.subject.name,
+            minScore: item.min_score,
+            form: 'ЕГЭ' // По умолчанию ЕГЭ, можно изменить если нужно
+          }));
+        }
+      }
+    }
+
     console.log('API: получено направлений:', data?.length, 'Ошибка:', error);
     return { data, error };
   },
@@ -512,6 +531,23 @@ export const directions = {
       .select('*')
       .eq('id', id)
       .single();
+
+    if (data && !error) {
+      // Загружаем информацию о предметах для направления
+      const { data: subjectsData, error: subjectsError } = await supabase
+        .from('direction_subjects')
+        .select('*, subject:subject_id(*)')
+        .eq('direction_id', id);
+        
+      if (subjectsData && !subjectsError) {
+        // Формируем данные для вступительных испытаний
+        data.exam_details = subjectsData.map(item => ({
+          subject: item.subject.name,
+          minScore: item.min_score,
+          form: 'ЕГЭ' // По умолчанию ЕГЭ, можно изменить если нужно
+        }));
+      }
+    }
 
     console.log('API: результат загрузки направления:', data ? 'найдено' : 'не найдено', 'Ошибка:', error);
     return { data, error };
@@ -741,19 +777,48 @@ export const applications = {
     if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
 
     try {
-    const { data, error } = await supabase
-      .from('applications')
-      .select(`
-        *,
-        direction:direction_id (id, name),
-        user:user_id (id, first_name, last_name, email)
-      `)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+      // Сначала получаем все заявления
+      const { data: applications, error: applicationsError } = await supabase
+        .from('applications')
+        .select(`
+          *,
+          direction:direction_id (id, name),
+          user:user_id (id, first_name, last_name, email),
+          status:status_id (id, name, color)
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
 
-    return { data, error }
+      if (applicationsError) throw applicationsError
+
+      // Для каждого заявления получаем последний комментарий из истории
+      const { data: history, error: historyError } = await supabase
+        .from('application_history')
+        .select(`
+          id,
+          application_id,
+          comment,
+          created_at
+        `)
+        .in('application_id', applications.map(app => app.id))
+        .not('comment', 'is', null)
+        .order('created_at', { ascending: false })
+
+      if (historyError) throw historyError
+
+      // Добавляем последний комментарий к каждому заявлению
+      const applicationsWithComments = applications.map(application => {
+        const lastHistoryItem = history.find(h => h.application_id === application.id)
+        return {
+          ...application,
+          last_comment: lastHistoryItem?.comment || null,
+          last_comment_date: lastHistoryItem?.created_at || null
+        }
+      })
+
+      return { data: applicationsWithComments, error: null }
     } catch (err) {
-      console.error('Ошибка получения заявок:', err)
+      console.error('Ошибка при получении заявлений:', err)
       return { data: null, error: err }
     }
   },
@@ -829,7 +894,7 @@ export const applications = {
         .insert({
           user_id: user.id,
           direction_id: applicationData.direction_id,
-          status_id: 1, // Статус "Черновик"
+          status_id: 10, // Статус "Подана"
           passport_series: applicationData.passport_series,
           passport_issue_date: applicationData.passport_issue_date,
           passport_issued_by: applicationData.passport_issued_by,
@@ -868,23 +933,107 @@ export const applications = {
 
   // Отправить заявку на рассмотрение
   async submit(id) {
-    // Получаем ID статуса "подана"
-    const { data: statusData } = await supabase
-      .from('application_statuses')
-      .select('id')
-      .eq('name', 'submitted')
-      .single()
-
-    if (!statusData) return { data: null, error: new Error('Не удалось получить статус заявки') }
-
+    // Используем статус "Подана" с ID 10
     const { data, error } = await supabase
       .from('applications')
-      .update({ status_id: statusData.id })
+      .update({ status_id: 10 })
       .eq('id', id)
       .select()
       .single()
 
     return { data, error }
+  },
+
+  // Получить историю изменений статусов заявки по ID заявки
+  async getApplicationHistory(applicationId) {
+    try {
+      const { data, error } = await supabase
+        .from('application_history')
+        .select(`
+          id,
+          application_id,
+          status_id,
+          comment,
+          created_by,
+          created_at,
+          status:status_id(id, name)
+        `)
+        .eq('application_id', applicationId)
+        .order('created_at', { ascending: false })
+
+      // Если нужны данные о пользователях, запрашиваем их отдельно
+      if (data && data.length > 0) {
+        // Собираем уникальные ID пользователей
+        const userIds = [...new Set(data.map(item => item.created_by).filter(id => id))];
+        
+        if (userIds.length > 0) {
+          // Запрашиваем данные пользователей
+          const { data: usersData, error: usersError } = await supabase
+            .from('users')
+            .select('id, first_name, last_name')
+            .in('id', userIds);
+          
+          if (usersData && !usersError) {
+            // Добавляем данные пользователей к записям истории
+            data.forEach(historyItem => {
+              if (historyItem.created_by) {
+                const user = usersData.find(u => u.id === historyItem.created_by);
+                if (user) {
+                  historyItem.created_by_user = user;
+                }
+              }
+            });
+          }
+        }
+      }
+
+      return { data, error }
+    } catch (err) {
+      console.error('Ошибка получения истории заявки:', err)
+      return { data: null, error: err }
+    }
+  },
+
+  // Обновить статус заявки с добавлением записи в историю изменений
+  async updateStatus(id, statusId, comment = '') {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
+
+      // Начинаем транзакцию
+      // 1. Обновляем статус заявки
+      const { data: updatedApplication, error: updateError } = await supabase
+        .from('applications')
+        .update({ status_id: statusId })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (updateError) return { data: null, error: updateError }
+
+      // 2. Добавляем запись в историю
+      const { data: historyRecord, error: historyError } = await supabase
+        .from('application_history')
+        .insert({
+          application_id: id,
+          status_id: statusId,
+          comment: comment,
+          created_by: user.id,
+          created_at: new Date()
+        })
+        .select()
+        .single()
+
+      if (historyError) {
+        console.error('Ошибка при добавлении записи в историю:', historyError)
+        return { data: updatedApplication, error: historyError }
+      }
+
+      return { data: updatedApplication, historyRecord, error: null }
+    } catch (err) {
+      console.error('Ошибка обновления статуса заявки:', err)
+      return { data: null, error: err }
+    }
   }
 }
 
@@ -892,55 +1041,141 @@ export const applications = {
 export const documents = {
   // Получить документы по ID заявки
   async getByApplicationId(applicationId) {
-    const { data, error } = await supabase
-      .from('documents')
-      .select(`
-        *,
-        document_type:document_type_id (id, name)
-      `)
-      .eq('application_id', applicationId)
-
-    return { data, error }
+    try {
+      // Используем нашу хранимую функцию для получения документов с проверкой прав доступа
+      const { data, error } = await supabase
+        .rpc('get_application_documents', { p_application_id: applicationId });
+      
+      if (error) throw error;
+      
+      return { data, error: null };
+    } catch (err) {
+      console.error('Ошибка при получении документов:', err);
+      return { data: null, error: err };
+    }
   },
 
   // Загрузить новый документ
   async upload(applicationId, documentTypeId, file) {
-    // Получаем данные о текущем пользователе
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
+    try {
+      // Получаем данные о текущем пользователе
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') };
 
-    // Загружаем файл в Storage
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${crypto.randomUUID()}.${fileExt}`
-    const filePath = `${user.id}/${applicationId}/${fileName}`
+      // Получаем ID пользователя из заявления для структурирования директорий
+      const { data: application, error: appError } = await supabase
+        .from('applications')
+        .select('user_id')
+        .eq('id', applicationId)
+        .single();
+      
+      if (appError) {
+        console.error('Ошибка получения данных заявления:', appError);
+        return { data: null, error: appError };
+      }
 
-    const { error: uploadError } = await supabase.storage
-      .from('application_documents')
-      .upload(filePath, file)
+      // Генерируем имя файла и путь с правильной структурой директорий
+      const fileExt = file.name.split('.').pop();
+      const fileId = crypto.randomUUID();
+      const fileName = `${fileId}.${fileExt}`;
+      const filePath = `${application.user_id}/${applicationId}/${fileName}`;
 
-    if (uploadError) return { data: null, error: uploadError }
+      console.log('Загрузка файла в путь:', filePath, 'в бакет application_documents');
 
-    // Получаем публичную ссылку на файл
-    const { data: { publicUrl } } = supabase.storage
-      .from('application_documents')
-      .getPublicUrl(filePath)
+      // Загружаем файл в Storage, используя правильное имя бакета
+      const { error: uploadError } = await supabase.storage
+        .from('application_documents') // Используем правильное имя бакета
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-    // Создаем запись о документе в БД
-    const { data, error } = await supabase
-      .from('documents')
-      .insert({
-        application_id: applicationId,
-        document_type_id: documentTypeId,
-        file_name: file.name,
-        file_path: filePath,
-        file_size: file.size,
-        file_type: file.type,
-        updated_at: new Date()
-      })
-      .select()
-      .single()
+      if (uploadError) {
+        console.error('Ошибка загрузки файла:', uploadError);
+        return { data: null, error: uploadError };
+      }
 
-    return { data, error, publicUrl }
+      // Создаем запись о документе в БД
+      const { data, error } = await supabase
+        .from('documents')
+        .insert({
+          application_id: applicationId,
+          document_type_id: documentTypeId,
+          file_name: file.name,
+          file_path: filePath,
+          file_size: file.size,
+          file_type: file.type,
+          status: 'pending',
+          updated_at: new Date(),
+          user_id: user.id
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Ошибка создания записи о документе:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (err) {
+      console.error('Ошибка при загрузке документа:', err);
+      return { data: null, error: err };
+    }
+  },
+  
+  // Получить подписанный URL для документа
+  async getSignedUrl(documentId, options = {}) {
+    try {
+      const { download = false } = options;
+      
+      // Сначала получаем информацию о документе из базы данных
+      const { data: docData, error: docError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', documentId)
+        .single();
+      
+      if (docError) {
+        console.error('Ошибка при получении данных документа:', docError);
+        throw docError;
+      }
+      
+      // Проверяем наличие необходимых данных
+      if (!docData || !docData.file_path) {
+        console.error('Отсутствуют данные о документе или путь к файлу:', docData);
+        throw new Error('Документ не найден или отсутствует путь к файлу');
+      }
+      
+      console.log('Получен путь к файлу:', docData.file_path);
+      
+      // Используем getPublicUrl для получения прямого URL к файлу
+      // Это работает, если бакет публичный, что нормально для документов заявлений
+      const { data: urlData } = supabase.storage
+        .from('application_documents')
+        .getPublicUrl(docData.file_path, {
+          download: download,
+          ...(docData.file_name ? { fileName: docData.file_name } : {})
+        });
+      
+      if (!urlData || !urlData.publicUrl) {
+        console.error('Не удалось получить публичный URL');
+        throw new Error('Не удалось получить URL документа');
+      }
+      
+      console.log('Получен публичный URL:', urlData.publicUrl);
+      
+      // Возвращаем в том же формате, что и прежний метод для совместимости
+      return { 
+        data: { 
+          signedUrl: urlData.publicUrl 
+        }, 
+        error: null 
+      };
+    } catch (err) {
+      console.error('Ошибка при получении URL документа:', err);
+      return { data: null, error: err };
+    }
   },
 
   // Получить типы документов
@@ -948,9 +1183,9 @@ export const documents = {
     const { data, error } = await supabase
       .from('document_types')
       .select('*')
-      .order('name')
+      .order('name');
 
-    return { data, error }
+    return { data, error };
   },
 
   // Обновить документ
@@ -959,13 +1194,12 @@ export const documents = {
       .from('documents')
       .update({
         document_type_id: documentData.document_type_id,
-        file_path: documentData.file_path,
         updated_at: new Date()
       })
       .eq('id', documentId)
       .select();
 
-    return { data, error }
+    return { data, error };
   }
 }
 
@@ -1266,6 +1500,59 @@ export const excelExport = {
 
 // Функции для взаимодействия с API администратора (удалены, так как функциональность администратора больше не поддерживается)
 
+// Функции для работы с предметами
+export const subjects = {
+  // Получить все предметы
+  async getAll() {
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .order('name');
+
+    return { data, error };
+  },
+
+  // Получить предмет по ID
+  async getById(id) {
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    return { data, error };
+  },
+  
+  // Получить предметы по ID направления
+  async getByDirectionId(directionId) {
+    const { data, error } = await supabase
+      .from('direction_subjects')
+      .select('*, subject:subject_id(*)')
+      .eq('direction_id', directionId);
+
+    return { data, error };
+  },
+  
+  // Удалить связи предметов с направлением
+  async deleteDirectionSubjects(directionId) {
+    const { error } = await supabase
+      .from('direction_subjects')
+      .delete()
+      .eq('direction_id', directionId);
+      
+    return { error };
+  },
+  
+  // Сохранить связи предметов с направлением
+  async saveDirectionSubjects(directionSubjects) {
+    const { data, error } = await supabase
+      .from('direction_subjects')
+      .insert(directionSubjects);
+      
+    return { data, error };
+  }
+}
+
 export default {
   supabase,
   auth,
@@ -1275,5 +1562,6 @@ export default {
   profiles,
   specialties,
   documents,
-  excelExport
+  excelExport,
+  subjects
 } 

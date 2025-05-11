@@ -16,6 +16,9 @@
         <span class="ml-2 text-xs text-gray-500">{{ formattedDate }}</span>
       </div>
       <p class="mt-1 text-sm text-gray-600">{{ historyItem.comment || 'Без комментария' }}</p>
+      <p v-if="userInfo" class="mt-1 text-xs text-gray-500">
+        {{ userInfo }}
+      </p>
     </div>
   </div>
 </template>
@@ -32,35 +35,53 @@ const props = defineProps({
 
 // Получение текста для статуса
 const statusText = computed(() => {
+  // Проверяем, содержится ли статус в объекте status или непосредственно в status_id
+  const statusId = props.historyItem.status?.id || props.historyItem.status_id;
+  
+  // Сначала пытаемся получить имя из объекта status, если он есть
+  if (props.historyItem.status?.name) {
+    return props.historyItem.status.name;
+  }
+  
+  // Иначе используем карту статусов
   const statusMap = {
-    'draft': 'Черновик',
-    'submitted': 'На рассмотрении',
-    'reviewing': 'Проверяется',
-    'additional_info': 'Требуется уточнение',
-    'approved': 'Одобрено',
-    'rejected': 'Отклонено'
+    10: 'Подана',
+    11: 'Принята',
+    12: 'Отклонена'
   };
-  return statusMap[props.historyItem.status] || 'Неизвестный статус';
+  return statusMap[statusId] || 'Неизвестный статус';
 });
 
 // Получение цвета для статуса
 const statusColorClass = computed(() => {
+  // Получаем ID статуса
+  const statusId = props.historyItem.status?.id || props.historyItem.status_id;
+  
   const colorMap = {
-    'draft': 'bg-gray-500',
-    'submitted': 'bg-blue-500',
-    'reviewing': 'bg-purple-500',
-    'additional_info': 'bg-yellow-500',
-    'approved': 'bg-green-500',
-    'rejected': 'bg-red-500'
+    10: 'bg-blue-500',
+    11: 'bg-green-500',
+    12: 'bg-red-500'
   };
-  return colorMap[props.historyItem.status] || 'bg-gray-500';
+  return colorMap[statusId] || 'bg-gray-500';
+});
+
+// Информация о пользователе, изменившем статус
+const userInfo = computed(() => {
+  if (props.historyItem.created_by_user) {
+    const user = props.historyItem.created_by_user;
+    return `Изменено: ${user.last_name || ''} ${user.first_name || ''}`.trim();
+  }
+  return '';
 });
 
 // Форматирование даты
 const formattedDate = computed(() => {
-  if (!props.historyItem.date) return 'Не указана';
+  // Используем created_at вместо date
+  const dateString = props.historyItem.created_at || props.historyItem.date;
   
-  const date = new Date(props.historyItem.date);
+  if (!dateString) return 'Не указана';
+  
+  const date = new Date(dateString);
   return date.toLocaleDateString('ru-RU', { 
     day: '2-digit', 
     month: '2-digit', 

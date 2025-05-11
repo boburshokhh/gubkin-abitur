@@ -54,14 +54,13 @@ const documentUrl = computed(() => {
       return '#';
     }
     
-    // В новых версиях Supabase API изменился
-    // Правильное имя бакета может отличаться - проверьте имя в консоли Supabase
+    // Используем getPublicUrl вместо signed URL для простоты и прямого доступа
     const { data } = supabase.storage
-      .from('application_documents') // Правильное имя бакета из Supabase
+      .from('application_documents') // Именно application_documents, а не documents!
       .getPublicUrl(props.document.file_path);
     
-    // Выводим в консоль для отладки
-    console.log('Получен URL файла:', data);
+    // Выводим URL в консоль для отладки
+    console.log('Получен URL файла:', data?.publicUrl);
     
     return data?.publicUrl || '#';
   } catch (error) {
