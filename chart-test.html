@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест графиков статистики</title>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .chart-container {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Тест графиков статистики Губкин Абитуриент</h1>
+    
+    <!-- Ежедневная статистика -->
+    <div class="chart-container">
+        <h2>Ежедневная статистика заявлений</h2>
+        <div id="dailyChart"></div>
+    </div>
+    
+    <!-- Региональная статистика -->
+    <div class="chart-container">
+        <h2>Региональная статистика</h2>
+        <div id="regionalChart"></div>
+    </div>
+    
+    <!-- Статистика по направлениям -->
+    <div class="chart-container">
+        <h2>Статистика по направлениям обучения</h2>
+        <div id="directionsChart"></div>
+    </div>
+
+    <script>
+        // Реальные данные из нашего API
+        const dailyData = [
+            {date: "2025-05-24", total_applications: 1, accepted_applications: 0, rejected_applications: 0, pending_applications: 1},
+            {date: "2025-05-11", total_applications: 7, accepted_applications: 2, rejected_applications: 1, pending_applications: 4}
+        ];
+
+        const regionalData = [
+            {region_name: "Ташкент", total_applications: 7, accepted_applications: 2, rejected_applications: 1, pending_applications: 4},
+            {region_name: "Не указан", total_applications: 1, accepted_applications: 0, rejected_applications: 0, pending_applications: 1}
+        ];
+
+        const directionsData = [
+            {
+                direction_name: "Бурение нефтяных и газовых скважин", 
+                total_applications: 6, 
+                accepted_applications: 1, 
+                rejected_applications: 0
+            },
+            {
+                direction_name: "Эксплуатация и обслуживание объектов добычи газа", 
+                total_applications: 2, 
+                accepted_applications: 1, 
+                rejected_applications: 1
+            }
+        ];
+
+        // График ежедневной статистики
+        const dailyChartOptions = {
+            series: [
+                {
+                    name: 'Всего заявлений',
+                    data: dailyData.map(item => item.total_applications)
+                },
+                {
+                    name: 'Принято',
+                    data: dailyData.map(item => item.accepted_applications)
+                },
+                {
+                    name: 'Отклонено',
+                    data: dailyData.map(item => item.rejected_applications)
+                },
+                {
+                    name: 'На рассмотрении',
+                    data: dailyData.map(item => item.pending_applications)
+                }
+            ],
+            chart: {
+                type: 'bar',
+                height: 350,
+                toolbar: { show: false }
+            },
+            plotOptions: {
+                bar: {
+                    borderRadius: 4,
+                    dataLabels: { position: 'top' }
+                }
+            },
+            dataLabels: {
+                enabled: true,
+                offsetY: -20,
+                style: { fontSize: '12px', colors: ['#304758'] }
+            },
+            xaxis: {
+                categories: dailyData.map(item => 
+                    new Date(item.date).toLocaleDateString('ru-RU', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                    })
+                ),
+                labels: { style: { colors: '#666', fontSize: '12px' } }
+            },
+            yaxis: {
+                labels: { style: { colors: '#666', fontSize: '12px' } }
+            },
+            colors: ['#3B82F6', '#22C55E', '#EF4444', '#F59E0B'],
+            legend: { position: 'top', horizontalAlign: 'center' }
+        };
+
+        // График региональной статистики
+        const regionalChartOptions = {
+            series: regionalData.map(item => item.total_applications),
+            chart: {
+                type: 'donut',
+                height: 350
+            },
+            labels: regionalData.map(item => item.region_name),
+            colors: ['#3B82F6', '#22C55E', '#EF4444', '#F59E0B'],
+            legend: { 
+                position: 'bottom',
+                fontSize: '12px'
+            },
+            plotOptions: {
+                pie: {
+                    donut: {
+                        labels: {
+                            show: true,
+                            total: {
+                                show: true,
+                                label: 'Всего',
+                                fontSize: '16px',
+                                fontWeight: 600
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        // График по направлениям
+        const directionsChartOptions = {
+            series: [
+                {
+                    name: 'Всего заявлений',
+                    data: directionsData.map(item => item.total_applications)
+                },
+                {
+                    name: 'Принято',
+                    data: directionsData.map(item => item.accepted_applications)
+                },
+                {
+                    name: 'Отклонено',
+                    data: directionsData.map(item => item.rejected_applications)
+                }
+            ],
+            chart: {
+                type: 'bar',
+                height: 400,
+                toolbar: { show: false }
+            },
+            plotOptions: {
+                bar: {
+                    borderRadius: 4,
+                    horizontal: true,
+                    dataLabels: { position: 'top' }
+                }
+            },
+            dataLabels: {
+                enabled: true,
+                style: { fontSize: '12px', colors: ['#fff'] }
+            },
+            xaxis: {
+                categories: directionsData.map(item => 
+                    item.direction_name.length > 30 
+                        ? item.direction_name.substring(0, 30) + '...'
+                        : item.direction_name
+                ),
+                labels: { style: { colors: '#666', fontSize: '12px' } }
+            },
+            yaxis: {
+                labels: { 
+                    style: { colors: '#666', fontSize: '11px' },
+                    maxWidth: 200
+                }
+            },
+            colors: ['#3B82F6', '#22C55E', '#EF4444'],
+            legend: { position: 'top', horizontalAlign: 'center' }
+        };
+
+        // Рендеринг графиков
+        const dailyChart = new ApexCharts(document.querySelector("#dailyChart"), dailyChartOptions);
+        const regionalChart = new ApexCharts(document.querySelector("#regionalChart"), regionalChartOptions);
+        const directionsChart = new ApexCharts(document.querySelector("#directionsChart"), directionsChartOptions);
+        
+        dailyChart.render();
+        regionalChart.render();
+        directionsChart.render();
+
+        // Информация о данных
+        console.log('Daily data:', dailyData);
+        console.log('Regional data:', regionalData);
+        console.log('Directions data:', directionsData);
+    </script>
+</body>
+</html> 
