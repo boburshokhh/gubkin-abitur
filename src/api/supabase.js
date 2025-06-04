@@ -511,7 +511,7 @@ export const directions = {
         if (subjectsData && !subjectsError) {
           // Формируем данные для вступительных испытаний
           direction.exam_details = subjectsData.map(item => ({
-            subject: item.subject.name,
+            subject: item.subject ? item.subject.name : 'Не указано',
             minScore: item.min_score,
             form: 'ЕГЭ' // По умолчанию ЕГЭ, можно изменить если нужно
           }));
@@ -542,7 +542,7 @@ export const directions = {
       if (subjectsData && !subjectsError) {
         // Формируем данные для вступительных испытаний
         data.exam_details = subjectsData.map(item => ({
-          subject: item.subject.name,
+          subject: item.subject ? item.subject.name : 'Не указано',
           minScore: item.min_score,
           form: 'ЕГЭ' // По умолчанию ЕГЭ, можно изменить если нужно
         }));

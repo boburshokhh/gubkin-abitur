@@ -5,7 +5,7 @@
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
         <div class="max-w-3xl mx-auto text-center">
           <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
-            Приёмная кампания 2024/2025
+            Приёмная кампания 2025
           </h1>
           <p class="text-lg md:text-xl opacity-90 mb-8">
             Подай документы онлайн для поступления в Филиал РГУ нефти и газа (НИУ) имени И.М. Губкина в городе Ташкенте
@@ -14,8 +14,8 @@
             <BaseButton tag="router-link" to="/register" size="lg" variant="light" class="font-semibold">
               Подать документы
             </BaseButton>
-            <BaseButton tag="router-link" to="/directions" size="lg" variant="primary" class="border border-white">
-              Направления обучения
+            <BaseButton tag="router-link" to="/admission2025" size="lg" variant="primary" class="border border-white">
+              Вся информация о приеме
             </BaseButton>
           </div>
         </div>
@@ -81,6 +81,53 @@
       </div>
     </section>
 
+    <!-- Быстрая статистика приемной кампании 2025 -->
+    <section class="py-12 md:py-16 bg-primary-50">
+      <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto">
+          <h2 class="text-2xl md:text-3xl font-bold text-center mb-12 text-gray-900">
+            Приемная кампания 2025/2026 в цифрах
+          </h2>
+          
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div class="text-center">
+              <div class="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div class="text-3xl md:text-4xl font-bold text-primary-600 mb-2">330</div>
+                <div class="text-gray-600">Всего мест</div>
+              </div>
+            </div>
+            
+            <div class="text-center">
+              <div class="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div class="text-3xl md:text-4xl font-bold text-green-600 mb-2">5</div>
+                <div class="text-gray-600">Направлений обучения</div>
+              </div>
+            </div>
+            
+            <div class="text-center">
+              <div class="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div class="text-3xl md:text-4xl font-bold text-blue-600 mb-2">11</div>
+                <div class="text-gray-600">Специализаций</div>
+              </div>
+            </div>
+            
+            <div class="text-center">
+              <div class="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div class="text-3xl md:text-4xl font-bold text-orange-600 mb-2">16</div>
+                <div class="text-gray-600">дней для подачи</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="text-center mt-10">
+            <BaseButton tag="router-link" to="/admission2025" size="lg" variant="primary">
+              Узнать подробности
+            </BaseButton>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Важные даты -->
     <section class="py-12 md:py-20 bg-gray-50">
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -97,7 +144,7 @@
             <div class="space-y-12 relative">
               <div class="flex items-center">
                 <div class="flex-1 pr-8 md:pr-16 text-right">
-                  <h3 class="text-lg font-semibold text-primary-700">1 июня - 20 июля</h3>
+                  <h3 class="text-lg font-semibold text-primary-700">16 июня - 1 июля</h3>
                   <p class="text-gray-600">Прием документов для поступления</p>
                 </div>
                 <div class="absolute left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
@@ -116,14 +163,14 @@
                   </svg>
                 </div>
                 <div class="flex-1 pl-8 md:pl-16 text-left">
-                  <h3 class="text-lg font-semibold text-primary-700">22 - 29 июля</h3>
+                  <h3 class="text-lg font-semibold text-primary-700">3 - 12 июля</h3>
                   <p class="text-gray-600">Вступительные испытания</p>
                 </div>
               </div>
               
               <div class="flex items-center">
                 <div class="flex-1 pr-8 md:pr-16 text-right">
-                  <h3 class="text-lg font-semibold text-primary-700">1 августа</h3>
+                  <h3 class="text-lg font-semibold text-primary-700">15 июля</h3>
                   <p class="text-gray-600">Публикация рейтинговых списков</p>
                 </div>
                 <div class="absolute left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
@@ -142,7 +189,7 @@
                   </svg>
                 </div>
                 <div class="flex-1 pl-8 md:pl-16 text-left">
-                  <h3 class="text-lg font-semibold text-primary-700">3 - 9 августа</h3>
+                  <h3 class="text-lg font-semibold text-primary-700">20 - 25 июля</h3>
                   <p class="text-gray-600">Зачисление по результатам конкурса</p>
                 </div>
               </div>
@@ -153,7 +200,7 @@
     </section>
 
     <!-- Вопросы и ответы -->
-    <section class="py-12 md:py-20 bg-white">
+      <section class="py-12 md:py-20 bg-white">
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
         <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">
           Частые вопросы абитуриентов
@@ -166,9 +213,14 @@
           </BaseCard>
           
           <div class="text-center mt-10">
-            <BaseButton tag="router-link" to="/faq" variant="primary">
-              Все вопросы и ответы
-            </BaseButton>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+              <BaseButton tag="router-link" to="/faq" variant="primary">
+                Все вопросы и ответы
+              </BaseButton>
+              <BaseButton tag="router-link" to="/admission2025" variant="outline">
+                Полная информация о приеме 2025
+              </BaseButton>
+            </div>
           </div>
         </div>
       </div>
@@ -184,16 +236,16 @@ import { BaseCard } from '@/components/ui';
 // Демо-данные для секции FAQ
 const faqs = ref([
   {
+    question: "С какого числа начинается прием документов?",
+    answer: "Прием документов на 1-й курс в 2025 году проходит с 16 июня по 1 июля (включительно) в очном и дистанционном формате."
+  },
+  {
+    question: "В какой форме проходят вступительные экзамены?",
+    answer: "Экзамены проводятся письменно (математика, русский язык) и устно (английский язык). Образцы билетов доступны на сайте Филиала."
+  },
+  {
     question: "Какие документы нужны для поступления?",
-    answer: "Для поступления необходимы: заявление о приеме, паспорт, документ об образовании с приложением (аттестат/диплом), результаты вступительных испытаний, 6 фотографий 3х4 см, медицинская справка по форме 086-У."
-  },
-  {
-    question: "Как проходят вступительные испытания?",
-    answer: "Вступительные испытания проводятся в форме тестирования по профильным предметам в зависимости от выбранного направления подготовки. Проверьте список необходимых предметов для каждой специальности в разделе 'Направления обучения'."
-  },
-  {
-    question: "Возможно ли подать документы онлайн?",
-    answer: "Да, вы можете подать документы через наш онлайн-портал для абитуриентов. Для этого необходимо зарегистрироваться в системе и загрузить сканы всех необходимых документов в личном кабинете."
+    answer: "Оригинал и копия документа об образовании, паспорт, нотариально заверенный перевод, фото 3×4, при подаче онлайн — сканы в pdf или jpg."
   }
 ]);
 </script> 

@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <div class="bg-white shadow rounded-lg overflow-hidden mb-8">
     <div class="border-b border-gray-200">
       <nav class="flex -mb-px">
@@ -48,4 +48,4 @@ const props = defineProps({
 });
 
 defineEmits(['change-tab']);
-</script> 
+</script>  -->

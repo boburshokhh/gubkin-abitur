@@ -16,6 +16,14 @@ const routes = [
     }
   },
   {
+    path: '/admission2025',
+    name: 'admission2025',
+    component: () => import('@/views/Admission2025Page.vue'),
+    meta: {
+      title: 'Приёмная кампания 2025/2026 - Филиал Губкинского университета в Ташкенте'
+    }
+  },
+  {
     path: '/auth',
     name: 'auth',
     component: AuthPage,
@@ -75,6 +83,14 @@ const routes = [
     component: () => import('@/views/FaqPage.vue'),
     meta: {
       title: 'Вопросы и ответы - Приёмная кампания Губкинского университета'
+    }
+  },
+  {
+    path: '/contacts',
+    name: 'contacts',
+    component: () => import('@/views/ContactsPage.vue'),
+    meta: {
+      title: 'Контакты - Филиал Губкинского университета в Ташкенте'
     }
   },
   {

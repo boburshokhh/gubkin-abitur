@@ -277,9 +277,9 @@ const toast = useToast();
 // Ссылки навигации
 const navigationLinks = [
   { to: '/', text: 'Главная' },
+  { to: '/admission2025', text: 'Приём 2025' },
   { to: '/directions', text: 'Направления' },
   { to: '/faq', text: 'Вопросы и ответы' },
-  { to: '/contacts', text: 'Контакты' },
   { to: '/statistics', text: 'Статистика' },
 ];
 
