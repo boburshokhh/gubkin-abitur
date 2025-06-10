@@ -2,15 +2,17 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import * as applicationsApi from '../api/applications'
 import * as documentsApi from '../api/documents'
-import * as directionsApi from '../api/directions'
 import { excelExport, supabase } from '../api/supabase'
+import { levels as levelsApi, directions as directionsApi, profiles as profilesApi } from '../api/education'
 
 export const useApplicationStore = defineStore('application', () => {
   // Состояние
   const userApplications = ref([])
   const currentApplication = ref(null)
   const applicationDocuments = ref([])
+  const educationLevels = ref([])
   const allDirections = ref([])
+  const allProfiles = ref([])
   const documentTypes = ref([])
   const regions = ref([])
   const isLoading = ref(false)
@@ -21,6 +23,26 @@ export const useApplicationStore = defineStore('application', () => {
   const applicationById = computed(() => (id) => 
     userApplications.value.find(app => app.id === id)
   )
+
+  // Геттер для получения иерархии программ для выбора
+  const programsForSelection = computed(() => {
+    return educationLevels.value.map(level => ({
+      id: level.id,
+      name: level.name,
+      directions: allDirections.value
+        .filter(dir => dir.level_id === level.id)
+        .map(dir => ({
+          id: dir.id,
+          name: `${dir.name} (${dir.code})`,
+          profiles: allProfiles.value
+            .filter(prof => prof.direction_id === dir.id)
+            .map(prof => ({
+              id: prof.id,
+              name: prof.name,
+            }))
+        }))
+    }));
+  });
 
   // Загрузить все заявки текущего пользователя
   async function loadUserApplications() {
@@ -183,24 +205,33 @@ export const useApplicationStore = defineStore('application', () => {
     }
   }
 
-  // Загрузить все направления обучения
-  async function loadDirections() {
-    isLoading.value = true
-    error.value = null
+  // Загрузить все образовательные данные (уровни, направления, профили)
+  async function loadEducationData() {
+    if (educationLevels.value.length > 0) return; // Не перезагружаем, если уже есть
 
+    isLoading.value = true;
+    error.value = null;
     try {
-      const { data, error: loadError } = await directionsApi.getAll()
-      
-      if (loadError) throw loadError
-      
-      allDirections.value = data || []
-      return true
+      const [levelsRes, directionsRes, profilesRes] = await Promise.all([
+        levelsApi.getAll(),
+        directionsApi.getAll(),
+        profilesApi.getAllWithDetails()
+      ]);
+
+      if (levelsRes.error) throw levelsRes.error;
+      educationLevels.value = levelsRes.data || [];
+
+      if (directionsRes.error) throw directionsRes.error;
+      allDirections.value = directionsRes.data || [];
+
+      if (profilesRes.error) throw profilesRes.error;
+      allProfiles.value = profilesRes.data || [];
+
     } catch (err) {
-      console.error('Ошибка загрузки направлений:', err)
-      error.value = err.message || 'Не удалось загрузить направления'
-      return false
+      error.value = err.message || 'Не удалось загрузить образовательные программы';
+      console.error(err);
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
   }
 
@@ -399,7 +430,9 @@ export const useApplicationStore = defineStore('application', () => {
     userApplications,
     currentApplication,
     applicationDocuments,
+    educationLevels,
     allDirections,
+    allProfiles,
     documentTypes,
     regions,
     isLoading,
@@ -408,22 +441,23 @@ export const useApplicationStore = defineStore('application', () => {
     // Геттеры
     hasApplications,
     applicationById,
+    programsForSelection,
 
     // Действия
     loadUserApplications,
+    getApplicationsStatistics,
     loadApplication,
-    loadDirections,
-    loadDocuments,
-    loadDocumentTypes,
-    loadRegions,
     createApplication,
     updateApplication,
     submitApplication,
+    loadEducationData,
+    loadDocuments,
+    loadDocumentTypes,
     uploadDocument,
-    getApplicationsStatistics,
+    loadRegions,
     exportAllApplicantsToExcel,
     exportApplicantToExcel,
     exportApplicationToExcel,
-    createOlympiadCertificate
+    createOlympiadCertificate,
   }
 }) 

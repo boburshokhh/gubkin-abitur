@@ -37,15 +37,17 @@
                 <ul class="space-y-1 text-sm text-gray-700">
                   <li class="flex items-start">
                     <span class="text-primary-600 mr-2">•</span>
-                    Метро: станция "Мирзо Улугбек"
+                    Метро: станция "Буюк ипак йули"
                   </li>
                   <li class="flex items-start">
                     <span class="text-primary-600 mr-2">•</span>
-                    Автобус: маршруты №№ 32, 67, 89
+                    Остановка автобуса  "Институт механики"
+                    Автобус: № 25, 151, Маршрутка: № 31м
                   </li>
+                  
                   <li class="flex items-start">
                     <span class="text-primary-600 mr-2">•</span>
-                    Ориентир: рядом с торговым центром "Samarkand Darvoza"
+                    Ориентир: рядом с Институт микробиологии академии наук Республики Узбекистан
                   </li>
                 </ul>
               </div>
@@ -76,7 +78,7 @@
               
               <div>
                 <dt class="text-sm font-medium text-gray-500 mb-2">Ответственное лицо</dt>
-                <dd class="text-base text-gray-900 font-semibold">Копаненко Кристина Александровна</dd>
+                <dd class="text-base text-gray-900 font-semibold">Гафурова Умида Ирмухаматовна</dd>
               </div>
 
               <div class="bg-green-50 rounded-lg p-4">
@@ -240,34 +242,49 @@
         </div>
 
         <!-- Карта (заглушка) -->
-        <div class="mt-12">
-          <BaseCard bordered>
-            <template #header>
-              <div class="flex items-center">
-                <div class="rounded-full bg-gray-100 p-3 mr-3">
-                  <svg class="h-6 w-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
-                </div>
-                <h3 class="text-xl font-semibold text-gray-900">Расположение на карте</h3>
+        <div class="mt-12 max-w-4xl mx-auto">
+          <div class="bg-white rounded-lg shadow-md border border-gray-200">
+              <!-- Header -->
+              <div class="p-6 border-b border-gray-200">
+                  <div class="flex items-center">
+                      <div class="rounded-full bg-gray-100 p-3 mr-3">
+                          <svg class="h-6 w-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                          </svg>
+                      </div>
+                      <h3 class="text-xl font-semibold text-gray-900">Расположение на карте</h3>
+                  </div>
               </div>
-            </template>
-            <div class="bg-gray-100 rounded-lg h-64 flex items-center justify-center">
-              <div class="text-center">
-                <svg class="h-12 w-12 text-gray-400 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <p class="text-gray-600">
-                  Интерактивная карта будет добавлена позже
-                </p>
-                <p class="text-sm text-gray-500 mt-2">
-                  Адрес: г. Ташкент, Мирзо Улугбекский район, ул. Дурмон йули, 34
-                </p>
+              
+              <!-- Map Content -->
+              <div class="p-6">
+                  <div class="rounded-lg overflow-hidden shadow-sm">
+                      <iframe 
+                          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2995.764941041147!2d69.3396315746695!3d41.335724471306484!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x38aef45c4a6715f1%3A0x1539ad8e2d2b776e!2z0KTQuNC70LjQsNC7INCg0JPQoyDQvdC10YTRgtC4INC4INCz0LDQt9CwINCyINCz0L7RgNC-0LTQtSDQotCw0YjQutC10L3RgtC1LCDQuNC80LXQvdC4INCT0YPQsdC60LjQvdCw!5e0!3m2!1sru!2s!4v1749582147213!5m2!1sru!2s" 
+                          width="100%" 
+                          height="400" 
+                          style="border:0;" 
+                          allowfullscreen="" 
+                          loading="lazy" 
+                          referrerpolicy="no-referrer-when-downgrade">
+                      </iframe>
+                  </div>
+                  
+                  <!-- Address Information -->
+                  <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <div class="flex items-center">
+                          <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <p class="text-gray-700 font-medium">
+                              г. Ташкент, Мирзо Улугбекский район, ул. Дурмон йули, 34
+                          </p>
+                      </div>
+                  </div>
               </div>
-            </div>
-          </BaseCard>
-        </div>
+          </div>
+      </div>
 
       </div>
     </div>

@@ -36,10 +36,10 @@
               <span>Региональная статистика</span>
             </div>
             <div class="flex items-center space-x-2">
-              <span :class="!loadingDirections ? 'text-green-600' : 'text-gray-400'">
-                {{ !loadingDirections ? '✅' : '⏳' }}
+              <span :class="!loadingPrograms ? 'text-green-600' : 'text-gray-400'">
+                {{ !loadingPrograms ? '✅' : '⏳' }}
               </span>
-              <span>Статистика направлений</span>
+              <span>Статистика по программам</span>
             </div>
           </div>
         </div>
@@ -90,87 +90,138 @@
           </div>
         </div>
 
-        <!-- Основные графики -->
+        <!-- Дополнительные карточки статистики -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+
+          
+
+          
+          <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-teal-500">
+            <div class="flex items-center">
+              <div class="text-teal-500 text-2xl mr-3">🏠</div>
+              <div>
+                <p class="text-sm text-gray-600">Нужно общежитие</p>
+                <p class="text-2xl font-bold text-gray-800">{{ generalStats.accommodation_needed || 0 }}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-pink-500">
+            <div class="flex items-center">
+              <div class="text-pink-500 text-2xl mr-3">🏆</div>
+              <div>
+                <p class="text-sm text-gray-600">Олимпиадники</p>
+                <p class="text-2xl font-bold text-gray-800">{{ generalStats.olympiad_participants || 0 }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Графики статистики -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <!-- Статистика по датам -->
           <section class="bg-white p-6 rounded-lg shadow-md">
-            <div class="flex items-center justify-between mb-6">
-              <h2 class="text-xl font-semibold text-gray-800">
-                Статистика по приему документов по датам
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+              Статистика по датам
               </h2>
-              <div class="text-sm text-gray-500">
-                Последние {{ dailyStats.length }} дней
-              </div>
-            </div>
-            
             <div class="h-80">
               <apexchart
-                v-if="allDataLoaded && hasValidData.daily && dailyChartSeries.length > 0"
+                v-if="dailyChartSeries.length > 0"
                 type="bar"
                 height="320"
                 :options="dailyChartOptions"
                 :series="dailyChartSeries"
               />
-              <div v-else-if="!allDataLoaded" class="flex items-center justify-center h-full">
-                <div class="text-center">
-                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                  <p class="text-gray-500">Загрузка данных...</p>
-                </div>
-              </div>
               <div v-else class="flex items-center justify-center h-full">
-                <p class="text-gray-500">Нет данных для отображения</p>
+                <p class="text-gray-500">Нет данных</p>
               </div>
             </div>
           </section>
 
           <!-- Статистика по регионам -->
           <section class="bg-white p-6 rounded-lg shadow-md">
-            <div class="flex items-center justify-between mb-6">
-              <h2 class="text-xl font-semibold text-gray-800">
-                Статистика поступивших документов по регионам
-              </h2>
-              <button 
-                @click="toggleRegionalView"
-                class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-              >
-                {{ showRegionalChart ? 'Показать таблицу' : 'Показать график' }}
-              </button>
-            </div>
-            
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+              Статистика по регионам
+            </h2>
             <div class="h-80">
               <apexchart
-                v-if="allDataLoaded && hasValidData.regional && showRegionalChart && regionalChartSeries.length > 0"
+                v-if="regionalChartSeries.length > 0"
                 type="donut"
                 height="320"
                 :options="regionalChartOptions"
                 :series="regionalChartSeries"
               />
+              <div v-else class="flex items-center justify-center h-full">
+                <p class="text-gray-500">Нет данных</p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Статистика по профилям и специализациям -->
+        <div class="grid grid-cols-1 gap-8 mb-8">
+          <!-- Статистика по профилям/специализациям -->
+          <section class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-semibold text-gray-800">
+                Статистика по профилям и специализациям
+              </h3>
+              <button 
+                @click="toggleProfilesView"
+                class="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+              >
+                {{ showProfilesChart ? 'Показать таблицу' : 'Показать график' }}
+              </button>
+            </div>
+            
+            <div class="h-80">
+              <apexchart
+                v-if="allDataLoaded && hasValidData.programs && showProfilesChart && programsChartSeries.length > 0"
+                type="line"
+                height="320"
+                :options="programsChartOptions"
+                :series="programsChartSeries"
+              />
               
-              <!-- Таблица регионов -->
-              <div v-if="allDataLoaded && hasValidData.regional && !showRegionalChart" class="overflow-auto h-full">
+              <!-- Таблица профилей -->
+              <div v-if="allDataLoaded && hasValidData.programs && !showProfilesChart" class="overflow-auto h-full">
                 <table class="min-w-full">
                   <thead class="bg-gray-50">
                     <tr>
                       <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Регион
+                        Профиль/Специализация
                       </th>
                       <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Всего
+                        Код направления
+                      </th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Уровень
+                      </th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Заявлений
                       </th>
                       <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Принято
                       </th>
                       <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Отклонено
+                        На рассмотрении
                       </th>
+
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-for="region in regionalStats" :key="region.region_code">
-                      <td class="px-4 py-2 text-sm text-gray-900">{{ region.region_name }}</td>
-                      <td class="px-4 py-2 text-sm text-gray-900">{{ region.total_applications }}</td>
-                      <td class="px-4 py-2 text-sm text-green-600">{{ region.accepted_applications }}</td>
-                      <td class="px-4 py-2 text-sm text-red-600">{{ region.rejected_applications }}</td>
+                    <tr v-for="program in programsStatsFiltered" :key="program.profile_id">
+                      <td class="px-4 py-2 text-sm text-gray-900 max-w-xs">
+                        <div class="truncate" :title="program.profile_name">
+                          {{ program.profile_name }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-2 text-sm text-blue-600 font-medium">{{ program.direction_code }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-600">{{ program.level_name }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-900 font-semibold">{{ program.total_applications }}</td>
+                      <td class="px-4 py-2 text-sm text-green-600 font-semibold">{{ program.accepted_applications }}</td>
+                      <td class="px-4 py-2 text-sm text-yellow-600 font-semibold">{{ program.pending_applications }}</td>
+                      
                     </tr>
                   </tbody>
                 </table>
@@ -183,35 +234,7 @@
                 </div>
               </div>
               
-              <div v-if="allDataLoaded && !hasValidData.regional" class="flex items-center justify-center h-full">
-                <p class="text-gray-500">Нет данных для отображения</p>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <!-- Статистика по направлениям -->
-        <div class="grid grid-cols-1 gap-8 mb-8">
-          <section class="bg-white p-6 rounded-lg shadow-md">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">
-              Статистика по направлениям обучения
-            </h3>
-            
-            <div class="h-80">
-              <apexchart
-                v-if="allDataLoaded && hasValidData.directions && directionsChartSeries.length > 0"
-                type="bar"
-                height="320"
-                :options="directionsChartOptions"
-                :series="directionsChartSeries"
-              />
-              <div v-else-if="!allDataLoaded" class="flex items-center justify-center h-full">
-                <div class="text-center">
-                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                  <p class="text-gray-500">Загрузка данных...</p>
-                </div>
-              </div>
-              <div v-else class="flex items-center justify-center h-full">
+              <div v-if="allDataLoaded && !hasValidData.programs" class="flex items-center justify-center h-full">
                 <p class="text-gray-500">Нет данных для отображения</p>
               </div>
             </div>
@@ -223,7 +246,7 @@
           <button 
             @click="refreshAllData"
             :disabled="isRefreshing"
-            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
             <span v-if="!isRefreshing">🔄 Обновить данные</span>
             <span v-else>⏳ Обновление...</span>
@@ -244,46 +267,48 @@ import {
   getGeneralStats,
   getDailyStats,
   getRegionalStats,
-  getDirectionsStats,
-  getAllStats
+  getProgramStats
 } from '@/api/statistics';
 
-// Состояние загрузки
-const loadingDaily = ref(true);
-const loadingRegional = ref(true);
-const loadingDirections = ref(true);
-const loadingGeneral = ref(true);
-const isRefreshing = ref(false);
-
-// Проверка готовности всех данных
-const allDataLoaded = computed(() => {
-  return !loadingDaily.value && 
-         !loadingRegional.value && 
-         !loadingDirections.value && 
-         !loadingGeneral.value;
-});
-
-// Проверка наличия данных для графиков
-const hasValidData = computed(() => {
-  return {
-    daily: dailyStats.value.length > 0,
-    regional: regionalStats.value.length > 0,
-    directions: directionsStats.value.length > 0,
-    general: Object.keys(generalStats.value).length > 0
-  };
-});
-
-// Данные
+// Данные статистики
+const generalStats = ref({});
 const dailyStats = ref([]);
 const regionalStats = ref([]);
-const directionsStats = ref([]);
-const generalStats = ref({});
+const programsStats = ref([]);
+// Убираем directionsStats - больше не нужно
+
+// Состояние загрузки для каждого блока
+const loadingGeneral = ref(true);
+const loadingDaily = ref(true);
+const loadingRegional = ref(true);
+const loadingPrograms = ref(true);
+// Убираем loadingDirections - больше не нужно
 
 // UI состояние
 const showRegionalChart = ref(true);
+const showProfilesChart = ref(true);
+const isRefreshing = ref(false);
 const lastUpdated = ref(new Date().toLocaleString('ru-RU'));
 
-// ApexCharts конфигурации
+// Вычисляемые свойства
+const allDataLoaded = computed(() => 
+  !loadingGeneral.value && 
+  !loadingDaily.value && 
+  !loadingRegional.value && 
+  !loadingPrograms.value
+);
+
+const hasValidData = computed(() => ({
+  daily: dailyStats.value.length > 0,
+  regional: regionalStats.value.length > 0,
+  programs: programsStats.value.length > 0
+}));
+
+const programsStatsFiltered = computed(() => 
+  programsStats.value.filter(p => p.total_applications > 0).slice(0, 10)
+);
+
+// Конфигурация графиков
 const dailyChartOptions = ref({
   chart: {
     type: 'bar',
@@ -320,27 +345,7 @@ const dailyChartOptions = ref({
     horizontalAlign: 'center',
     fontSize: '12px',
     itemMargin: { horizontal: 5, vertical: 0 }
-  },
-  responsive: [{
-    breakpoint: 768,
-    options: {
-      plotOptions: {
-        bar: {
-          horizontal: false
-        }
-      },
-      legend: {
-        position: 'bottom'
-      },
-      xaxis: {
-        labels: {
-          style: { fontSize: '10px' },
-          rotate: -90
-        }
-      }
-    }
-  }],
-  series: []
+  }
 });
 
 const dailyChartSeries = ref([]);
@@ -374,81 +379,88 @@ const regionalChartOptions = ref({
         }
       }
     }
-  },
-  responsive: [{
-    breakpoint: 480,
-    options: {
-      chart: {
-        height: 280
-      },
-      legend: {
-        position: 'bottom',
-        fontSize: '10px'
-      }
-    }
-  }],
-  series: []
+  }
 });
 
 const regionalChartSeries = ref([]);
 
-const directionsChartOptions = ref({
+const programsChartOptions = ref({
   chart: {
-    type: 'bar',
+    type: 'line',
     height: 320,
-    toolbar: { show: false }
-  },
-  plotOptions: {
-    bar: {
-      borderRadius: 4,
-      horizontal: true,
-      dataLabels: { position: 'top' }
-    }
+    toolbar: { show: false },
+    animations: { enabled: true }
   },
   dataLabels: {
     enabled: true,
-    style: { fontSize: '12px', colors: ['#fff'] }
+    style: {
+      fontSize: '12px',
+      fontWeight: 'bold',
+      colors: ['#304758']
+    },
+    background: {
+      enabled: true,
+      foreColor: '#fff',
+      borderRadius: 2,
+      borderWidth: 1,
+      borderColor: '#fff',
+      opacity: 0.9
+    }
+  },
+  stroke: {
+    width: 3,
+    curve: 'smooth'
+  },
+  markers: {
+    size: 6,
+    strokeWidth: 2,
+    strokeColors: '#fff'
   },
   xaxis: {
     categories: [],
-    labels: { style: { colors: '#666', fontSize: '12px' } }
+    labels: {
+      style: {
+        colors: '#666',
+        fontSize: '11px'
+      },
+      rotate: -45,
+      rotateAlways: true,
+      maxHeight: 120
+    }
   },
   yaxis: {
     labels: { 
-      style: { colors: '#666', fontSize: '11px' },
-      maxWidth: 200
+      style: {
+        colors: '#666',
+        fontSize: '12px'
+      }
+    },
+    title: {
+      text: 'Количество заявлений',
+      style: {
+        color: '#666',
+        fontSize: '12px'
+      }
     }
   },
-  colors: ['#3B82F6', '#22C55E', '#EF4444'],
+  colors: ['#3B82F6', '#22C55E'],
   legend: { 
     position: 'top', 
     horizontalAlign: 'center',
     fontSize: '12px',
-    itemMargin: { horizontal: 5, vertical: 0 }
+    itemMargin: { horizontal: 10, vertical: 5 }
   },
-  responsive: [{
-    breakpoint: 768,
-    options: {
-      plotOptions: {
-        bar: {
-          horizontal: false
-        }
-      },
-      legend: {
-        position: 'bottom'
-      },
-      yaxis: {
-        labels: {
-          style: { fontSize: '10px' },
-          maxWidth: 150
-        }
-      }
-    }
-  }],
-  series: []
+  grid: {
+    borderColor: '#e7e7e7',
+    strokeDashArray: 3
+  },
+  tooltip: {
+    shared: true,
+    intersect: false
+  }
 });
 
-const directionsChartSeries = ref([]);
+const programsChartSeries = ref([]);
 
 // API функции
 async function fetchGeneralStats() {
@@ -471,7 +483,7 @@ async function fetchGeneralStats() {
 async function fetchDailyStats() {
   try {
     loadingDaily.value = true;
-    const result = await getDailyStats();
+    const result = await getDailyStats(7);
     
     if (result.success && result.data.length > 0) {
       dailyStats.value = result.data;
@@ -488,8 +500,8 @@ async function fetchDailyStats() {
       dailyChartOptions.value.xaxis.categories = categories;
       dailyChartSeries.value = [
         {
-          name: 'Всего заявлений',
-          data: result.data.map(item => Number(item.total_applications) || 0)
+          name: 'Новые заявления',
+          data: result.data.map(item => Number(item.new_applications) || 0)
         },
         {
           name: 'Принято',
@@ -498,19 +510,11 @@ async function fetchDailyStats() {
         {
           name: 'Отклонено',
           data: result.data.map(item => Number(item.rejected_applications) || 0)
-        },
-        {
-          name: 'На рассмотрении',
-          data: result.data.map(item => Number(item.pending_applications) || 0)
         }
       ];
       
-      // Обновляем цвета для всех серий
-      dailyChartOptions.value.colors = ['#3B82F6', '#22C55E', '#EF4444', '#F59E0B'];
-      
       // Принудительно обновляем опции для триггера реактивности
       dailyChartOptions.value = { ...dailyChartOptions.value };
-      
     } else {
       dailyChartSeries.value = [];
     }
@@ -557,66 +561,67 @@ async function fetchRegionalStats() {
   }
 }
 
-async function fetchDirectionsStats() {
+async function fetchProgramStats() {
   try {
-    loadingDirections.value = true;
-    const result = await getDirectionsStats();
+    loadingPrograms.value = true;
+    const result = await getProgramStats();
     
     if (result.success && result.data.length > 0) {
-      directionsStats.value = result.data;
+      programsStats.value = result.data;
       
-      // Фильтруем данные с количеством > 0
-      const validData = result.data.filter(item => item.total_applications > 0);
+      // Фильтруем только программы с заявлениями и берем топ-8
+      const validData = result.data
+        .filter(p => p.total_applications > 0)
+        .sort((a, b) => b.total_applications - a.total_applications)
+        .slice(0, 8);
       
       if (validData.length > 0) {
-        // Подготавливаем данные для графика
-        const categories = validData.map(item => 
-          item.direction_name.length > 30 
-            ? item.direction_name.substring(0, 30) + '...'
-            : item.direction_name
-        );
+        // Подготавливаем категории для оси X
+        programsChartOptions.value.xaxis.categories = validData.map(p => {
+          const name = p.profile_name.length > 20 
+            ? p.profile_name.substring(0, 20) + '...' 
+            : p.profile_name;
+          return `${name}`;
+        });
         
-        directionsChartOptions.value.xaxis.categories = categories;
-        directionsChartSeries.value = [
+        // Формируем данные для двух линий
+        programsChartSeries.value = [
           {
             name: 'Всего заявлений',
-            data: validData.map(item => Number(item.total_applications) || 0)
+            data: validData.map(p => parseInt(p.total_applications, 10))
           },
           {
             name: 'Принято',
-            data: validData.map(item => Number(item.accepted_applications) || 0)
-          },
-          {
-            name: 'Отклонено',
-            data: validData.map(item => Number(item.rejected_applications) || 0)
+            data: validData.map(p => parseInt(p.accepted_applications, 10))
           }
         ];
         
-        // Обновляем цвета для всех серий
-        directionsChartOptions.value.colors = ['#3B82F6', '#22C55E', '#EF4444'];
-        
-        // Обновляем опции для триггера реактивности
-        directionsChartOptions.value = { ...directionsChartOptions.value };
+        // Обновляем для триггера реактивности
+        programsChartOptions.value = { ...programsChartOptions.value };
       } else {
-        directionsChartSeries.value = [];
-        directionsChartOptions.value.xaxis.categories = [];
+        programsChartSeries.value = [];
+        programsChartOptions.value.xaxis.categories = [];
       }
     } else {
-      directionsChartSeries.value = [];
-      directionsChartOptions.value.xaxis.categories = [];
+      programsChartSeries.value = [];
+      programsChartOptions.value.xaxis.categories = [];
     }
   } catch (error) {
-    console.error('Ошибка загрузки статистики по направлениям:', error);
-    directionsChartSeries.value = [];
-    directionsChartOptions.value.xaxis.categories = [];
+    console.error('Ошибка загрузки статистики по программам:', error);
+    programsChartSeries.value = [];
+    programsChartOptions.value.xaxis.categories = [];
   } finally {
-    loadingDirections.value = false;
+    loadingPrograms.value = false;
   }
 }
 
 // UI функции
 function toggleRegionalView() {
   showRegionalChart.value = !showRegionalChart.value;
+}
+
+function toggleProfilesView() {
+  showProfilesChart.value = !showProfilesChart.value;
 }
 
 async function refreshAllData() {
@@ -627,7 +632,7 @@ async function refreshAllData() {
       fetchGeneralStats(),
       fetchDailyStats(),
       fetchRegionalStats(),
-      fetchDirectionsStats()
+      fetchProgramStats()
     ]);
     
     lastUpdated.value = new Date().toLocaleString('ru-RU');
@@ -640,9 +645,12 @@ async function refreshAllData() {
 }
 
 // Lifecycle
-onMounted(async () => {
+onMounted(() => {
   console.log('Component mounted, loading data...');
-  await refreshAllData();
+  fetchGeneralStats();
+  fetchDailyStats();
+  fetchRegionalStats();
+  fetchProgramStats();
 });
 </script>
 

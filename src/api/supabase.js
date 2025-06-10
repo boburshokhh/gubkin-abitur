@@ -76,60 +76,6 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
 });
 
-/* 
-НАСТРОЙКА SUPABASE (выполнить в SQL Editor):
-
--- Создание хранимой процедуры для добавления пользователя без RLS ограничений
-CREATE OR REPLACE FUNCTION create_user_profile(
-  user_id uuid,
-  user_email text,
-  first_name text DEFAULT '',
-  last_name text DEFAULT '',
-  role_id int DEFAULT 1
-)
-RETURNS json
-LANGUAGE plpgsql
-SECURITY DEFINER -- Выполняется с правами владельца функции
-AS $$
-DECLARE
-  result json;
-BEGIN
-  -- Вставка новой записи без проверок RLS
-  INSERT INTO public.users (id, email, first_name, last_name, role_id, created_at)
-  VALUES (user_id, user_email, first_name, last_name, role_id, now())
-  RETURNING to_json(users.*) INTO result;
-  
-  RETURN result;
-END;
-$$;
-
--- Настройка политик RLS для таблицы users
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
--- Удаляем существующие политики, если они мешают
-DROP POLICY IF EXISTS "Пользователи могут видеть свой профиль" ON public.users;
-DROP POLICY IF EXISTS "Пользователи могут создавать свой профиль" ON public.users;
-DROP POLICY IF EXISTS "Пользователи могут обновлять свой профиль" ON public.users;
-
--- Создаем новые политики с правильными названиями
-CREATE POLICY "users_select" ON public.users 
-FOR SELECT USING (auth.uid() = id);
-
-CREATE POLICY "users_insert" ON public.users 
-FOR INSERT WITH CHECK (auth.uid() = id);
-
-CREATE POLICY "users_update" ON public.users 
-FOR UPDATE USING (auth.uid() = id);
-
--- Админы могут видеть все профили
-CREATE POLICY "admins_all" ON public.users 
-FOR ALL USING (
-  EXISTS (
-    SELECT 1 FROM public.users 
-    WHERE id = auth.uid() AND role_id = 2
-  )
-);
-*/
 
 // Функции для работы с аутентификацией
 export const auth = {
@@ -199,7 +145,7 @@ export const auth = {
           });
           
           if (updateError) {
-            console.error('Ошибка обновления метаданных:', updateError);
+            console.error('Ошибка обновления метаданных:', updateError.message);
           } else {
             console.log('Метаданные успешно обновлены');
           }
@@ -234,10 +180,11 @@ export const auth = {
   signOut: async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      return { error };
-    } catch (err) {
-      console.error('Ошибка выхода:', err);
-      return { error: err };
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      console.error('Ошибка выхода из системы:', error);
+      return { success: false, error: error.message };
     }
   },
 
@@ -487,386 +434,254 @@ export const users = {
         error: new Error(`Ошибка при обновлении профиля: ${err.message}`) 
       }
     }
-  }
-}
-
-// Функции для работы с направлениями обучения
-export const directions = {
-  // Получить все направления
-  async getAll() {
-    console.log('API: загрузка всех направлений');
-    const { data, error } = await supabase
-      .from('directions')
-      .select('*')
-      .order('name');
-
-    if (data && !error) {
-      // Загружаем информацию о предметах для каждого направления
-      for (const direction of data) {
-        const { data: subjectsData, error: subjectsError } = await supabase
-          .from('direction_subjects')
-          .select('*, subject:subject_id(*)')
-          .eq('direction_id', direction.id);
-        
-        if (subjectsData && !subjectsError) {
-          // Формируем данные для вступительных испытаний
-          direction.exam_details = subjectsData.map(item => ({
-            subject: item.subject ? item.subject.name : 'Не указано',
-            minScore: item.min_score,
-            form: 'ЕГЭ' // По умолчанию ЕГЭ, можно изменить если нужно
-          }));
-        }
-      }
-    }
-
-    console.log('API: получено направлений:', data?.length, 'Ошибка:', error);
-    return { data, error };
   },
 
-  // Получить направление по ID
-  async getById(id) {
-    console.log('API: загрузка направления по ID:', id);
-    const { data, error } = await supabase
-      .from('directions')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (data && !error) {
-      // Загружаем информацию о предметах для направления
-      const { data: subjectsData, error: subjectsError } = await supabase
-        .from('direction_subjects')
-        .select('*, subject:subject_id(*)')
-        .eq('direction_id', id);
-        
-      if (subjectsData && !subjectsError) {
-        // Формируем данные для вступительных испытаний
-        data.exam_details = subjectsData.map(item => ({
-          subject: item.subject ? item.subject.name : 'Не указано',
-          minScore: item.min_score,
-          form: 'ЕГЭ' // По умолчанию ЕГЭ, можно изменить если нужно
-        }));
-      }
-    }
-
-    console.log('API: результат загрузки направления:', data ? 'найдено' : 'не найдено', 'Ошибка:', error);
-    return { data, error };
-  },
-  
-  // Создать новое направление
-  async create(directionData) {
-    console.log('API: создание нового направления', directionData);
-    
-    // Проверяем обязательные поля
-    if (!directionData.code || !directionData.name || !directionData.slug) {
-      console.error('API: отсутствуют обязательные поля для создания направления');
-      return { 
-        data: null, 
-        error: new Error('Отсутствуют обязательные поля (code, name, slug)')
-      };
-    }
-    
+  // Получить роль пользователя
+  async getUserRole(userId) {
     try {
-      const { data, error } = await supabase
-        .from('directions')
-        .insert(directionData)
-        .select()
-        .single();
-        
-      console.log('API: результат создания направления:', data ? 'успешно' : 'ошибка', 'Ошибка:', error);
-      return { data, error };
+      const { data, error } = await supabase.rpc('get_user_role', { 
+        p_user_id: userId 
+      });
+      
+      if (error) throw error;
+      
+      return { data, error: null };
     } catch (err) {
-      console.error('API: исключение при создании направления:', err);
+      console.error('Ошибка получения роли пользователя:', err);
       return { data: null, error: err };
     }
   },
   
-  // Обновить направление
-  async update(id, directionData) {
-    console.log('API: обновление направления с ID:', id, directionData);
-    
-    if (!id) {
-      console.error('API: отсутствует ID для обновления направления');
-      return { 
-        data: null, 
-        error: new Error('Отсутствует ID направления для обновления')
-      };
-    }
-    
+  // Обновить роль пользователя
+  async updateUserRole(userId, roleId) {
     try {
-      const { data, error } = await supabase
-        .from('directions')
-        .update(directionData)
-        .eq('id', id)
-        .select()
-        .single();
-        
-      console.log('API: результат обновления направления:', data ? 'успешно' : 'ошибка', 'Ошибка:', error);
-      return { data, error };
+      const { data, error } = await supabase.rpc('update_user_role', { 
+        p_user_id: userId,
+        p_role_id: roleId 
+      });
+      
+      if (error) throw error;
+      
+      return { data, error: null };
     } catch (err) {
-      console.error('API: исключение при обновлении направления:', err);
+      console.error('Ошибка обновления роли пользователя:', err);
       return { data: null, error: err };
     }
   },
   
-  // Удалить направление
-  async delete(id) {
-    console.log('API: удаление направления с ID:', id);
-    
-    if (!id) {
-      console.error('API: отсутствует ID для удаления направления');
-      return { error: new Error('Отсутствует ID направления для удаления') };
-    }
-    
+  // Получить список пользователей с фильтрацией
+  async getAllUsers(roleId = null, search = '', page = 1, pageSize = 20) {
     try {
-      const { error } = await supabase
-        .from('directions')
-        .delete()
-        .eq('id', id);
-        
-      console.log('API: результат удаления направления. Ошибка:', error);
-      return { error };
+      const offset = (page - 1) * pageSize;
+      
+      // Из-за ошибки несоответствия типов (42804) используем прямой запрос вместо RPC
+      const { data, error } = await supabase
+        .from('users')
+        .select(`
+          id,
+          email,
+          first_name,
+          last_name,
+          middle_name,
+          phone,
+          role_id,
+          created_at,
+          updated_at
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Фильтрация на стороне клиента
+      let filteredData = data;
+      
+      // Фильтрация по роли если указана
+      if (roleId) {
+        filteredData = filteredData.filter(user => user.role_id === roleId);
+      }
+      
+      // Поиск по имени, фамилии или email
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filteredData = filteredData.filter(user => 
+          (user.first_name && user.first_name.toLowerCase().includes(searchLower)) ||
+          (user.last_name && user.last_name.toLowerCase().includes(searchLower)) ||
+          (user.email && user.email.toLowerCase().includes(searchLower))
+        );
+      }
+      
+      // Вычисляем общее количество и применяем пагинацию
+      const total = filteredData.length;
+      const paginatedData = filteredData.slice(offset, offset + pageSize);
+      
+      return { 
+        data: { 
+          users: paginatedData, 
+          total_count: total 
+        }, 
+        error: null 
+      };
     } catch (err) {
-      console.error('API: исключение при удалении направления:', err);
-      return { error: err };
+      console.error('Ошибка получения списка пользователей:', err);
+      return { data: null, error: err };
     }
-  }
-}
-
-// Функции для работы с профилями
-export const profiles = {
-  // Получить все профили
-  async getAll() {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, direction:direction_id(*)')
-      .order('name')
-
-    return { data, error }
-  },
-
-  // Получить профиль по ID
-  async getById(id) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, direction:direction_id(*)')
-      .eq('id', id)
-      .single()
-
-    return { data, error }
-  },
-  
-  // Получить профили по ID направления
-  async getByDirectionId(directionId) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('direction_id', directionId)
-      .order('name')
-
-    return { data, error }
-  },
-  
-  // Создать новый профиль
-  async create(profileData) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert(profileData)
-      .select()
-      .single()
-      
-    return { data, error }
-  },
-  
-  // Обновить профиль
-  async update(id, profileData) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(profileData)
-      .eq('id', id)
-      .select()
-      .single()
-      
-    return { data, error }
-  },
-  
-  // Удалить профиль
-  async delete(id) {
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', id)
-      
-    return { error }
-  }
-}
-
-// Функции для работы со специальностями
-export const specialties = {
-  // Получить все специальности
-  async getAll() {
-    const { data, error } = await supabase
-      .from('specialties')
-      .select('*, profile:profile_id(*)')
-      .order('name')
-
-    return { data, error }
-  },
-
-  // Получить специальность по ID
-  async getById(id) {
-    const { data, error } = await supabase
-      .from('specialties')
-      .select('*, profile:profile_id(*)')
-      .eq('id', id)
-      .single()
-
-    return { data, error }
-  },
-  
-  // Получить специальности по ID профиля
-  async getByProfileId(profileId) {
-    const { data, error } = await supabase
-      .from('specialties')
-      .select('*')
-      .eq('profile_id', profileId)
-      .order('name')
-
-    return { data, error }
-  },
-  
-  // Создать новую специальность
-  async create(specialtyData) {
-    const { data, error } = await supabase
-      .from('specialties')
-      .insert(specialtyData)
-      .select()
-      .single()
-      
-    return { data, error }
-  },
-  
-  // Обновить специальность
-  async update(id, specialtyData) {
-    const { data, error } = await supabase
-      .from('specialties')
-      .update(specialtyData)
-      .eq('id', id)
-      .select()
-      .single()
-      
-    return { data, error }
-  },
-  
-  // Удалить специальность
-  async delete(id) {
-    const { error } = await supabase
-      .from('specialties')
-      .delete()
-      .eq('id', id)
-      
-    return { error }
   }
 }
 
 // Функции для работы с заявками
 export const applications = {
-  // Получить все заявки текущего пользователя
-  async getAll() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
-
+  // Получение заявок с фильтрацией и пагинацией через RPC
+  async getAll({ page = 1, pageSize = 10, filters = {} } = {}) {
     try {
-      // Сначала получаем все заявления
-      const { data: applications, error: applicationsError } = await supabase
-        .from('applications')
-        .select(`
-          *,
-          direction:direction_id (id, name),
-          user:user_id (id, first_name, last_name, email),
-          status:status_id (id, name, color)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      const { data, error } = await supabase.rpc('get_filtered_applications', {
+        p_status_id: filters.statusId || null,
+        p_level_id: filters.levelId || null,
+        p_direction_id: filters.directionId || null,
+        p_profile_id: filters.profileId || null,
+        p_search_query: filters.searchQuery || null,
+        p_page_number: page,
+        p_page_size: pageSize
+      });
 
-      if (applicationsError) throw applicationsError
+      if (error) throw error;
+      
+      const count = data && data.length > 0 ? data[0].total_count : 0;
+      
+      // Улучшенное форматирование данных
+      const formattedData = data.map(app => ({
+          ...app,
+        status: { 
+          name: app.status_name,
+          id: app.status_id
+        },
+        user: { 
+          full_name: app.applicant_full_name,
+          id: app.user_id,
+          first_name: app.first_name,
+          last_name: app.last_name
+        },
+        // Добавляем информацию о направлении и профиле в правильном формате
+        direction: {
+          name: app.direction_name,
+          code: app.direction_code,
+          id: app.direction_id
+        },
+        profile: {
+          name: app.profile_name,
+          id: app.profile_id
+        },
+          application_choices: app.choices || []
+      }));
 
-      // Для каждого заявления получаем последний комментарий из истории
-      const { data: history, error: historyError } = await supabase
-        .from('application_history')
-        .select(`
-          id,
-          application_id,
-          comment,
-          created_at
-        `)
-        .in('application_id', applications.map(app => app.id))
-        .not('comment', 'is', null)
-        .order('created_at', { ascending: false })
-
-      if (historyError) throw historyError
-
-      // Добавляем последний комментарий к каждому заявлению
-      const applicationsWithComments = applications.map(application => {
-        const lastHistoryItem = history.find(h => h.application_id === application.id)
-        return {
-          ...application,
-          last_comment: lastHistoryItem?.comment || null,
-          last_comment_date: lastHistoryItem?.created_at || null
-        }
-      })
-
-      return { data: applicationsWithComments, error: null }
+      return { data: formattedData, count, error: null };
     } catch (err) {
-      console.error('Ошибка при получении заявлений:', err)
-      return { data: null, error: err }
+      console.error('Ошибка при вызове RPC get_filtered_applications:', err);
+      return { data: null, count: 0, error: err };
     }
   },
 
-  // Получить одну заявку по ID
+  // Получить одну заявку по ID с использованием оптимизированной RPC функции
   async getById(id) {
     try {
-    const { data, error } = await supabase
-      .from('applications')
-      .select(`
-        *,
-        direction:direction_id (id, name),
-        user:user_id (id, first_name, last_name, email),
-        documents(id, document_type_id, file_path, file_name, file_size, updated_at, document_type:document_type_id(id, name))
-      `)
-      .eq('id', id)
-      .single()
+      console.log('Получение заявки по ID:', id);
+      
+      // Используем оптимизированную RPC функцию, которая возвращает все данные за один запрос
+      const { data, error } = await supabase.rpc('get_application_details', {
+        p_application_id: id
+      });
 
-    return { data, error }
+      if (error) {
+        console.error('Ошибка получения заявки через RPC:', error);
+        return { data: null, error };
+      }
+
+      console.log('Данные заявки получены:', data);
+      
+      // Преобразуем данные в формат, ожидаемый frontend компонентами
+      if (data) {
+        // Создаем объект пользователя для совместимости с ApplicationModal
+        const userData = {
+          id: data.user_id,
+          email: data.email,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          middle_name: data.middle_name,
+          phone: data.phone,
+          birth_date: data.birth_date,
+          gender: data.gender,
+          region_id: data.region_id,
+          regions: { name: data.region_name }
+        };
+
+        // Создаем объект статуса для совместимости
+        const statusData = {
+          id: data.status_id,
+          name: data.status_name,
+          color: data.status_color
+        };
+
+        // Создаем объект региона для совместимости 
+        const regionData = {
+          id: data.region_id,
+          name: data.region_name
+        };
+
+        // Преобразуем выборы профилей в формат для ApplicationModal
+        const choices = data.profiles ? data.profiles.map(profile => ({
+          id: `${data.id}-${profile.profile_id}-${profile.priority}`,
+          priority: profile.priority,
+          profile_id: profile.profile_id,
+          profiles: {
+            id: profile.profile_id,
+            name: profile.profile_name,
+            direction_id: profile.direction_id,
+            directions: {
+              id: profile.direction_id,
+              name: profile.direction_name,
+              code: profile.direction_code
+            }
+          }
+        })) : [];
+
+        // Создаем объединенный объект заявки
+        const formattedData = {
+          ...data,
+          users: userData,
+          application_statuses: statusData,
+          status: statusData,
+          regions: regionData,
+          application_choices: choices,
+          documents: data.documents || [],
+          application_files: data.application_files || [],
+          olympiad_certificates: data.olympiad_certificates || []
+        };
+
+        console.log('Отформатированные данные заявки:', formattedData);
+        return { data: formattedData, error: null };
+      }
+
+      return { data: null, error: new Error('Заявка не найдена') };
     } catch (err) {
-      console.error('Ошибка получения заявки:', err)
-      return { data: null, error: err }
+      console.error('Ошибка получения заявки:', err);
+      return { data: null, error: err };
     }
   },
 
   // Получить статистику по заявкам
   async getStatistics() {
     try {
-      // Получаем статистику по дням за последний месяц
-      const { data: dailyStats, error: dailyError } = await supabase
-        .rpc('get_applications_daily_stats')
+      // Здесь должны быть вызовы к новым RPC функциям, если они будут созданы
+      // Пока что возвращаем пустые данные
+      const { data: dailyStats, error: dailyError } = await supabase.rpc('get_daily_application_stats')
+      const { data: statusStats, error: statusError } = await supabase.rpc('get_applications_by_status')
 
-      // Получаем статистику по направлениям
-      const { data: directionStats, error: directionError } = await supabase
-        .rpc('get_applications_by_direction')
-
-      // Получаем статистику по статусам
-      const { data: statusStats, error: statusError } = await supabase
-        .rpc('get_applications_by_status')
-
-      if (dailyError || directionError || statusError) {
-        throw new Error(dailyError?.message || directionError?.message || statusError?.message);
+      if (dailyError || statusError) {
+        console.error('Statistics error:', dailyError || statusError)
       }
 
       return { 
         data: {
           dailyStats: dailyStats || [],
-          directionStats: directionStats || [],
           statusStats: statusStats || [] 
         }, 
         error: null 
@@ -880,64 +695,103 @@ export const applications = {
   // Создать новую заявку
   async create(applicationData) {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
+      // Проверяем, что у всех выбранных профилей одинаковый набор экзаменов
+      if (applicationData.choices && applicationData.choices.length > 1) {
+        const firstProfileId = applicationData.choices[0].profile_id;
+        
+        // Получаем набор предметов для первого профиля
+        const { data: firstProfileExams, error: examsError } = await supabase
+          .rpc('get_profile_exams', { profile_id_param: firstProfileId });
+          
+        if (examsError) throw examsError;
+        
+        // Проверяем каждый выбранный профиль
+        for (let i = 1; i < applicationData.choices.length; i++) {
+          const { data: profileExams, error } = await supabase
+            .rpc('get_profile_exams', { profile_id_param: applicationData.choices[i].profile_id });
+        
+      if (error) throw error;
 
-      // Форматирование номера телефона родителя для корректного сохранения
-      let parentPhone = applicationData.parent_phone;
-      if (parentPhone && !parentPhone.startsWith('+998')) {
-        parentPhone = '+998 ' + parentPhone;
+          // Проверяем, что наборы предметов идентичны
+          if (profileExams.length !== firstProfileExams.length) {
+            throw new Error('Выбранные профили имеют разные наборы вступительных испытаний');
+          }
+          
+          const firstSubjects = firstProfileExams.map(e => e.subject_id).sort().join(',');
+          const currentSubjects = profileExams.map(e => e.subject_id).sort().join(',');
+          
+          if (firstSubjects !== currentSubjects) {
+            throw new Error('Выбранные профили имеют разные наборы вступительных испытаний');
+          }
+        }
       }
+    
+      // Создаем новую заявку в транзакции через RPC, которая теперь вставляет и choices
+      const { data, error } = await supabase.rpc('create_application', {
+        app_data: applicationData
+      });
       
-      const { data, error } = await supabase
-        .from('applications')
-        .insert({
-          user_id: user.id,
-          direction_id: applicationData.direction_id,
-          region_id: applicationData.region_id,
-          status_id: 10, // Статус "Подана"
-          passport_series: applicationData.passport_series,
-          passport_issue_date: applicationData.passport_issue_date,
-          passport_issued_by: applicationData.passport_issued_by,
-          education_level: applicationData.education_level,
-          education_institution: applicationData.education_institution,
-          education_graduation_year: applicationData.education_graduation_year,
-          document_number: applicationData.education_document_number || applicationData.document_number,
-          document_date: applicationData.education_document_date || applicationData.document_date,
-          study_form: applicationData.study_form || 'full-time', // По умолчанию "очная"
-          funding_form: applicationData.funding_form,
-          accommodation_needed: applicationData.accommodation_needed || false,
-          olympiad_participant: applicationData.olympiad_participant || false,
-          parent_phone: parentPhone // Добавляем телефон родителя
-        })
-        .select('*, direction:direction_id(*)')
-        .single()
+      if (error) throw error;
 
-      return { data, error }
+      return { data, error: null };
     } catch (err) {
-      console.error('Ошибка создания заявки:', err)
-      return { data: null, error: err }
+      console.error('Ошибка создания заявки:', err);
+      return { data: null, error: err.message || 'Ошибка создания заявки' };
     }
   },
 
   // Обновить заявку
   async update(id, applicationData) {
-    const { data, error } = await supabase
-      .from('applications')
-      .update(applicationData)
-      .eq('id', id)
-      .select()
-      .single()
+    try {
+      const { choices, ...appData } = applicationData;
+      
+      const { error: updateError } = await supabase
+        .from('applications')
+        .update(appData)
+        .eq('id', id);
 
-    return { data, error }
+      if (updateError) throw updateError;
+      
+      if (choices) {
+        const { error: deleteChoicesError } = await supabase
+            .from('application_choices')
+            .delete()
+            .eq('application_id', id);
+        
+        if (deleteChoicesError) throw deleteChoicesError;
+
+        if (choices.length > 0) {
+            const choicesToInsert = choices.map(choice => ({
+                application_id: id,
+                profile_id: choice.profile_id,
+                priority: choice.priority
+            }));
+
+            const { error: insertChoicesError } = await supabase
+                .from('application_choices')
+                .insert(choicesToInsert);
+            
+            if (insertChoicesError) throw insertChoicesError;
+        }
+      }
+
+      const { data: updatedApplication, error: selectError } = await this.getById(id);
+
+      if (selectError) throw selectError;
+
+      return { data: updatedApplication, error: null };
+    } catch (err) {
+      console.error('Ошибка при обновлении заявки:', err);
+      return { data: null, error: err };
+    }
   },
 
   // Отправить заявку на рассмотрение
   async submit(id) {
-    // Используем статус "Подана" с ID 10
+    // Используем статус "Подана" с ID 2 (или актуальным ID из вашей таблицы статусов)
     const { data, error } = await supabase
       .from('applications')
-      .update({ status_id: 10 })
+      .update({ status_id: 2 })
       .eq('id', id)
       .select()
       .single()
@@ -996,41 +850,32 @@ export const applications = {
   },
 
   // Обновить статус заявки с добавлением записи в историю изменений
-  async updateStatus(id, statusId, comment = '') {
+  async updateStatus(applicationId, statusId, comment = '') {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
 
-      // Начинаем транзакцию
-      // 1. Обновляем статус заявки
-      const { data: updatedApplication, error: updateError } = await supabase
-        .from('applications')
-        .update({ status_id: statusId })
-        .eq('id', id)
-        .select()
-        .single()
+      console.log('Обновление статуса заявки:', { applicationId, statusId, comment });
 
-      if (updateError) return { data: null, error: updateError }
+      // Используем новую RPC функцию, которая обновляет статус и создает запись в истории
+      const { data, error } = await supabase.rpc('update_application_status_with_history', {
+        p_application_id: applicationId,
+        p_status_id: statusId,
+        p_comment: comment || ''
+      });
 
-      // 2. Добавляем запись в историю
-      const { data: historyRecord, error: historyError } = await supabase
-        .from('application_history')
-        .insert({
-          application_id: id,
-          status_id: statusId,
-          comment: comment,
-          created_by: user.id,
-          created_at: new Date()
-        })
-        .select()
-        .single()
-
-      if (historyError) {
-        console.error('Ошибка при добавлении записи в историю:', historyError)
-        return { data: updatedApplication, error: historyError }
+      if (error) {
+        console.error('Ошибка при вызове RPC update_application_status_with_history:', error);
+        return { data: null, error };
       }
 
-      return { data: updatedApplication, historyRecord, error: null }
+      console.log('Результат обновления статуса:', data);
+
+      return { 
+        data: data.application, 
+        historyRecord: { id: data.history_id }, 
+        error: null 
+      };
     } catch (err) {
       console.error('Ошибка обновления статуса заявки:', err)
       return { data: null, error: err }
@@ -1040,10 +885,27 @@ export const applications = {
 
 // Функции для работы с документами
 export const documents = {
+  // Получить типы документов
+  async getTypes() {
+    try {
+      const { data, error } = await supabase
+        .from('document_types')
+        .select('*')
+        .order('id');
+      
+      if (error) throw error;
+      
+      return { data, error: null };
+    } catch (err) {
+      console.error('Ошибка при получении типов документов:', err);
+      return { data: null, error: err };
+    }
+  },
+
   // Получить документы по ID заявки
   async getByApplicationId(applicationId) {
     try {
-      // Используем нашу хранимую функцию для получения документов с проверкой прав доступа
+      // Используем нашу хранимую функцию для получения документов
       const { data, error } = await supabase
         .rpc('get_application_documents', { p_application_id: applicationId });
       
@@ -1063,29 +925,15 @@ export const documents = {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') };
 
-      // Получаем ID пользователя из заявления для структурирования директорий
-      const { data: application, error: appError } = await supabase
-        .from('applications')
-        .select('user_id')
-        .eq('id', applicationId)
-        .single();
-      
-      if (appError) {
-        console.error('Ошибка получения данных заявления:', appError);
-        return { data: null, error: appError };
-      }
-
       // Генерируем имя файла и путь с правильной структурой директорий
       const fileExt = file.name.split('.').pop();
       const fileId = crypto.randomUUID();
       const fileName = `${fileId}.${fileExt}`;
-      const filePath = `${application.user_id}/${applicationId}/${fileName}`;
+      const filePath = `${applicationId}/${fileName}`;
 
-      console.log('Загрузка файла в путь:', filePath, 'в бакет application_documents');
-
-      // Загружаем файл в Storage, используя правильное имя бакета
+      // Загружаем файл в Storage
       const { error: uploadError } = await supabase.storage
-        .from('application_documents') // Используем правильное имя бакета
+        .from('application_documents')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -1096,22 +944,15 @@ export const documents = {
         return { data: null, error: uploadError };
       }
 
-      // Создаем запись о документе в БД
-      const { data, error } = await supabase
-        .from('documents')
-        .insert({
-          application_id: applicationId,
-          document_type_id: documentTypeId,
-          file_name: file.name,
-          file_path: filePath,
-          file_size: file.size,
-          file_type: file.type,
-          status: 'pending',
-          updated_at: new Date(),
-          user_id: user.id
-        })
-        .select()
-        .single();
+      // Вызываем RPC функцию для создания записи о документе
+      const { data, error } = await supabase.rpc('upload_document', {
+        p_application_id: applicationId,
+        p_document_type_id: documentTypeId,
+        p_file_name: file.name,
+        p_file_path: filePath,
+        p_file_size: file.size,
+        p_file_type: file.type
+      });
 
       if (error) {
         console.error('Ошибка создания записи о документе:', error);
@@ -1179,16 +1020,6 @@ export const documents = {
     }
   },
 
-  // Получить типы документов
-  async getTypes() {
-    const { data, error } = await supabase
-      .from('document_types')
-      .select('*')
-      .order('name');
-
-    return { data, error };
-  },
-
   // Обновить документ
   async update(documentId, documentData) {
     const { data, error } = await supabase
@@ -1201,6 +1032,130 @@ export const documents = {
       .select();
 
     return { data, error };
+  }
+}
+
+// Функции для работы с файлами заявлений (фотографии и другие)
+export const applicationFiles = {
+  // Загрузить файл заявления (фотографию или документ)
+  async upload(applicationId, file, fileCategory = 'general', isImage = false) {
+    try {
+      // Получаем данные о текущем пользователе
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') };
+
+      console.log('Загрузка файла:', { applicationId, fileName: file.name, fileCategory, fileType: file.type });
+
+      // Генерируем имя файла и путь
+      const fileExt = file.name.split('.').pop();
+      const fileId = crypto.randomUUID();
+      const fileName = `${fileId}.${fileExt}`;
+      const filePath = `${applicationId}/${fileName}`;
+
+      // Определяем, является ли файл изображением
+      const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      const calculatedIsImage = isImage || imageTypes.includes(file.type);
+
+      // Загружаем файл в Storage
+      const { error: uploadError } = await supabase.storage
+        .from('application_files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Ошибка загрузки файла в Storage:', uploadError);
+        return { data: null, error: uploadError };
+      }
+
+      // Используем обновленную RPC функцию для создания записи в таблице application_files
+      const { data, error } = await supabase.rpc('upload_application_file', {
+        p_application_id: applicationId,
+        p_file_path: filePath,
+        p_file_name: file.name,
+        p_file_type: file.type,
+        p_file_size: file.size,
+        p_is_image: calculatedIsImage,
+        p_file_category: fileCategory
+      });
+
+      if (error) {
+        console.error('Ошибка создания записи о файле в БД:', error);
+        return { data: null, error };
+      }
+
+      console.log('Файл успешно загружен:', { fileId: data, fileCategory });
+      return { data: { id: data }, error: null };
+    } catch (err) {
+      console.error('Ошибка при загрузке файла заявления:', err);
+      return { data: null, error: err };
+    }
+  },
+
+  // Получить файлы по ID заявки
+  async getByApplicationId(applicationId) {
+    try {
+      const { data, error } = await supabase
+        .from('application_files')
+        .select('*')
+        .eq('application_id', applicationId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      return { data, error: null };
+    } catch (err) {
+      console.error('Ошибка при получении файлов заявления:', err);
+      return { data: null, error: err };
+    }
+  },
+
+  // Получить подписанный URL для файла
+  async getSignedUrl(fileId, options = {}) {
+    try {
+      const { download = false } = options;
+      
+      // Получаем информацию о файле из базы данных
+      const { data: fileData, error: fileError } = await supabase
+        .from('application_files')
+        .select('*')
+        .eq('id', fileId)
+        .single();
+      
+      if (fileError) {
+        console.error('Ошибка при получении данных файла:', fileError);
+        throw fileError;
+      }
+      
+      if (!fileData || !fileData.file_path) {
+        console.error('Отсутствуют данные о файле или путь к файлу:', fileData);
+        throw new Error('Файл не найден или отсутствует путь к файлу');
+      }
+      
+      // Получаем публичный URL
+      const { data: urlData } = supabase.storage
+        .from('application_files')
+        .getPublicUrl(fileData.file_path, {
+          download: download,
+          ...(fileData.file_name ? { fileName: fileData.file_name } : {})
+        });
+      
+      if (!urlData || !urlData.publicUrl) {
+        console.error('Не удалось получить публичный URL');
+        throw new Error('Не удалось получить URL файла');
+      }
+      
+      return { 
+        data: { 
+          signedUrl: urlData.publicUrl 
+        }, 
+        error: null 
+      };
+    } catch (err) {
+      console.error('Ошибка при получении URL файла:', err);
+      return { data: null, error: err };
+    }
   }
 }
 
@@ -1499,70 +1454,194 @@ export const excelExport = {
   }
 };
 
-// Функции для взаимодействия с API администратора (удалены, так как функциональность администратора больше не поддерживается)
-
-// Функции для работы с предметами
-export const subjects = {
-  // Получить все предметы
-  async getAll() {
-    const { data, error } = await supabase
-      .from('subjects')
-      .select('*')
-      .order('name');
-
-    return { data, error };
+// Новый объект для всей статистики
+export const statistics = {
+  async getProgramStats() {
+    return supabase.rpc('get_program_application_stats');
   },
-
-  // Получить предмет по ID
-  async getById(id) {
-    const { data, error } = await supabase
-      .from('subjects')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    return { data, error };
+  async getDailyApplicationStats() {
+    return supabase.rpc('get_daily_application_stats');
   },
-  
-  // Получить предметы по ID направления
-  async getByDirectionId(directionId) {
-    const { data, error } = await supabase
-      .from('direction_subjects')
-      .select('*, subject:subject_id(*)')
-      .eq('direction_id', directionId);
-
-    return { data, error };
-  },
-  
-  // Удалить связи предметов с направлением
-  async deleteDirectionSubjects(directionId) {
-    const { error } = await supabase
-      .from('direction_subjects')
-      .delete()
-      .eq('direction_id', directionId);
-      
-    return { error };
-  },
-  
-  // Сохранить связи предметов с направлением
-  async saveDirectionSubjects(directionSubjects) {
-    const { data, error } = await supabase
-      .from('direction_subjects')
-      .insert(directionSubjects);
-      
-    return { data, error };
+  async getGeneralStats() {
+    return supabase.rpc('get_general_stats');
   }
+};
+
+// Функции для работы с сертификатами олимпиад
+export const olympiadCertificates = {
+  // Загрузить сертификат олимпиады
+  async upload(applicationId, file) {
+    try {
+      // Получаем данные о текущем пользователе
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') };
+
+      console.log('Загрузка сертификата олимпиады:', { applicationId, fileName: file.name, fileType: file.type });
+
+      // Генерируем имя файла и путь
+      const fileExt = file.name.split('.').pop();
+      const timestamp = Date.now();
+      const fileName = `olympiad_${timestamp}.${fileExt}`;
+      const filePath = `${applicationId}/${fileName}`;
+
+      // Загружаем файл в Storage (используем application_files bucket)
+      const { error: uploadError } = await supabase.storage
+        .from('application_files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Ошибка загрузки сертификата в Storage:', uploadError);
+        return { data: null, error: uploadError };
+      }
+
+      // Используем RPC функцию для создания записи в таблице olympiad_certificates
+      const { data, error } = await supabase.rpc('upload_olympiad_certificate', {
+        p_application_id: applicationId,
+        p_file_name: file.name, // Оригинальное имя файла
+        p_file_path: filePath,
+        p_file_size: file.size,
+        p_file_type: file.type,
+        p_year: 2025
+      });
+
+      if (error) {
+        console.error('Ошибка создания записи о сертификате в БД:', error);
+        return { data: null, error };
+      }
+
+      console.log('Сертификат олимпиады успешно загружен:', { certificateId: data });
+      return { data: { id: data }, error: null };
+    } catch (err) {
+      console.error('Ошибка при загрузке сертификата олимпиады:', err);
+      return { data: null, error: err };
+    }
+  },
+
+  // Получить сертификаты по ID заявки
+  async getByApplicationId(applicationId) {
+    try {
+      const { data, error } = await supabase
+        .from('olympiad_certificates')
+        .select('*')
+        .eq('application_id', applicationId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      return { data, error: null };
+    } catch (err) {
+      console.error('Ошибка при получении сертификатов олимпиады:', err);
+      return { data: null, error: err };
+    }
+  },
+
+  // Получить подписанный URL для сертификата
+  async getSignedUrl(certificateId, options = {}) {
+    try {
+      const { download = false } = options;
+      
+      // Используем RPC функцию для получения информации о сертификате с проверкой доступа
+      const { data: certData, error: certError } = await supabase
+        .rpc('get_olympiad_certificate_signed_url', { p_certificate_id: certificateId });
+      
+      if (certError) {
+        console.error('Ошибка при получении данных сертификата:', certError);
+        throw certError;
+      }
+      
+      if (!certData || certData.error) {
+        const errorMsg = certData?.error || 'Сертификат не найден или отсутствует доступ';
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      if (!certData.file_path) {
+        console.error('Отсутствует путь к файлу сертификата:', certData);
+        throw new Error('Отсутствует путь к файлу сертификата');
+      }
+      
+      // Получаем публичный URL
+      const { data: urlData } = supabase.storage
+        .from('application_files')
+        .getPublicUrl(certData.file_path, {
+          download: download,
+          ...(certData.file_name ? { fileName: certData.file_name } : {})
+        });
+      
+      if (!urlData || !urlData.publicUrl) {
+        console.error('Не удалось получить публичный URL для сертификата');
+        throw new Error('Не удалось получить URL сертификата');
+      }
+      
+      return { 
+        data: { 
+          signedUrl: urlData.publicUrl,
+          fileName: certData.file_name,
+          fileSize: certData.file_size,
+          fileType: certData.file_type
+        }, 
+        error: null 
+      };
+    } catch (err) {
+      console.error('Ошибка при получении URL сертификата:', err);
+      return { data: null, error: err };
+    }
+  }
+};
+
+function getPagination(page, size) {
+  const limit = size ? +size : 3;
+  const from = page ? (page - 1) * limit : 0;
+  const to = page ? from + size - 1 : size - 1;
+  return { from, to };
 }
 
-export default {
-  supabase,
-  auth,
-  users,
-  applications,
-  directions,
-  profiles,
-  specialties,
-  documents,
-  excelExport,
-  subjects
+// Функции для логирования и аудита
+export const logs = {
+  // Запись действий администратора
+  async logAdminAction(action, resourceId, resourceType, details) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') };
+      
+      const { data, error } = await supabase.rpc('log_admin_action', {
+        p_action: action,
+        p_resource_id: resourceId,
+        p_resource_type: resourceType,
+        p_details: details
+      });
+      
+      if (error) throw error;
+      
+      return { data, error: null };
+    } catch (err) {
+      console.error('Ошибка записи действия администратора:', err);
+      return { data: null, error: err };
+    }
+  },
+  
+  // Запись изменений статуса заявления
+  async logApplicationChange(applicationId, statusId, comment = '') {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') };
+      
+      const { data, error } = await supabase.rpc('log_application_changes', {
+        p_application_id: applicationId,
+        p_status_id: statusId,
+        p_comment: comment,
+        p_created_by: user.id
+      });
+      
+      if (error) throw error;
+      
+      return { data, error: null };
+    } catch (err) {
+      console.error('Ошибка записи изменения статуса заявления:', err);
+      return { data: null, error: err };
+    }
+  }
 } 

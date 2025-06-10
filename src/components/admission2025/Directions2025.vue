@@ -37,7 +37,7 @@
               <div class="bg-green-50 rounded-lg p-4">
                 <h4 class="font-semibold text-gray-900 mb-2">Специализация:</h4>
                 <div class="flex items-center justify-between">
-                  <span class="text-gray-700">Цифровой геоинжиниринг (УГЦ/ГЦ)</span>
+                  <span class="text-gray-700">Цифровой геоинжиниринг </span>
                   <span class="text-sm font-medium text-green-700">30 мест</span>
                 </div>
               </div>
@@ -70,25 +70,25 @@
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="bg-blue-50 rounded-lg p-4">
                   <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-700">Бурение нефтяных и газовых скважин (УРБ/РБ)</span>
+                    <span class="text-sm text-gray-700">Бурение нефтяных и газовых скважин </span>
                     <span class="text-sm font-medium text-blue-700">30 мест</span>
                   </div>
                 </div>
                 <div class="bg-blue-50 rounded-lg p-4">
                   <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-700">Эксплуатация и обслуживание объектов добычи нефти (УРН/РН)</span>
+                    <span class="text-sm text-gray-700">Эксплуатация и обслуживание объектов добычи нефти </span>
                     <span class="text-sm font-medium text-blue-700">30 мест</span>
                   </div>
                 </div>
                 <div class="bg-blue-50 rounded-lg p-4">
                   <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-700">Эксплуатация и обслуживание объектов добычи газа (УРГ/РГ)</span>
+                    <span class="text-sm text-gray-700">Эксплуатация и обслуживание объектов добычи газа </span>
                     <span class="text-sm font-medium text-blue-700">30 мест</span>
                   </div>
                 </div>
                 <div class="bg-blue-50 rounded-lg p-4">
                   <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-700">Транспорт и хранение нефти, газа (УТП/ТП)</span>
+                    <span class="text-sm text-gray-700">Транспорт и хранение нефти, газа </span>
                     <span class="text-sm font-medium text-blue-700">30 мест</span>
                   </div>
                 </div>
@@ -123,19 +123,19 @@
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-orange-50 rounded-lg p-4">
                   <div class="text-center">
-                    <div class="text-sm text-gray-700 mb-2">Технология бурения нефтяных и газовых скважин (УРТ/РТ)</div>
+                    <div class="text-sm text-gray-700 mb-2">Технология бурения нефтяных и газовых скважин </div>
                     <span class="text-sm font-medium text-orange-700">30 мест</span>
                   </div>
                 </div>
                 <div class="bg-orange-50 rounded-lg p-4">
                   <div class="text-center">
-                    <div class="text-sm text-gray-700 mb-2">Разработка и эксплуатация нефтяных месторождений (УРС/РС)</div>
+                    <div class="text-sm text-gray-700 mb-2">Разработка и эксплуатация нефтяных месторождений </div>
                     <span class="text-sm font-medium text-orange-700">30 мест</span>
                   </div>
                 </div>
                 <div class="bg-orange-50 rounded-lg p-4">
                   <div class="text-center">
-                    <div class="text-sm text-gray-700 mb-2">Разработка и эксплуатация газовых месторождений (УРИ/РИ)</div>
+                    <div class="text-sm text-gray-700 mb-2">Разработка и эксплуатация газовых месторождений </div>
                     <span class="text-sm font-medium text-orange-700">30 мест</span>
                   </div>
                 </div>
@@ -168,7 +168,7 @@
               <div class="bg-purple-50 rounded-lg p-4">
                 <h4 class="font-semibold text-gray-900 mb-2">Профиль подготовки:</h4>
                 <div class="flex items-center justify-between">
-                  <span class="text-gray-700">Экономика и проекты устойчивого развития энергетики (УЭЭ/ЭЭ)</span>
+                  <span class="text-gray-700">Экономика и проекты устойчивого развития энергетики </span>
                   <span class="text-sm font-medium text-purple-700">30 мест</span>
                 </div>
               </div>
@@ -201,13 +201,13 @@
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="bg-indigo-50 rounded-lg p-4">
                   <div class="flex items-center justify-between">
-                    <span class="text-gray-700">Управление бизнесом в энергетике (УЭМ/ЭМ)</span>
+                    <span class="text-gray-700">Управление бизнесом в энергетике </span>
                     <span class="text-sm font-medium text-indigo-700">30 мест</span>
                   </div>
                 </div>
                 <div class="bg-indigo-50 rounded-lg p-4">
                   <div class="flex items-center justify-between">
-                    <span class="text-gray-700">Международный менеджмент (УБМ/БМ)</span>
+                    <span class="text-gray-700">Международный менеджмент </span>
                     <span class="text-sm font-medium text-indigo-700">30 мест</span>
                   </div>
                 </div>

@@ -5,15 +5,17 @@ import { supabase } from './supabase';
  */
 
 // Общая статистика заявлений
-export async function getGeneralStats() {
+export async function getGeneralStats(academicYear) {
   try {
-    const { data, error } = await supabase.rpc('get_general_applications_stats');
+    const { data, error } = await supabase.rpc('get_general_stats', {
+      p_academic_year: academicYear || null
+    });
     
     if (error) throw error;
     
     return {
       success: true,
-      data: data && data.length > 0 ? data[0] : {}
+      data: data || {}
     };
   } catch (error) {
     console.error('Ошибка получения общей статистики:', error);
@@ -26,9 +28,11 @@ export async function getGeneralStats() {
 }
 
 // Статистика по датам подачи документов
-export async function getDailyStats(startDate = '2024-01-01', endDate = null) {
+export async function getDailyStats(daysLimit = 30) {
   try {
-    const { data, error } = await supabase.rpc('get_applications_daily_stats');
+    const { data, error } = await supabase.rpc('get_applications_daily_stats', {
+      p_days_limit: daysLimit
+    });
     
     if (error) throw error;
     
@@ -47,9 +51,11 @@ export async function getDailyStats(startDate = '2024-01-01', endDate = null) {
 }
 
 // Статистика по регионам
-export async function getRegionalStats() {
+export async function getRegionalStats(academicYear) {
   try {
-    const { data, error } = await supabase.rpc('get_regional_stats');
+    const { data, error } = await supabase.rpc('get_regional_stats', {
+      p_academic_year: academicYear || null
+    });
     
     if (error) throw error;
     
@@ -67,7 +73,8 @@ export async function getRegionalStats() {
   }
 }
 
-// Статистика по направлениям обучения
+// Статистика по направлениям обучения - больше не используется
+/*
 export async function getDirectionsStats() {
   try {
     const { data, error } = await supabase.rpc('get_directions_applications_stats');
@@ -80,6 +87,30 @@ export async function getDirectionsStats() {
     };
   } catch (error) {
     console.error('Ошибка получения статистики по направлениям:', error);
+    return {
+      success: false,
+      error: error.message,
+      data: []
+    };
+  }
+}
+*/
+
+// Статистика по профилям/программам
+export async function getProgramStats(academicYear) {
+  try {
+    const { data, error } = await supabase.rpc('get_program_application_stats', {
+      p_academic_year: academicYear || null
+    });
+    
+    if (error) throw error;
+    
+    return {
+      success: true,
+      data: data || []
+    };
+  } catch (error) {
+    console.error('Ошибка получения статистики по программам:', error);
     return {
       success: false,
       error: error.message,
@@ -268,42 +299,22 @@ export async function getDocumentsStats() {
   }
 }
 
-// Получение всех статистических данных одним запросом
-export async function getAllStats() {
+// Детальная статистика по конкретному региону
+export async function getDetailedRegionalStats(regionId, academicYear) {
   try {
-    const [
-      generalResult,
-      dailyResult,
-      regionalResult,
-      directionsResult,
-      statusResult
-    ] = await Promise.all([
-      getGeneralStats(),
-      getDailyStats(),
-      getRegionalStats(),
-      getDirectionsStats(),
-      getStatusStats()
-    ]);
+    const { data, error } = await supabase.rpc('get_detailed_regional_stats', {
+      p_region_id: regionId,
+      p_academic_year: academicYear || null
+    });
+    
+    if (error) throw error;
     
     return {
       success: true,
-      data: {
-        general: generalResult.data,
-        daily: dailyResult.data,
-        regional: regionalResult.data,
-        directions: directionsResult.data,
-        statuses: statusResult.data
-      },
-      errors: [
-        ...(generalResult.success ? [] : [generalResult.error]),
-        ...(dailyResult.success ? [] : [dailyResult.error]),
-        ...(regionalResult.success ? [] : [regionalResult.error]),
-        ...(directionsResult.success ? [] : [directionsResult.error]),
-        ...(statusResult.success ? [] : [statusResult.error])
-      ]
+      data: data || {}
     };
   } catch (error) {
-    console.error('Ошибка получения всей статистики:', error);
+    console.error('Ошибка получения детальной статистики региона:', error);
     return {
       success: false,
       error: error.message,
@@ -312,10 +323,13 @@ export async function getAllStats() {
   }
 }
 
-// Детальная статистика по регионам
-export async function getDetailedRegionalStats() {
+// Рейтинг регионов
+export async function getRegionalRankings(academicYear, limit = 10) {
   try {
-    const { data, error } = await supabase.rpc('get_detailed_regional_stats');
+    const { data, error } = await supabase.rpc('get_regional_rankings', {
+      p_academic_year: academicYear || null,
+      p_limit: limit
+    });
     
     if (error) throw error;
     
@@ -324,7 +338,7 @@ export async function getDetailedRegionalStats() {
       data: data || []
     };
   } catch (error) {
-    console.error('Ошибка получения детальной региональной статистики:', error);
+    console.error('Ошибка получения рейтинга регионов:', error);
     return {
       success: false,
       error: error.message,
@@ -333,33 +347,21 @@ export async function getDetailedRegionalStats() {
   }
 }
 
-// Рейтинги регионов по различным метрикам
-export async function getRegionalRankings() {
+// Анализ трендов за несколько лет
+export async function getTrendsAnalysis(yearsCount = 3) {
   try {
-    const { data, error } = await supabase.rpc('get_regional_rankings');
+    const { data, error } = await supabase.rpc('get_trends_analysis', {
+      p_years_count: yearsCount
+    });
     
     if (error) throw error;
     
-    // Группируем данные по типу рейтинга
-    const rankings = data.reduce((acc, item) => {
-      if (!acc[item.ranking_type]) {
-        acc[item.ranking_type] = [];
-      }
-      acc[item.ranking_type].push({
-        region_name: item.region_name,
-        region_code: item.region_code,
-        metric_value: item.metric_value,
-        rank_position: item.rank_position
-      });
-      return acc;
-    }, {});
-    
     return {
       success: true,
-      data: rankings
+      data: data || {}
     };
   } catch (error) {
-    console.error('Ошибка получения рейтингов регионов:', error);
+    console.error('Ошибка получения анализа трендов:', error);
     return {
       success: false,
       error: error.message,
@@ -369,31 +371,64 @@ export async function getRegionalRankings() {
 }
 
 // Расширенная аналитика
-export async function getAdvancedAnalytics() {
+export async function getAdvancedAnalytics(academicYear) {
   try {
-    const { data, error } = await supabase.rpc('get_advanced_analytics');
+    const { data, error } = await supabase.rpc('get_advanced_analytics', {
+      p_academic_year: academicYear || null
+    });
     
     if (error) throw error;
     
-    // Группируем данные по категориям
-    const analytics = data.reduce((acc, item) => {
-      if (!acc[item.category]) {
-        acc[item.category] = [];
-      }
-      acc[item.category].push({
-        name: item.metric_name,
-        value: item.metric_value,
-        description: item.metric_description
-      });
-      return acc;
-    }, {});
-    
     return {
       success: true,
-      data: analytics
+      data: data || {}
     };
   } catch (error) {
     console.error('Ошибка получения расширенной аналитики:', error);
+    return {
+      success: false,
+      error: error.message,
+      data: {}
+    };
+  }
+}
+
+// Получение всех статистических данных одним запросом
+export async function getAllStats(academicYear) {
+  try {
+    const [
+      generalResult,
+      dailyResult,
+      regionalResult,
+      programResult,
+      directionsResult
+    ] = await Promise.all([
+      getGeneralStats(academicYear),
+      getDailyStats(),
+      getRegionalStats(academicYear),
+      getProgramStats(academicYear),
+      getDirectionsStats()
+    ]);
+    
+    return {
+      success: true,
+      data: {
+        general: generalResult.data,
+        daily: dailyResult.data,
+        regional: regionalResult.data,
+        programs: programResult.data,
+        directions: directionsResult.data
+      },
+      errors: [
+        ...(generalResult.success ? [] : [generalResult.error]),
+        ...(dailyResult.success ? [] : [dailyResult.error]),
+        ...(regionalResult.success ? [] : [regionalResult.error]),
+        ...(programResult.success ? [] : [programResult.error]),
+        ...(directionsResult.success ? [] : [directionsResult.error])
+      ]
+    };
+  } catch (error) {
+    console.error('Ошибка получения всей статистики:', error);
     return {
       success: false,
       error: error.message,

@@ -7,9 +7,6 @@
           <h1 class="text-3xl md:text-4xl font-bold mb-4">
             Подача документов
           </h1>
-          <p class="text-lg opacity-90">
-            Заполните форму ниже для подачи заявления в Ташкентский филиал Университета Губкина
-          </p>
         </div>
       </div>
     </section>
@@ -71,16 +68,10 @@
             />
             
             <!-- Шаг 4: Выбор направления -->
-            <DirectionSelectionStep
+            <ProgramSelectionStep
               v-if="currentStep === 4"
               v-model="form"
               :errors="errors"
-              :availableDirections="availableDirections"
-              :availableProfiles="availableProfiles"
-              :availableSpecialties="availableSpecialties"
-              :selectedDirection="selectedDirection"
-              @direction-change="onDirectionChange"
-              @profile-change="onProfileChange"
             />
             
             <!-- Шаг 5: Подтверждение -->
@@ -89,10 +80,9 @@
               v-model="form"
               :errors="errors"
               :regions="regionsData"
-              :availableDirections="availableDirections"
-              :availableProfiles="availableProfiles"
-              :availableSpecialties="availableSpecialties"
-              :selectedDirection="selectedDirection"
+              :availablePrograms="availablePrograms"
+              :availableProfiles="appStore.allProfiles"
+              :availableSpecialties="appStore.allSpecialties"
               :fileUploading="fileUploading"
               :filePreview="filePreview"
               @file-change="onFileChange"
@@ -149,7 +139,7 @@ import { BaseButton, BaseCard } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth';
 import { useApplicationStore } from '@/stores/application';
 import { useToast } from 'vue-toastification';
-import { supabase } from '@/api/supabase';
+import { supabase, documents, applicationFiles, olympiadCertificates } from '@/api/supabase';
 
 // Импорт компонентов
 import ProgressBar from '@/components/register/ProgressBar.vue';
@@ -157,7 +147,7 @@ import SubmissionLoader from '@/components/register/SubmissionLoader.vue';
 import PersonalInfoStep from '@/components/register/PersonalInfoStep.vue';
 import PassportInfoStep from '@/components/register/PassportInfoStep.vue';
 import EducationInfoStep from '@/components/register/EducationInfoStep.vue';
-import DirectionSelectionStep from '@/components/register/DirectionSelectionStep.vue';
+import ProgramSelectionStep from '@/components/register/ProgramSelectionStep.vue';
 import ConfirmationStep from '@/components/register/ConfirmationStep.vue';
 import SuccessMessage from '@/components/register/SuccessMessage.vue';
 
@@ -166,121 +156,289 @@ const appStore = useApplicationStore();
 const authStore = useAuthStore();
 const toast = useToast();
 
-// Загрузка данных при монтировании компонента
+const totalSteps = 5;
+const currentStep = ref(1);
+
+const isFormLoading = ref(true);
+const isSubmitting = ref(false);
+const isSubmitted = ref(false);
+const errors = ref({});
+const applicationNumber = ref('');
+
+const userApplications = ref([])
+const currentApplication = ref(null)
+const applicationDocuments = ref([])
+const educationLevels = ref([])
+const allDirections = ref([])
+const allProfiles = ref([])
+const documentTypes = ref([])
+const regionsData = ref([])
+const isLoading = ref(false)
+const error = ref(null)
+
+// Инициализация формы с правильной структурой
+const form = ref({
+  user_id: null,
+  status_id: 1, // Черновик
+  academic_year: new Date().getFullYear(),
+  // Личные данные
+  lastName: '',
+  firstName: '',
+  middleName: '',
+  birthDate: null, // null вместо пустой строки для поля типа date
+  region_id: null,
+  phone: '',
+  parentPhone: '',
+  email: '',
+  gender: 'male',
+  // Паспортные данные
+  passport_series: '',
+  passport_issue_date: null, // null вместо пустой строки для поля типа date
+  passport_issued_by: '',
+  // Образование
+  education_level: '',
+  education_institution: '',
+  education_graduation_year: new Date().getFullYear(),
+  education_document_number: '',
+  education_document_date: null, // null вместо пустой строки для поля типа date
+  // Выбор программ
+  choices: [],
+  funding_form: 'budget',
+  // Дополнительные параметры
+  accommodation_needed: false,
+  olympiad_participant: false,
+});
+
+// Загрузка всех необходимых данных при монтировании
 onMounted(async () => {
   isFormLoading.value = true;
-  await appStore.loadDirections();
-  await appStore.loadDocumentTypes();
-  await appStore.loadRegions();
+  await Promise.all([
+    appStore.loadEducationData(),
+    appStore.loadDocumentTypes(),
+    appStore.loadRegions()
+  ]);
+  
+  // console.log('Регионы после загрузки:', appStore.regions);
+  // Сохраняем регионы в локальный массив для гарантированного доступа
+  regionsData.value = [...appStore.regions];
+  // console.log('Локальная копия регионов:', regionsData.value);
   
   if (authStore.user && !authStore.profile) {
     await authStore.initAuth();
   }
   
+  if (authStore.user) {
+    form.value.user_id = authStore.user.id;
+    form.value.email = authStore.user.email;
+  }
+  
   if (authStore.profile) {
-    form.value.lastName = authStore.profile.last_name || '';
-    form.value.firstName = authStore.profile.first_name || '';
-    form.value.middleName = authStore.profile.middle_name || '';
-    form.value.phone = authStore.profile.phone || '';
-    form.value.email = authStore.profile.email || authStore.user?.email || '';
-    form.value.gender = authStore.profile.gender || 'male';
-    form.value.region = authStore.profile.region_id || '';
-    
-    if (authStore.profile.birth_date) {
-      form.value.birthDate = authStore.profile.birth_date;
-    }
+    const p = authStore.profile;
+    form.value.lastName = p.last_name || '';
+    form.value.firstName = p.first_name || '';
+    form.value.middleName = p.middle_name || '';
+    form.value.phone = p.phone || '';
+    form.value.gender = p.gender || 'male';
+    form.value.region_id = p.region_id || null;
+    form.value.birthDate = p.birth_date || null; // null вместо пустой строки
   }
   
   isFormLoading.value = false;
 });
 
-// Данные из хранилища
-const availableDirections = computed(() => appStore.allDirections);
-const documentTypes = computed(() => appStore.documentTypes);
-const regionsData = computed(() => appStore.regions);
-
-// Состояния формы
-const isFormLoading = ref(false);
-const fileUploading = ref({
-  passportScan: false,
-  educationScan: false,
-  olympiadCertificate: false
-});
-
-const filePreview = ref({
-  passportScan: null,
-  educationScan: null,
-  olympiadCertificate: null
-});
-
-// Форма и ошибки
-const form = ref({
-  // Личные данные
-  lastName: '',
-  firstName: '',
-  middleName: '',
-  birthDate: '',
-  region: '',
-  phone: '',
-  parentPhone: '',
-  email: '',
-  gender: 'male',
-  
-  // Паспортные данные
-  passportSeries: '',
-  passportIssueDate: '',
-  passportIssuedBy: '',
-  passportScan: null,
-  
-  // Образование
-  educationLevel: '',
-  educationInstitution: '',
-  educationGraduationYear: new Date().getFullYear(),
-  documentNumber: '',
-  documentDate: '',
-  educationScan: null,
-  
-  // Направление обучения
-  direction: '',
-  profile: '',
-  specialty: '',
-  fundingForm: 'budget',
-  
-  // Дополнительные параметры
-  accommodationNeeded: false,
-  olympiadParticipant: false,
-  olympiadCertificate: null
-});
-
-const errors = ref({});
-
-// Навигация по шагам
-const currentStep = ref(1);
-const totalSteps = 5;
-
-// Статус отправки
-const isSubmitting = ref(false);
-const isSubmitted = ref(false);
-const applicationNumber = ref('');
-const submissionProgress = ref(0);
-const submissionStatus = ref('Подготовка данных...');
-
-// Заголовки шагов
 const stepTitle = computed(() => {
-  const titles = {
-    1: 'Личные данные',
-    2: 'Паспортные данные',
-    3: 'Образование',
-    4: 'Выбор направления',
-    5: 'Подтверждение данных'
-  };
-  return titles[currentStep.value] || '';
+  switch (currentStep.value) {
+    case 1: return 'Личные данные';
+    case 2: return 'Паспортные данные';
+    case 3: return 'Образование';
+    case 4: return 'Выбор образовательных программ';
+    case 5: return 'Подтверждение и отправка';
+    default: return 'Подача заявления';
+  }
 });
+
+// Валидация текущего шага
+function validateStep() {
+  errors.value = {};
+  const f = form.value;
+  
+  if (currentStep.value === 5) {
+    console.log('Данные формы на шаге подтверждения:', JSON.stringify(f));
+  }
+  
+  if (currentStep.value === 1) {
+    if (!f.lastName || !f.firstName) errors.value.name = 'Фамилия и имя обязательны.';
+    if (!f.birthDate) errors.value.birthDate = 'Дата рождения обязательна.';
+    if (!f.region_id) errors.value.region_id = 'Регион обязателен.';
+    if (!f.phone) errors.value.phone = 'Телефон обязателен.';
+    if (!f.email) errors.value.email = 'Email обязателен.';
+  } else if (currentStep.value === 2) {
+    // console.log('passport_series',f.passport_series,f.passport_issue_date,f.passport_issued_by);
+    if (!f.passport_series) errors.value.passport_series = 'Серия и номер паспорта обязательны.';
+    if (!f.passport_issue_date) errors.value.passport_issue_date = 'Дата выдачи обязательна.';
+    if (!f.passport_issued_by) errors.value.passport_issued_by = 'Кем выдан паспорт, обязательно.';
+    
+    // Проверка обязательного файла скана паспорта
+    if (!f.passportScan && !filePreview.value.passportScan) {
+      errors.value.passportScan = 'Загрузка скана паспорта обязательна.';
+    }
+  } else if (currentStep.value === 3) {
+    if (!f.education_level) errors.value.education_level = 'Уровень образования обязателен.';
+    if (!f.education_institution) errors.value.education_institution = 'Учебное заведение обязательно.';
+    if (!f.education_document_number) errors.value.education_document_number = 'Номер документа об образовании обязателен.';
+    if (!f.education_document_date) errors.value.education_document_date = 'Дата документа об образовании обязательна.';
+    
+    // Проверка обязательных файлов
+    if (!f.photoFile && !filePreview.value.photoFile) {
+      errors.value.photoFile = 'Загрузка фотографии 3х4 см обязательна.';
+    }
+    if (!f.educationScan && !filePreview.value.educationScan) {
+      errors.value.educationScan = 'Загрузка документа об образовании обязательна.';
+    }
+  } else if (currentStep.value === 4) {
+    if (!f.choices || f.choices.length === 0) {
+      errors.value.choices = 'Необходимо выбрать хотя бы одну образовательную программу.';
+    } else if (f.choices.some(c => !c.profile_id)) {
+      errors.value.choices = 'Пожалуйста, завершите выбор для всех указанных приоритетов.';
+    } else if (f.choices.length > 1) {
+      // Проверяем, что все выбранные профили имеют одинаковый набор экзаменов
+      // Эта проверка выполняется на клиенте для быстрой обратной связи
+      // Дополнительная проверка будет выполнена на сервере при отправке формы
+      const firstProfileId = f.choices[0].profile_id;
+      
+      // Проверка уже выполнена в компоненте ProgramSelectionStep,
+      // здесь просто проверяем, что у нас есть совместимые профили
+      if (firstProfileId) {
+        // Фактически, проверка уже выполнена при выборе профилей в ProgramSelectionStep
+        // Если пользователь смог выбрать профили, значит они имеют одинаковый набор экзаменов
+        // Но можно добавить дополнительную проверку, если необходимо
+      }
+    }
+  }
+  
+  return Object.keys(errors.value).length === 0;
+}
+
+// Навигация
+function nextStep() {
+  // console.log('nextStep',validateStep());
+  if (validateStep()) {
+    if (currentStep.value < totalSteps) currentStep.value++;
+  } else {
+    toast.warning('Пожалуйста, заполните все обязательные поля.');
+  }
+}
+
+function prevStep() {
+  if (currentStep.value > 1) currentStep.value--;
+}
+
+// Отправка формы
+async function submitForm() {
+  if (!validateStep()) {
+    toast.error('Пожалуйста, проверьте правильность заполнения всех полей.');
+    return;
+  }
+  
+  isSubmitting.value = true;
+  
+  try {
+    // Подготавливаем данные для отправки, заменяя пустые строки в полях дат на null
+    const applicationPayload = { ...form.value };
+    
+    // Обрабатываем поля дат - заменяем пустые строки на null
+    const dateFields = ['birthDate', 'passport_issue_date', 'education_document_date'];
+    dateFields.forEach(field => {
+      if (applicationPayload[field] === '') {
+        applicationPayload[field] = null;
+      }
+    });
+    
+    // Обрабатываем обязательные поля document_date и document_number
+    // Сопоставляем их с education_document_date и education_document_number
+    applicationPayload.document_date = applicationPayload.education_document_date;
+    applicationPayload.document_number = applicationPayload.education_document_number || '';
+    
+    // Убираем поля файлов, которые не относятся к таблице applications
+    delete applicationPayload.passportScan;
+    delete applicationPayload.photoFile;
+    delete applicationPayload.educationScan;
+    delete applicationPayload.olympiadCertificate;
+
+    const { success, data, error } = await appStore.createApplication(applicationPayload);
+    
+    if (!success || !data) {
+      throw new Error(error || 'Не удалось создать заявление');
+    }
+    
+    const applicationId = data.id;
+    
+    // Загружаем обязательные файлы
+    const fileUploads = [];
+    
+    // Загрузка скана паспорта (в application_files с категорией 'passport_scan')
+    if (form.value.passportScan) {
+      fileUploads.push(
+        applicationFiles.upload(applicationId, form.value.passportScan, 'passport_scan', false)
+      );
+    }
+    
+    // Загрузка фотографии (в application_files с категорией 'photo')
+    if (form.value.photoFile) {
+      fileUploads.push(
+        applicationFiles.upload(applicationId, form.value.photoFile, 'photo', true)
+      );
+    }
+    
+    // Загрузка документа об образовании (в application_files с категорией 'education_scan')
+    if (form.value.educationScan) {
+      fileUploads.push(
+        applicationFiles.upload(applicationId, form.value.educationScan, 'education_scan', false)
+      );
+    }
+    
+    // Загрузка сертификата олимпиады (если есть)
+    if (form.value.olympiad_participant && form.value.olympiadCertificate) {
+      fileUploads.push(
+        olympiadCertificates.upload(applicationId, form.value.olympiadCertificate)
+      );
+    }
+    
+    // Ждем завершения всех загрузок
+    if (fileUploads.length > 0) {
+      const uploadResults = await Promise.allSettled(fileUploads);
+      
+      // Проверяем результаты загрузки
+      const failedUploads = uploadResults.filter(result => result.status === 'rejected');
+      if (failedUploads.length > 0) {
+        console.error('Некоторые файлы не удалось загрузить:', failedUploads);
+        toast.warning('Заявление создано, но некоторые файлы не удалось загрузить. Пожалуйста, добавьте их позже в личном кабинете.');
+      }
+    }
+    
+    isSubmitted.value = true;
+    applicationNumber.value = applicationId;
+    toast.success('Ваше заявление успешно отправлено!');
+    
+  } catch (err) {
+    console.error('Ошибка при отправке заявления:', err);
+    toast.error(err.message || 'Произошла непредвиденная ошибка при отправке заявления.');
+    errors.value.submit = err.message;
+  } finally {
+    isSubmitting.value = false;
+  }
+}
+
+// Данные из хранилища
+const availablePrograms = computed(() => appStore.programsForSelection);
+// Состояния формы
+const fileUploading = ref({});
+const filePreview = ref({});
 
 // Выбранное направление и связанные данные
 const selectedDirection = computed(() => {
   if (!form.value.direction) return null;
-  return availableDirections.value.find(d => d.id === form.value.direction);
+  return availablePrograms.value.find(d => d.id === form.value.direction);
 });
 
 const availableProfiles = ref([]);
@@ -413,209 +571,6 @@ const formatPhoneNumber = (field) => {
   // Можно добавить + в начало, если нужно отображать со знаком плюса
   if (form.value[field] && !form.value[field].startsWith('+')) {
     form.value[field] = '+' + form.value[field];
-  }
-};
-
-// Валидация шага
-const validateStep = (step) => {
-  const newErrors = {};
-  
-  if (step === 1) {
-    if (!form.value.lastName) newErrors.lastName = 'Введите фамилию';
-    if (!form.value.firstName) newErrors.firstName = 'Введите имя';
-    if (!form.value.birthDate) newErrors.birthDate = 'Выберите дату рождения';
-    if (!form.value.region) newErrors.region = 'Выберите регион';
-    
-    if (!form.value.phone) {
-      newErrors.phone = 'Введите номер телефона';
-    }
-    
-    if (!form.value.parentPhone) {
-      newErrors.parentPhone = 'Введите номер телефона родителя';
-    }
-    
-    if (!form.value.email) newErrors.email = 'Введите адрес электронной почты';
-    if (!form.value.gender) newErrors.gender = 'Выберите пол';
-  }
-  
-  else if (step === 2) {
-    if (!form.value.passportSeries) newErrors.passportSeries = 'Введите серию и номер паспорта';
-    if (!form.value.passportIssueDate) newErrors.passportIssueDate = 'Выберите дату выдачи паспорта';
-    if (!form.value.passportIssuedBy) newErrors.passportIssuedBy = 'Введите название выдавшего органа';
-    if (!form.value.passportScan) newErrors.passportScan = 'Загрузите скан паспорта';
-  }
-  
-  else if (step === 3) {
-    if (!form.value.educationLevel) newErrors.educationLevel = 'Выберите уровень образования';
-    if (!form.value.educationInstitution) newErrors.educationInstitution = 'Введите название учебного заведения';
-    if (!form.value.educationGraduationYear) newErrors.educationGraduationYear = 'Укажите год окончания';
-    if (!form.value.documentNumber) newErrors.documentNumber = 'Введите номер документа';
-    if (!form.value.documentDate) newErrors.documentDate = 'Выберите дату выдачи документа';
-    if (!form.value.educationScan) newErrors.educationScan = 'Загрузите скан документа об образовании';
-  }
-  
-  else if (step === 4) {
-    if (!form.value.direction) newErrors.direction = 'Выберите направление обучения';
-    
-    if (availableProfiles.value.length > 0 && !form.value.profile) {
-      newErrors.profile = 'Выберите профиль подготовки';
-    }
-    
-    if (availableSpecialties.value.length > 0 && !form.value.specialty) {
-      newErrors.specialty = 'Выберите специальность';
-    }
-    
-    if (!form.value.fundingForm) newErrors.fundingForm = 'Выберите форму финансирования';
-  }
-  
-  else if (step === 5) {
-    if (form.value.olympiadParticipant && !form.value.olympiadCertificate) {
-      newErrors.olympiadCertificate = 'Загрузите сертификат об участии в олимпиаде';
-    }
-  }
-  
-  errors.value = newErrors;
-  return Object.keys(newErrors).length === 0;
-};
-
-// Навигация по шагам
-const nextStep = () => {
-  if (validateStep(currentStep.value)) {
-    currentStep.value++;
-  }
-};
-
-const prevStep = () => {
-  if (currentStep.value > 1) {
-    currentStep.value--;
-  }
-};
-
-// Загрузка документов
-const uploadDocument = async (applicationId, documentTypeId, file) => {
-  try {
-    const docType = documentTypeId === 1 ? 'паспорта' : 
-                   documentTypeId === 2 ? 'об образовании' : 
-                   'сертификата';
-    submissionStatus.value = `Загрузка документа ${docType}...`;
-    
-    const { success, error } = await appStore.uploadDocument(
-      applicationId, 
-      documentTypeId, 
-      file
-    );
-    
-    if (!success) {
-      throw new Error(error || 'Ошибка загрузки документа');
-    }
-    
-    return { success: true };
-  } catch (error) {
-    console.error(`Ошибка при загрузке документа типа ${documentTypeId}:`, error);
-    return { success: false, error };
-  }
-};
-
-// Отправка формы
-const submitForm = async () => {
-  if (!validateStep(currentStep.value)) {
-    return;
-  }
-  
-  isSubmitting.value = true;
-  submissionProgress.value = 10;
-  submissionStatus.value = 'Подготовка данных...';
-  
-  try {
-    // Сохраняем номера без + в базе данных (просто удаляем + если он есть)
-    const phoneFormatted = form.value.phone ? form.value.phone.replace(/^\+/, '') : '';
-    const parentPhoneFormatted = form.value.parentPhone ? form.value.parentPhone.replace(/^\+/, '') : '';
-    
-    const applicationData = {
-      direction_id: form.value.direction,
-      profile_id: form.value.profile || null,
-      specialty_id: form.value.specialty || null,
-      region_id: form.value.region || null,
-      study_form: 'full-time',
-      funding_form: form.value.fundingForm,
-      academic_year: new Date().getFullYear(),
-      education_level: form.value.educationLevel,
-      education_institution: form.value.educationInstitution,
-      education_graduation_year: form.value.educationGraduationYear,
-      education_document_number: form.value.documentNumber,
-      education_document_date: form.value.documentDate,
-      passport_series: form.value.passportSeries,
-      passport_issue_date: form.value.passportIssueDate,
-      passport_issued_by: form.value.passportIssuedBy,
-      accommodation_needed: form.value.accommodationNeeded,
-      olympiad_participant: form.value.olympiadParticipant,
-      parent_phone: parentPhoneFormatted
-    };
-    
-    submissionProgress.value = 30;
-    submissionStatus.value = 'Создание заявления...';
-    
-    const { success, data, error } = await appStore.createApplication(applicationData);
-    
-    if (!success) {
-      throw new Error(error || 'Не удалось создать заявку');
-    }
-    
-    const applicationId = data.id;
-    submissionProgress.value = 50;
-    submissionStatus.value = 'Загрузка документов...';
-    
-    const uploadPromises = [
-      uploadDocument(applicationId, 1, form.value.passportScan),
-      uploadDocument(applicationId, 2, form.value.educationScan)
-    ];
-    
-    if (form.value.olympiadParticipant && form.value.olympiadCertificate) {
-      uploadPromises.push(uploadDocument(applicationId, 3, form.value.olympiadCertificate));
-      
-      await appStore.createOlympiadCertificate({
-        application_id: applicationId,
-        name: 'Сертификат олимпиады Университета Губкина',
-        year: new Date().getFullYear()
-      });
-    }
-    
-    await Promise.all(uploadPromises);
-    
-    submissionProgress.value = 90;
-    submissionStatus.value = 'Завершение процесса...';
-    
-    if (!authStore.profile || 
-        authStore.profile.last_name !== form.value.lastName || 
-        authStore.profile.first_name !== form.value.firstName) {
-      
-      await authStore.updateProfile({
-        last_name: form.value.lastName,
-        first_name: form.value.firstName,
-        middle_name: form.value.middleName,
-        phone: phoneFormatted,
-        gender: form.value.gender,
-        birth_date: form.value.birthDate,
-        region_id: form.value.region
-      });
-    }
-    
-    submissionProgress.value = 100;
-    submissionStatus.value = 'Заявление успешно отправлено!';
-    
-    isSubmitted.value = true;
-    applicationNumber.value = applicationId.toString().padStart(6, '0');
-    
-    setTimeout(() => {
-      toast.success('Заявление успешно отправлено!');
-    }, 500);
-    
-  } catch (error) {
-    console.error('Ошибка при отправке заявления:', error);
-    toast.error('Произошла ошибка при отправке заявления. Пожалуйста, попробуйте позже.');
-    submissionStatus.value = 'Ошибка: ' + (error.message || 'Неизвестная ошибка');
-  } finally {
-    isSubmitting.value = false;
   }
 };
 </script> 

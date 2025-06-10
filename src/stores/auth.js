@@ -321,27 +321,24 @@ export const useAuthStore = defineStore('auth', () => {
     return role === 2 || role === 'admin'
   }
 
-  // Получение списка всех пользователей (только для администраторов)
+  // Получение списка пользователей
   const getAllUsers = async () => {
     try {
-      console.log("Вызов функции get_all_users через RPC");
-      // Используем RPC вызов вместо прямого обращения к таблице
-      const { data, error } = await supabase
-        .rpc('get_all_users');
+      console.log("Вызов функции getAllUsers из API");
+      // Используем обновленную функцию из API вместо RPC
+      const { data, error } = await supabaseUsers.getAllUsers();
       
-      if (error) {
-        console.error("Ошибка RPC get_all_users:", error);
-        throw error;
-      }
+      if (error) throw error;
       
-      return { success: true, data };
-    } catch (err) {
-      console.error('Ошибка загрузки пользователей:', err);
       return { 
-        success: false, 
-        error: err.message || 'Не удалось загрузить список пользователей',
-        details: err
+        success: true, 
+        data: data?.users || [], 
+        total: data?.total_count || 0 
       };
+    } catch (err) {
+      console.error('Ошибка получения списка пользователей:', err);
+      error.value = err.message || 'Не удалось получить список пользователей';
+      return { success: false, error: error.value };
     }
   }
 

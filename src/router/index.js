@@ -52,22 +52,7 @@ const routes = [
       next();
     }
   },
-  {
-    path: '/directions',
-    name: 'directions',
-    component: () => import('@/views/DirectionsPage.vue'),
-    meta: {
-      title: 'Направления обучения - Приёмная кампания Губкинского университета'
-    }
-  },
-  {
-    path: '/directions/:id',
-    name: 'direction-details',
-    component: () => import('@/views/DirectionDetailsPage.vue'),
-    meta: {
-      title: 'Детали направления - Приёмная кампания Губкинского университета'
-    }
-  },
+
   {
     path: '/register',
     name: 'register',
@@ -83,14 +68,6 @@ const routes = [
     component: () => import('@/views/FaqPage.vue'),
     meta: {
       title: 'Вопросы и ответы - Приёмная кампания Губкинского университета'
-    }
-  },
-  {
-    path: '/contacts',
-    name: 'contacts',
-    component: () => import('@/views/ContactsPage.vue'),
-    meta: {
-      title: 'Контакты - Филиал Губкинского университета в Ташкенте'
     }
   },
   {

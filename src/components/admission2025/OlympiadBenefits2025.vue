@@ -152,15 +152,10 @@
                     <span class="text-purple-600 mr-2">•</span>
                     <div>
                       <p class="text-sm text-purple-700">
-                        При наборе <strong>не менее 40 баллов</strong> по соответствующим предметам
-                      </p>
-                    </div>
-                  </div>
-                  <div class="flex items-start">
-                    <span class="text-purple-600 mr-2">•</span>
-                    <div>
-                      <p class="text-sm text-purple-700">
-                        Результаты могут быть зачтены в качестве результатов вступительных испытаний <strong>с той же оценкой</strong>
+                        Участникам Губкинской предметной олимпиады 2025 года по русскому
+языку и математике, не ставшим победителями и призёрами, но набравшим не менее
+40 баллов по соответствующим предметам, эти результаты могут быть зачтены в
+качестве результатов вступительных испытаний с той же оценкой.
                       </p>
                     </div>
                   </div>
@@ -237,7 +232,7 @@
                 <div class="space-y-1 text-sm text-gray-700">
                   <div class="flex items-start">
                     <span class="text-yellow-600 mr-2">•</span>
-                    <span>Подтверждающие документы о победе/участии</span>
+                    <span>Подтверждающие документы о <strong>победе</strong></span>
                   </div>
                   <div class="flex items-start">
                     <span class="text-yellow-600 mr-2">•</span>
