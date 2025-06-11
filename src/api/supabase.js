@@ -585,9 +585,9 @@ export const applications = {
     try {
       console.log('Получение заявки по ID:', id);
       
-      // Используем оптимизированную RPC функцию, которая возвращает все данные за один запрос
+      // Используем обновленную RPC функцию, которая возвращает JSON
       const { data, error } = await supabase.rpc('get_application_details', {
-        p_application_id: id
+        application_id_param: id
       });
 
       if (error) {
@@ -597,70 +597,27 @@ export const applications = {
 
       console.log('Данные заявки получены:', data);
       
-      // Преобразуем данные в формат, ожидаемый frontend компонентами
-      if (data) {
-        // Создаем объект пользователя для совместимости с ApplicationModal
-        const userData = {
-          id: data.user_id,
-          email: data.email,
-          first_name: data.first_name,
-          last_name: data.last_name,
-          middle_name: data.middle_name,
-          phone: data.phone,
-          birth_date: data.birth_date,
-          gender: data.gender,
-          region_id: data.region_id,
-          regions: { name: data.region_name }
-        };
-
-        // Создаем объект статуса для совместимости
-        const statusData = {
-          id: data.status_id,
-          name: data.status_name,
-          color: data.status_color
-        };
-
-        // Создаем объект региона для совместимости 
-        const regionData = {
-          id: data.region_id,
-          name: data.region_name
-        };
-
-        // Преобразуем выборы профилей в формат для ApplicationModal
-        const choices = data.profiles ? data.profiles.map(profile => ({
-          id: `${data.id}-${profile.profile_id}-${profile.priority}`,
-          priority: profile.priority,
-          profile_id: profile.profile_id,
-          profiles: {
-            id: profile.profile_id,
-            name: profile.profile_name,
-            direction_id: profile.direction_id,
-            directions: {
-              id: profile.direction_id,
-              name: profile.direction_name,
-              code: profile.direction_code
-            }
-          }
-        })) : [];
-
-        // Создаем объединенный объект заявки
-        const formattedData = {
-          ...data,
-          users: userData,
-          application_statuses: statusData,
-          status: statusData,
-          regions: regionData,
-          application_choices: choices,
-          documents: data.documents || [],
-          application_files: data.application_files || [],
-          olympiad_certificates: data.olympiad_certificates || []
-        };
-
-        console.log('Отформатированные данные заявки:', formattedData);
-        return { data: formattedData, error: null };
+      if (!data) {
+        return { data: null, error: new Error('Заявка не найдена') };
       }
 
-      return { data: null, error: new Error('Заявка не найдена') };
+      // Функция теперь возвращает JSON объект напрямую, все данные уже в правильном формате
+      const applicationData = data;
+
+      // RPC функция get_application_details уже включает все файлы, документы и сертификаты
+      // Поэтому дополнительная загрузка не требуется
+      
+      // Убеждаемся, что массивы существуют (на случай если RPC вернула null)
+      applicationData.documents = applicationData.documents || [];
+      applicationData.application_files = applicationData.application_files || [];
+      applicationData.olympiad_certificates = applicationData.olympiad_certificates || [];
+
+      console.log('Отформатированные данные заявки с файлами:', applicationData);
+      console.log('Количество документов:', applicationData.documents.length);
+      console.log('Количество файлов заявления:', applicationData.application_files.length);
+      console.log('Количество сертификатов олимпиад:', applicationData.olympiad_certificates.length);
+      return { data: applicationData, error: null };
+
     } catch (err) {
       console.error('Ошибка получения заявки:', err);
       return { data: null, error: err };

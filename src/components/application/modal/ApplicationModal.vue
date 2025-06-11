@@ -221,6 +221,24 @@
                         <button @click="downloadApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100" title="Скачать">
                           <ArrowDownTrayIcon class="h-4 w-4" />
                         </button>
+                        <!-- Прямые ссылки для скачивания и просмотра -->
+                        <!-- <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          download
+                          class="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 inline-flex items-center" 
+                          title="Прямое скачивание"
+                        >
+                          <ArrowDownTrayIcon class="h-4 w-4" />
+                        </a>
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          class="text-xs px-2 py-1 rounded bg-purple-50 text-purple-600 hover:bg-purple-100 inline-flex items-center" 
+                          title="Прямое открытие"
+                        >
+                          <EyeIcon class="h-4 w-4" />
+                        </a> -->
                       </div>
                     </div>
                   </div>
@@ -249,6 +267,24 @@
                         <button @click="downloadApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100" title="Скачать">
                           <ArrowDownTrayIcon class="h-4 w-4" />
                         </button>
+                        <!-- Прямые ссылки для скачивания и просмотра -->
+                        <!-- <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          download
+                          class="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 inline-flex items-center" 
+                          title="Прямое скачивание"
+                        >
+                          <ArrowDownTrayIcon class="h-4 w-4" />
+                        </a>
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          class="text-xs px-2 py-1 rounded bg-purple-50 text-purple-600 hover:bg-purple-100 inline-flex items-center" 
+                          title="Прямое открытие"
+                        >
+                          <EyeIcon class="h-4 w-4" />
+                        </a> -->
                       </div>
                     </div>
                   </div>
@@ -277,6 +313,24 @@
                         <button @click="downloadApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100" title="Скачать">
                           <ArrowDownTrayIcon class="h-4 w-4" />
                         </button>
+                        <!-- Прямые ссылки для скачивания и просмотра -->
+                        <!-- <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          download
+                          class="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 inline-flex items-center" 
+                          title="Прямое скачивание"
+                        >
+                          <ArrowDownTrayIcon class="h-4 w-4" />
+                        </a>
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          class="text-xs px-2 py-1 rounded bg-purple-50 text-purple-600 hover:bg-purple-100 inline-flex items-center" 
+                          title="Прямое открытие"
+                        >
+                          <EyeIcon class="h-4 w-4" />
+                        </a> -->
                       </div>
                     </div>
                   </div>
@@ -312,6 +366,24 @@
                       <button @click="downloadDocument(doc)" class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200" title="Скачать">
                         <ArrowDownTrayIcon class="h-4 w-4" />
                       </button>
+                      <!-- Прямые ссылки для скачивания и просмотра -->
+                      <!-- <a 
+                        :href="getDocumentUrl(doc)" 
+                        target="_blank" 
+                        download
+                        class="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 inline-flex items-center" 
+                        title="Прямое скачивание"
+                      >
+                        <ArrowDownTrayIcon class="h-4 w-4" />
+                      </a>
+                      <a 
+                        :href="getDocumentUrl(doc)" 
+                        target="_blank" 
+                        class="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700 hover:bg-purple-200 inline-flex items-center" 
+                        title="Прямое открытие"
+                      >
+                        <EyeIcon class="h-4 w-4" />
+                      </a> -->
                     </div>
                   </div>
                 </div>
@@ -343,6 +415,24 @@
                       <button @click="downloadApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100" title="Скачать">
                         <ArrowDownTrayIcon class="h-4 w-4" />
                       </button>
+                      <!-- Прямые ссылки для скачивания и просмотра -->
+                      <!-- <a 
+                        :href="getApplicationFileUrl(file)" 
+                        target="_blank" 
+                        download
+                        class="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 inline-flex items-center" 
+                        title="Прямое скачивание"
+                      >
+                        <ArrowDownTrayIcon class="h-4 w-4" />
+                      </a>
+                      <a 
+                        :href="getApplicationFileUrl(file)" 
+                        target="_blank" 
+                        class="text-xs px-2 py-1 rounded bg-purple-50 text-purple-600 hover:bg-purple-100 inline-flex items-center" 
+                        title="Прямое открытие"
+                      >
+                        <EyeIcon class="h-4 w-4" />
+                      </a> -->
                     </div>
                   </div>
                 </div>
@@ -369,6 +459,24 @@
                       <button @click="viewOlympiadCertificate(cert)" class="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200" title="Просмотреть">
                         <EyeIcon class="h-4 w-4" />
                       </button>
+                      <!-- Прямые ссылки для скачивания и просмотра -->
+                       <a 
+                        :href="getOlympiadCertificateUrl(cert)" 
+                        target="_blank" 
+                        download
+                        class="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 inline-flex items-center" 
+                        title="Прямое скачивание"
+                      >
+                        <ArrowDownTrayIcon class="h-4 w-4" />
+                      </a>
+                     <!-- <a 
+                        :href="getOlympiadCertificateUrl(cert)" 
+                        target="_blank" 
+                        class="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700 hover:bg-purple-200 inline-flex items-center" 
+                        title="Прямое открытие"
+                      >
+                        <EyeIcon class="h-4 w-4" />
+                      </a> -->
                     </div>
                   </div>
                 </div>
@@ -593,6 +701,11 @@ const isImage = computed(() => {
 // Обновляем локальное состояние при изменении заявки
 watch(() => props.application, (newApplication) => {
   if (newApplication) {
+    console.log('ApplicationModal получил новые данные заявки:', newApplication);
+    console.log('Документы в модальном окне:', newApplication.documents?.length || 0);
+    console.log('Файлы заявления в модальном окне:', newApplication.application_files?.length || 0);
+    console.log('Сертификаты олимпиад в модальном окне:', newApplication.olympiad_certificates?.length || 0);
+    
     newStatus.value = newApplication.status_id;
     comment.value = newApplication.admin_comment || '';
   }
@@ -969,6 +1082,160 @@ function getFileCategoryName(category) {
     'general': 'Общий файл'
   };
   return categoryMap[category] || 'Неизвестная категория';
+}
+
+// Получение URL документа (аналогично ApplicationDetailsPage.vue)
+function getDocumentUrl(document) {
+  try {
+    if (!document.file_path) {
+      console.error('Отсутствует путь к файлу:', document);
+      return '#';
+    }
+    
+    const { data } = supabase.storage
+      .from('application_documents')
+      .getPublicUrl(document.file_path);
+    
+    return data?.publicUrl || '#';
+  } catch (error) {
+    console.error('Ошибка при получении URL документа:', error);
+    return '#';
+  }
+}
+
+// Получение URL файла заявления (аналогично ApplicationDetailsPage.vue)
+function getApplicationFileUrl(file) {
+  try {
+    if (!file.file_path) {
+      console.error('Отсутствует путь к файлу приложения:', file);
+      return '#';
+    }
+    
+    const { data } = supabase.storage
+      .from('application_files')
+      .getPublicUrl(file.file_path);
+    
+    return data?.publicUrl || '#';
+  } catch (error) {
+    console.error('Ошибка при получении URL файла приложения:', error);
+    return '#';
+  }
+}
+
+// Получение URL сертификата олимпиады (аналогично ApplicationDetailsPage.vue)
+function getOlympiadCertificateUrl(cert) {
+  try {
+    if (!cert.file_path) {
+      console.error('Отсутствует путь к файлу сертификата:', cert);
+      return '#';
+    }
+    
+    // Согласно коду из supabase.js, сертификаты хранятся в application_files bucket
+    const { data } = supabase.storage
+      .from('application_files')
+      .getPublicUrl(cert.file_path);
+    
+    return data?.publicUrl || '#';
+  } catch (error) {
+    console.error('Ошибка при получении URL сертификата олимпиады:', error);
+    return '#';
+  }
+}
+
+// Функции для определения типа файла (аналогично ApplicationDetailsPage.vue)
+function getFileType(filename) {
+  if (!filename) return 'other';
+  
+  const extension = getFileExtension(filename).toLowerCase();
+  
+  if (['pdf'].includes(extension)) {
+    return 'pdf';
+  } else if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(extension)) {
+    return 'image';
+  } else if (['doc', 'docx', 'rtf', 'txt'].includes(extension)) {
+    return 'doc';
+  } else if (['xls', 'xlsx', 'csv'].includes(extension)) {
+    return 'sheet';
+  } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
+    return 'archive';
+  }
+  
+  return 'other';
+}
+
+// Получение расширения файла
+function getFileExtension(filename) {
+  if (!filename) return '';
+  const lastDotIndex = filename.lastIndexOf('.');
+  return lastDotIndex !== -1 ? filename.substring(lastDotIndex + 1).toUpperCase() : '';
+}
+
+// Получение имени файла без расширения
+function getFileName(filename) {
+  if (!filename) return '';
+  const lastDotIndex = filename.lastIndexOf('.');
+  return lastDotIndex !== -1 ? filename.substring(0, lastDotIndex) : filename;
+}
+
+// Получение отображаемого имени файла
+function getFileDisplayName(file) {
+  // Определяем тип файла по категории
+  if (file.file_category === 'photo') {
+    return 'Фотография 3×4';
+  } else if (file.file_category === 'education_scan') {
+    return 'Документ об образовании';
+  } else if (file.file_category === 'passport_scan') {
+    return 'Скан паспорта';
+  } else if (file.file_category === 'additional') {
+    return 'Дополнительный документ';
+  }
+  return file.file_name || 'Файл';
+}
+
+// Цвета иконок для файлов (аналогично ApplicationDetailsPage.vue)
+function getFileIconColor(filename) {
+  const type = getFileType(filename);
+  
+  const colorMap = {
+    'pdf': 'text-red-500',
+    'image': 'text-blue-500',
+    'doc': 'text-indigo-500',
+    'sheet': 'text-green-500',
+    'archive': 'text-amber-500',
+    'other': 'text-gray-500'
+  };
+  
+  return colorMap[type] || 'text-gray-500';
+}
+
+function getFileIconBgColor(filename) {
+  const type = getFileType(filename);
+  
+  const bgColorMap = {
+    'pdf': 'bg-red-500',
+    'image': 'bg-blue-500',
+    'doc': 'bg-indigo-500',
+    'sheet': 'bg-green-500',
+    'archive': 'bg-amber-500',
+    'other': 'bg-gray-500'
+  };
+  
+  return bgColorMap[type] || 'bg-gray-500';
+}
+
+function getFileExtensionClass(filename) {
+  const type = getFileType(filename);
+  
+  const classMap = {
+    'pdf': 'bg-red-100 text-red-800',
+    'image': 'bg-blue-100 text-blue-800',
+    'doc': 'bg-indigo-100 text-indigo-800',
+    'sheet': 'bg-green-100 text-green-800',
+    'archive': 'bg-amber-100 text-amber-800',
+    'other': 'bg-gray-100 text-gray-800'
+  };
+  
+  return classMap[type] || 'bg-gray-100 text-gray-800';
 }
 </script>
 

@@ -193,6 +193,9 @@ async function openApplicationModal(application) {
     }
     
     console.log('Полные данные заявки загружены:', fullApplication);
+    console.log('Документы:', fullApplication.documents?.length || 0);
+    console.log('Файлы заявления:', fullApplication.application_files?.length || 0);
+    console.log('Сертификаты олимпиад:', fullApplication.olympiad_certificates?.length || 0);
     
     selectedApplication.value = fullApplication;
     showModal.value = true;

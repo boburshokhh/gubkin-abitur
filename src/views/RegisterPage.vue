@@ -269,7 +269,6 @@ function validateStep() {
   if (currentStep.value === 1) {
     if (!f.lastName || !f.firstName) errors.value.name = 'Фамилия и имя обязательны.';
     if (!f.birthDate) errors.value.birthDate = 'Дата рождения обязательна.';
-    if (!f.region_id) errors.value.region_id = 'Регион обязателен.';
     if (!f.phone) errors.value.phone = 'Телефон обязателен.';
     if (!f.email) errors.value.email = 'Email обязателен.';
   } else if (currentStep.value === 2) {

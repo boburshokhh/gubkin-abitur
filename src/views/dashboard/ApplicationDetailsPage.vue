@@ -62,6 +62,40 @@
     </div>
 
     <div v-else-if="application">
+      <!-- Уведомление о комментариях админа -->
+      <div v-if="sortedComments.length" class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+        <div class="flex items-start">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+          </div>
+                     <div class="ml-3 flex-1">
+             <h3 class="text-sm font-medium text-amber-800">
+               У вас {{ sortedComments.length }} {{ sortedComments.length === 1 ? 'новый комментарий' : sortedComments.length < 5 ? 'новых комментария' : 'новых комментариев' }}
+             </h3>
+             <p class="mt-1 text-sm text-amber-700">
+               <span v-if="latestComment">
+                 Последний комментарий ({{ formatDate(latestComment.created_at) }}): 
+                 <span class="font-medium">"{{ latestComment.comment.length > 100 ? latestComment.comment.substring(0, 100) + '...' : latestComment.comment }}"</span>
+               </span>
+               <span v-else>Приемная комиссия оставила комментарии к вашему заявлению.</span>
+               <button 
+                 @click="activeTab = 'comments'" 
+                 class="font-medium underline hover:no-underline ml-2"
+               >
+                 Просмотреть все комментарии
+               </button>
+             </p>
+           </div>
+          <div class="ml-auto flex-shrink-0">
+            <span class="bg-amber-100 text-amber-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+              {{ sortedComments.length }}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- Статус заявления -->
       <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
         <div class="bg-primary-600 px-4 py-3 md:px-6 md:py-4 flex flex-col sm:flex-row justify-between sm:items-center">
@@ -151,7 +185,7 @@
             <button 
               @click="activeTab = 'comments'"
               :class="[
-                'py-3 md:py-4 px-4 md:px-6 text-center font-medium text-xs sm:text-sm border-b-2 focus:outline-none whitespace-nowrap',
+                'py-3 md:py-4 px-4 md:px-6 text-center font-medium text-xs sm:text-sm border-b-2 focus:outline-none whitespace-nowrap relative',
                 activeTab === 'comments' 
                   ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -162,7 +196,12 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                 </svg>
                 Комментарии
+                <span v-if="sortedComments.length" class="ml-1 sm:ml-2 bg-orange-100 text-orange-800 py-0.5 px-2 rounded-full text-xs">
+                  {{ sortedComments.length }}
+                </span>
               </span>
+              <!-- Индикатор новых комментариев -->
+              <span v-if="sortedComments.length && activeTab !== 'comments'" class="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse"></span>
             </button>
           </nav>
         </div>
@@ -333,14 +372,6 @@
                   >
                     {{ getStatusText(application.status_id) }}
                   </span>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Форма обучения</h4>
-                  <p class="text-gray-900">{{ getStudyFormText(application.study_form) }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Финансирование</h4>
-                  <p class="text-gray-900">{{ getFundingFormText(application.funding_form) }}</p>
                 </div>
               </div>
             </div>
@@ -730,7 +761,7 @@
               <div 
                 v-for="historyItem in sortedComments" 
                 :key="historyItem.id" 
-                class="rounded-lg border border-gray-200 p-4"
+                class="rounded-lg border border-gray-200 p-4 hover:bg-gray-50 transition-colors duration-200"
               >
                 <div class="flex flex-col sm:flex-row">
                   <div class="flex items-start">
@@ -804,8 +835,13 @@ const sortedHistory = computed(() => {
 
 const sortedComments = computed(() => {
   return [...applicationHistory.value]
-    .filter(item => item.comment)
+    .filter(item => item.comment && item.comment.trim() !== '')
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+});
+
+// Computed для получения последнего комментария
+const latestComment = computed(() => {
+  return sortedComments.value.length > 0 ? sortedComments.value[0] : null;
 });
 
 // Добавляем computed для сортировки выборов направлений
