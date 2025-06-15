@@ -50,10 +50,25 @@
         <select 
           v-model="modelValue.region_id"
           class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-
+          required
         >
-          <option v-for="region in regionsData" :key="region.id" :value="region.id">
+          <option value="">Выберите регион</option>
+          <!-- Обычные регионы -->
+          <option 
+            v-for="region in localRegions" 
+            :key="region.id" 
+            :value="region.id"
+          >
             {{ region.name }}
+          </option>
+          <!-- Разделитель -->
+          <option disabled>─────────────────</option>
+          <!-- Иностранный гражданин -->
+          <option 
+            v-if="foreignRegion" 
+            :value="foreignRegion.id"
+          >
+            {{ foreignRegion.name }}
           </option>
         </select>
         <p v-if="errors.region_id" class="mt-1 text-sm text-red-600">{{ errors.region_id }}</p>
@@ -154,4 +169,14 @@ const props = defineProps({
 defineEmits(['update:modelValue', 'phone-format']);
 
 const regionsData = computed(() => appStore.regions);
-</script> 
+
+// Разделяем регионы на обычные и иностранный
+const localRegions = computed(() => {
+  return regionsData.value?.filter(region => region.code !== 'FOREIGN') || [];
+});
+
+const foreignRegion = computed(() => {
+  return regionsData.value?.find(region => region.code === 'FOREIGN');
+});
+
+</script>

@@ -12,7 +12,7 @@
           <h3 class="text-sm font-medium text-blue-800">Требования к документу</h3>
           <div class="mt-2 text-sm text-blue-700">
             <ul class="list-disc list-inside space-y-1">
-              <li>Сканированная цветная копия оригинала первой страницы паспорта и копия нотариально заверенного перевода на кириллицу — в одном PDF-файле.</li>
+              <li>Сканированная цветная копия оригинала первой страницы паспорта и копия нотариально заверенного перевода на кириллицу и загружайте их поотдельности</li>
               <li>Для ID-карты: лицевая и обратная стороны — в одном PDF-файле.</li>
               <li>Абитуриент должен достичь 16-летнего возраста на момент подачи документов.</li>
               <li>Если отсутствует нотариально заверенный перевод, необходимо предоставить копию свидетельства о рождении, если оно оформлено на кириллице.</li>
@@ -61,7 +61,7 @@
     </p>
     <FileUploadField
       fieldName="passportScan"
-      label="Скан или фото паспорта (первая страница)"
+      label="Скан или фото паспорта/ID-карты"
       :isUploading="fileUploading.passportScan"
       :preview="filePreview.passportScan"
       :error="errors.passportScan"
@@ -69,6 +69,27 @@
       @view="() => $emit('file-view', 'passportScan')"
       @reset="() => $emit('file-reset', 'passportScan')"
     />
+    
+    <!-- Новое поле для нотариально заверенного перевода -->
+    <div class="border-t pt-4">
+      <!-- <p class="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg mb-4">
+        <span class="font-medium text-blue-800">Дополнительно:</span>
+        <span class="text-blue-700">
+          Если ваш паспорт оформлен не на кириллице, загрузите нотариально заверенный перевод документа отдельным файлом.
+        </span>
+      </p> -->
+      <FileUploadField
+        fieldName="passportTranslation"
+        label="Нотариально заверенный перевод паспорта (PDF)"
+        :isUploading="fileUploading.passportTranslation"
+        :preview="filePreview.passportTranslation"
+        :error="errors.passportTranslation"
+        accept=".pdf"
+        @change="(file) => $emit('file-change', file, 'passportTranslation')"
+        @view="() => $emit('file-view', 'passportTranslation')"
+        @reset="() => $emit('file-reset', 'passportTranslation')"
+      />
+    </div>
   </div>
 </template>
 

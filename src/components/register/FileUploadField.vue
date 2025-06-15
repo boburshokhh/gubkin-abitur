@@ -36,12 +36,19 @@
         <div class="flex text-sm text-gray-600">
           <label :for="`file-upload-${fieldName}`" class="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-700 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
             <span>Загрузить файл</span>
-            <input :id="`file-upload-${fieldName}`" :name="`file-upload-${fieldName}`" type="file" class="sr-only" @change="onFileChange">
+            <input 
+              :id="`file-upload-${fieldName}`" 
+              :name="`file-upload-${fieldName}`" 
+              type="file" 
+              class="sr-only" 
+              :accept="accept"
+              @change="onFileChange"
+            >
           </label>
           <p class="pl-1">или перетащите сюда</p>
         </div>
         <p class="text-xs text-gray-500">
-          PNG, JPG, PDF размером до 10MB
+          {{ acceptDescription || 'PNG, JPG, PDF размером до 10MB' }}
         </p>
       </div>
     </div>
@@ -51,6 +58,7 @@
 
 <script setup>
 import { BaseLoader } from '@/components/ui';
+import { computed } from 'vue';
 
 const props = defineProps({
   fieldName: {
@@ -72,10 +80,24 @@ const props = defineProps({
   error: {
     type: String,
     default: ''
+  },
+  accept: {
+    type: String,
+    default: 'image/*,.pdf'
   }
 });
 
 const emit = defineEmits(['change', 'view', 'reset']);
+
+// Генерируем описание принимаемых типов файлов на основе accept
+const acceptDescription = computed(() => {
+  if (props.accept === '.pdf') {
+    return 'Только PDF файлы размером до 10MB';
+  } else if (props.accept === 'image/*') {
+    return 'Только изображения (PNG, JPG) размером до 10MB';
+  }
+  return null; // Используем дефолтное описание
+});
 
 const onFileChange = (event) => {
   const file = event.target.files[0];

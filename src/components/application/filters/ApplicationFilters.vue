@@ -9,7 +9,10 @@
     </div>
     
     <div>
-      <label for="level-filter" class="block text-sm font-medium text-gray-700">Уровень</label>
+      <label for="level-filter" class="block text-sm font-medium text-gray-700">
+        Уровень
+        <span class="text-xs text-gray-500 font-normal">(только Приоритет 1)</span>
+      </label>
       <select id="level-filter" v-model="localFilters.levelId" @change="resetDirectionAndProfile" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
         <option :value="null">Все уровни</option>
         <option v-for="level in allLevels" :key="level.id" :value="level.id">{{ level.name }}</option>
@@ -17,7 +20,10 @@
     </div>
     
     <div>
-      <label for="direction-filter" class="block text-sm font-medium text-gray-700">Направление</label>
+      <label for="direction-filter" class="block text-sm font-medium text-gray-700">
+        Направление
+        <span class="text-xs text-gray-500 font-normal">(только Приоритет 1)</span>
+      </label>
       <select id="direction-filter" v-model="localFilters.directionId" @change="resetProfile" :disabled="!localFilters.levelId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
         <option :value="null">Все направления</option>
         <option v-for="direction in availableDirections" :key="direction.id" :value="direction.id">{{ direction.name }}</option>
@@ -25,7 +31,10 @@
     </div>
 
     <div>
-      <label for="profile-filter" class="block text-sm font-medium text-gray-700">Профиль</label>
+      <label for="profile-filter" class="block text-sm font-medium text-gray-700">
+        Профиль
+        <span class="text-xs text-gray-500 font-normal">(только Приоритет 1)</span>
+      </label>
       <select id="profile-filter" v-model="localFilters.profileId" :disabled="!localFilters.directionId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
         <option :value="null">Все профили</option>
         <option v-for="profile in availableProfiles" :key="profile.id" :value="profile.id">{{ profile.name }}</option>

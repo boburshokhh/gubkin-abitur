@@ -1184,13 +1184,15 @@ function getOlympiadCertificateUrl(cert) {
 }
 
 function getFileDisplayName(file) {
-  // Определяем тип файла по названию
-  if (file.file_path && file.file_path.includes('photo')) {
+  // Определяем тип файла по названию или категории
+  if (file.file_category === 'photo' || (file.file_path && file.file_path.includes('photo'))) {
     return 'Фотография 3×4';
-  } else if (file.file_path && file.file_path.includes('education')) {
+  } else if (file.file_category === 'education_scan' || (file.file_path && file.file_path.includes('education'))) {
     return 'Документ об образовании';
-  } else if (file.file_path && file.file_path.includes('passport')) {
+  } else if (file.file_category === 'passport_scan' || (file.file_path && file.file_path.includes('passport') && !file.file_path.includes('translation'))) {
     return 'Паспорт';
+  } else if (file.file_category === 'passport_translation' || (file.file_path && file.file_path.includes('passport') && file.file_path.includes('translation'))) {
+    return 'Нотариально заверенный перевод паспорта';
   } else if (file.file_path && file.file_path.includes('additional')) {
     return 'Дополнительный документ';
   }

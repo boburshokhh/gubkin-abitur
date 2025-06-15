@@ -51,7 +51,7 @@
                 </div>
                 <div>
                   <span class="text-sm text-gray-500">Дата рождения:</span>
-                  <p>{{ formatDate(application?.users?.birth_date) }}</p>
+                  <p>{{ formatDate(application?.birth_date || application?.users?.birth_date) }}</p>
                 </div>
                 <div>
                   <span class="text-sm text-gray-500">Регион:</span>
@@ -71,7 +71,7 @@
                 </div>
                 <div>
                   <span class="text-sm text-gray-500">Пол:</span>
-                  <p>{{ application?.users?.gender === 'male' ? 'Мужской' : application?.users?.gender === 'female' ? 'Женский' : 'Не указан' }}</p>
+                  <p>{{ (application?.gender || application?.users?.gender) === 'male' ? 'Мужской' : (application?.gender || application?.users?.gender) === 'female' ? 'Женский' : 'Не указан' }}</p>
                 </div>
                 <div v-if="application?.accommodation_needed">
                   <span class="text-sm text-gray-500">Нуждается в общежитии:</span>
@@ -243,6 +243,34 @@
                     </div>
                   </div>
                   <div v-else class="text-xs text-red-500 italic">❌ Скан паспорта не загружен</div>
+                </div>
+
+                <!-- Нотариально заверенный перевод паспорта -->
+                <div class="mb-3">
+                  <h5 class="text-sm font-medium text-gray-600 mb-2">📑 Нотариально заверенный перевод паспорта</h5>
+                  <div v-if="getFilesByCategory('passport_translation').length > 0" class="border rounded-md divide-y">
+                    <div v-for="(file, index) in getFilesByCategory('passport_translation')" :key="index" class="px-4 py-3 flex justify-between items-center bg-white">
+                      <div class="flex items-center space-x-2">
+                        <DocumentTextIcon class="h-5 w-5 text-indigo-500" />
+                        <div>
+                          <span class="text-sm font-medium text-gray-700">{{ file.file_name || 'passport_translation.pdf' }}</span>
+                          <div class="text-xs text-gray-500 mt-1">
+                            {{ formatFileSize(file.file_size) }} • {{ formatDate(file.created_at) }}
+                            <div class="mt-0.5 text-xs text-gray-400">Категория: {{ getFileCategoryName(file.file_category) }}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="flex space-x-2">
+                        <button @click="viewApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="Просмотреть">
+                          <EyeIcon class="h-4 w-4" />
+                        </button>
+                        <button @click="downloadApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100" title="Скачать">
+                          <ArrowDownTrayIcon class="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="text-xs text-gray-500 italic">ℹ️ Нотариально заверенный перевод не загружен (необязательно)</div>
                 </div>
 
                 <!-- Фотография 3x4 -->
@@ -499,6 +527,14 @@
                     <span>Документ об образовании: {{ getFilesByCategory('education_scan').length > 0 ? '✅ Загружен' : '❌ Отсутствует' }}</span>
                   </div>
                 </div>
+                <!-- Дополнительные документы -->
+                <div class="mt-2 pt-2 border-t border-gray-200">
+                  <h6 class="text-xs font-medium text-gray-600 mb-1">📋 Дополнительные документы:</h6>
+                  <div class="flex items-center space-x-1">
+                    <span class="w-2 h-2 rounded-full" :class="getFilesByCategory('passport_translation').length > 0 ? 'bg-blue-500' : 'bg-gray-300'"></span>
+                    <span class="text-xs">Нотариально заверенный перевод: {{ getFilesByCategory('passport_translation').length > 0 ? '✅ Загружен' : 'ℹ️ Не загружен (необязательно)' }}</span>
+                  </div>
+                </div>
               </div>
               
               <!-- Сообщение если нет документов -->
@@ -728,8 +764,15 @@ function updateStatus() {
 
 // Получение полного имени пользователя
 function getUserFullName(user) {
-  if (!user) return 'Неизвестный пользователь';
-  return `${user.last_name || ''} ${user.first_name || ''} ${user.middle_name || ''}`.trim();
+  // Приоритет: данные из заявки, затем из пользователя
+  const firstName = props.application?.first_name || user?.first_name || '';
+  const lastName = props.application?.last_name || user?.last_name || '';
+  const middleName = props.application?.middle_name || user?.middle_name || '';
+  
+  const fullName = `${lastName} ${firstName} ${middleName}`.trim();
+  
+  if (!fullName) return 'Неизвестный пользователь';
+  return fullName;
 }
 
 // Получение названия региона
@@ -1060,6 +1103,9 @@ function getFilesByCategory(category) {
     if (category === 'passport_scan') {
       return file.file_category === 'passport_scan' || file.file_category === 'passportScan';
     }
+    if (category === 'passport_translation') {
+      return file.file_category === 'passport_translation' || file.file_category === 'passportTranslation';
+    }
     if (category === 'photo') {
       return file.file_category === 'photo' || file.file_category === 'photoFile';
     }
@@ -1075,6 +1121,8 @@ function getFileCategoryName(category) {
   const categoryMap = {
     'passport_scan': 'Скан паспорта',
     'passportScan': 'Скан паспорта',
+    'passport_translation': 'Нотариально заверенный перевод паспорта',
+    'passportTranslation': 'Нотариально заверенный перевод паспорта',
     'photo': 'Фотография 3x4',
     'photoFile': 'Фотография 3x4',
     'education_scan': 'Скан документа об образовании',
@@ -1186,6 +1234,8 @@ function getFileDisplayName(file) {
     return 'Документ об образовании';
   } else if (file.file_category === 'passport_scan') {
     return 'Скан паспорта';
+  } else if (file.file_category === 'passport_translation') {
+    return 'Нотариально заверенный перевод паспорта';
   } else if (file.file_category === 'additional') {
     return 'Дополнительный документ';
   }

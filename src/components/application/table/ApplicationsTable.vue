@@ -67,17 +67,27 @@ const getStatusClass = (statusName) => {
 
 // Получение имени абитуриента в разных форматах данных
 const getApplicantName = (app) => {
-  // Проверяем наличие объекта user
+  // Сначала проверяем поле applicant_full_name (заполняется в ApplicationsManager)
+  if (app.applicant_full_name) {
+    return app.applicant_full_name;
+  }
+  
+  // Проверяем наличие объекта user с полным именем
   if (app.user) {
     if (app.user.full_name) return app.user.full_name;
     if (app.user.first_name || app.user.last_name) {
-      return `${app.user.first_name || ''} ${app.user.last_name || ''}`.trim();
+      return `${app.user.last_name || ''} ${app.user.first_name || ''}${app.user.middle_name ? ' ' + app.user.middle_name : ''}`.trim();
     }
   }
   
   // Проверяем наличие объекта users
   if (app.users) {
-    return `${app.users.first_name || ''} ${app.users.last_name || ''}`.trim();
+    return `${app.users.last_name || ''} ${app.users.first_name || ''}${app.users.middle_name ? ' ' + app.users.middle_name : ''}`.trim();
+  }
+  
+  // Резервный вариант - показываем user_id если есть
+  if (app.user_id) {
+    return `Пользователь ${app.user_id.substring(0, 8)}...`;
   }
   
   // Если данные отсутствуют

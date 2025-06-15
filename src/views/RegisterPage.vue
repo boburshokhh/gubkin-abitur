@@ -358,11 +358,22 @@ async function submitForm() {
     applicationPayload.document_date = applicationPayload.education_document_date;
     applicationPayload.document_number = applicationPayload.education_document_number || '';
     
-    // Убираем поля файлов, которые не относятся к таблице applications
+    // Добавляем ФИО в заявку
+    applicationPayload.first_name = applicationPayload.firstName;
+    applicationPayload.last_name = applicationPayload.lastName;
+    applicationPayload.middle_name = applicationPayload.middleName;
+    applicationPayload.birth_date = applicationPayload.birthDate;
+    
+    // Убираем поля файлов и временные поля ФИО, которые не относятся к таблице applications
     delete applicationPayload.passportScan;
+    delete applicationPayload.passportTranslation;
     delete applicationPayload.photoFile;
     delete applicationPayload.educationScan;
     delete applicationPayload.olympiadCertificate;
+    delete applicationPayload.firstName;
+    delete applicationPayload.lastName;
+    delete applicationPayload.middleName;
+    delete applicationPayload.birthDate;
 
     const { success, data, error } = await appStore.createApplication(applicationPayload);
     
@@ -379,6 +390,13 @@ async function submitForm() {
     if (form.value.passportScan) {
       fileUploads.push(
         applicationFiles.upload(applicationId, form.value.passportScan, 'passport_scan', false)
+      );
+    }
+    
+    // Загрузка нотариально заверенного перевода паспорта (в application_files с категорией 'passport_translation')
+    if (form.value.passportTranslation) {
+      fileUploads.push(
+        applicationFiles.upload(applicationId, form.value.passportTranslation, 'passport_translation', false)
       );
     }
     

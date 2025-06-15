@@ -92,9 +92,25 @@
 
         <!-- Дополнительные карточки статистики -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-500">
+            <div class="flex items-center">
+              <div class="text-purple-500 text-2xl mr-3">📚</div>
+              <div>
+                <p class="text-sm text-gray-600">Всего профилей</p>
+                <p class="text-2xl font-bold text-gray-800">{{ programsStats.length || 0 }}</p>
+              </div>
+            </div>
+          </div>
 
-          
-
+          <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-indigo-500">
+            <div class="flex items-center">
+              <div class="text-indigo-500 text-2xl mr-3">🎯</div>
+              <div>
+                <p class="text-sm text-gray-600">Профили с заявлениями</p>
+                <p class="text-2xl font-bold text-gray-800">{{ programsStats.filter(p => p.total_applications > 0).length || 0 }}</p>
+              </div>
+            </div>
+          </div>
           
           <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-teal-500">
             <div class="flex items-center">
@@ -122,8 +138,8 @@
           <!-- Статистика по датам -->
           <section class="bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">
-              Статистика по датам
-              </h2>
+              Статистика поступления заявлений по периодам
+            </h2>
             <div class="h-80">
               <apexchart
                 v-if="dailyChartSeries.length > 0"
@@ -204,9 +220,11 @@
                         Принято
                       </th>
                       <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Отклонено
+                      </th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         На рассмотрении
                       </th>
-
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
@@ -220,8 +238,8 @@
                       <td class="px-4 py-2 text-sm text-gray-600">{{ program.level_name }}</td>
                       <td class="px-4 py-2 text-sm text-gray-900 font-semibold">{{ program.total_applications }}</td>
                       <td class="px-4 py-2 text-sm text-green-600 font-semibold">{{ program.accepted_applications }}</td>
+                      <td class="px-4 py-2 text-sm text-red-600 font-semibold">{{ program.rejected_applications }}</td>
                       <td class="px-4 py-2 text-sm text-yellow-600 font-semibold">{{ program.pending_applications }}</td>
-                      
                     </tr>
                   </tbody>
                 </table>
@@ -483,7 +501,7 @@ async function fetchGeneralStats() {
 async function fetchDailyStats() {
   try {
     loadingDaily.value = true;
-    const result = await getDailyStats(7);
+    const result = await getDailyStats(null); // Получаем данные за все время
     
     if (result.success && result.data.length > 0) {
       dailyStats.value = result.data;
@@ -510,6 +528,10 @@ async function fetchDailyStats() {
         {
           name: 'Отклонено',
           data: result.data.map(item => Number(item.rejected_applications) || 0)
+        },
+        {
+          name: 'Всего накопительно',
+          data: result.data.map(item => Number(item.total_applications) || 0)
         }
       ];
       

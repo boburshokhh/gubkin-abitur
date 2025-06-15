@@ -176,7 +176,7 @@ async function openApplicationModal(application) {
     // Показываем индикатор загрузки
     isUpdating.value = true;
     
-    console.log('Открытие модального окна для заявки:', application.id);
+    // console.log('Открытие модального окна для заявки:', application.id);
     
     // Загружаем полные данные заявки через оптимизированную RPC функцию
     const { data: fullApplication, error } = await applicationsApi.getById(application.id);
@@ -192,10 +192,10 @@ async function openApplicationModal(application) {
       return;
     }
     
-    console.log('Полные данные заявки загружены:', fullApplication);
-    console.log('Документы:', fullApplication.documents?.length || 0);
-    console.log('Файлы заявления:', fullApplication.application_files?.length || 0);
-    console.log('Сертификаты олимпиад:', fullApplication.olympiad_certificates?.length || 0);
+    // console.log('Полные данные заявки загружены:', fullApplication);
+    // console.log('Документы:', fullApplication.documents?.length || 0);
+    // console.log('Файлы заявления:', fullApplication.application_files?.length || 0);
+    // console.log('Сертификаты олимпиад:', fullApplication.olympiad_certificates?.length || 0);
     
     selectedApplication.value = fullApplication;
     showModal.value = true;
