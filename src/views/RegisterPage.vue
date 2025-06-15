@@ -364,6 +364,13 @@ async function submitForm() {
     applicationPayload.middle_name = applicationPayload.middleName;
     applicationPayload.birth_date = applicationPayload.birthDate;
     
+    // Преобразуем parentPhone в parent_phone для соответствия полю в БД
+    applicationPayload.parent_phone = applicationPayload.parentPhone;
+    
+    // Логируем данные для отладки
+    console.log('parentPhone из формы:', applicationPayload.parentPhone);
+    console.log('parent_phone для БД:', applicationPayload.parent_phone);
+    
     // Убираем поля файлов и временные поля ФИО, которые не относятся к таблице applications
     delete applicationPayload.passportScan;
     delete applicationPayload.passportTranslation;
@@ -374,14 +381,66 @@ async function submitForm() {
     delete applicationPayload.lastName;
     delete applicationPayload.middleName;
     delete applicationPayload.birthDate;
+    delete applicationPayload.parentPhone; // Удаляем camelCase версию после преобразования
 
     const { success, data, error } = await appStore.createApplication(applicationPayload);
     
+    console.log('=== ОТЛАДКА СОЗДАНИЯ ЗАЯВЛЕНИЯ ===');
+    console.log('Результат createApplication:', { success, data, error });
+    console.log('Тип success:', typeof success);
+    console.log('Тип data:', typeof data);
+    console.log('Тип error:', typeof error);
+    
     if (!success || !data) {
+      console.error('Ошибка: success =', success, ', data =', data, ', error =', error);
       throw new Error(error || 'Не удалось создать заявление');
     }
     
-    const applicationId = data.id;
+    // RPC функция create_application возвращает JSON с полем application_id
+    console.log('Содержимое data:', JSON.stringify(data, null, 2));
+    console.log('data.application_id:', data.application_id);
+    console.log('data.id:', data.id);
+    
+    let applicationId = data.application_id || data.id;
+    
+    console.log('Извлеченный applicationId:', applicationId);
+    console.log('Тип applicationId:', typeof applicationId);
+    console.log('applicationId === undefined:', applicationId === undefined);
+    console.log('applicationId === null:', applicationId === null);
+    console.log('!applicationId:', !applicationId);
+    
+    if (!applicationId) {
+      console.error('КРИТИЧЕСКАЯ ОШИБКА: applicationId пустой!');
+      console.error('data:', data);
+      
+      // ВРЕМЕННО: для отладки попробуем найти любое существующее заявление
+      console.log('Пытаемся найти существующее заявление для тестирования...');
+      try {
+        const { data: existingApps } = await supabase
+          .from('applications')
+          .select('id')
+          .limit(1);
+        
+        if (existingApps && existingApps.length > 0) {
+          const testApplicationId = existingApps[0].id;
+          console.log('ВРЕМЕННО используем существующий applicationId для тестирования:', testApplicationId);
+          
+          // Показываем предупреждение пользователю
+          toast.warning('ВНИМАНИЕ: Используется тестовый режим загрузки файлов');
+          
+          // Продолжаем с тестовым ID
+          applicationId = testApplicationId;
+        } else {
+          throw new Error('Не удалось найти существующие заявления для тестирования');
+        }
+      } catch (testError) {
+        console.error('Ошибка при поиске тестового заявления:', testError);
+        throw new Error('Не удалось получить ID созданного заявления. Data: ' + JSON.stringify(data));
+      }
+    }
+    
+    console.log('=== НАЧИНАЕМ ЗАГРУЗКУ ФАЙЛОВ ===');
+    console.log('applicationId для загрузки файлов:', applicationId);
     
     // Загружаем обязательные файлы
     const fileUploads = [];

@@ -688,9 +688,37 @@ export const applications = {
         app_data: applicationData
       });
       
+      console.log('Ответ от RPC create_application:', { data, error });
+      console.log('Тип data:', typeof data);
+      
       if (error) throw error;
 
-      return { data, error: null };
+      // Если data - это строка JSON, парсим её
+      let parsedData = data;
+      if (typeof data === 'string') {
+        try {
+          parsedData = JSON.parse(data);
+          console.log('Распарсенные данные:', parsedData);
+        } catch (parseError) {
+          console.error('Ошибка парсинга JSON:', parseError);
+          throw new Error('Некорректный ответ от сервера');
+        }
+      }
+      
+      // Проверяем структуру ответа
+      console.log('Структура parsedData:', parsedData);
+      console.log('parsedData.application_id:', parsedData?.application_id);
+      console.log('parsedData.success:', parsedData?.success);
+      
+      // Если RPC функция вернула объект с полем success = false
+      if (parsedData && parsedData.success === false) {
+        throw new Error(parsedData.error || parsedData.message || 'Ошибка создания заявления');
+      }
+      
+      // Возвращаем либо весь объект, либо только application_id
+      const resultData = parsedData?.application_id ? { application_id: parsedData.application_id } : parsedData;
+
+      return { data: resultData, error: null };
     } catch (err) {
       console.error('Ошибка создания заявки:', err);
       return { data: null, error: err.message || 'Ошибка создания заявки' };
@@ -997,24 +1025,37 @@ export const applicationFiles = {
   // Загрузить файл заявления (фотографию или документ)
   async upload(applicationId, file, fileCategory = 'general', isImage = false) {
     try {
-      // Получаем данные о текущем пользователе
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') };
+      console.log('=== applicationFiles.upload НАЧАЛО ===');
+      console.log('Параметры вызова:', {
+        applicationId,
+        applicationIdType: typeof applicationId,
+        applicationIdIsUndefined: applicationId === undefined,
+        applicationIdIsNull: applicationId === null,
+        fileName: file?.name,
+        fileCategory,
+        isImage
+      });
+      
+      if (!applicationId || applicationId === 'undefined') {
+        console.error('КРИТИЧЕСКАЯ ОШИБКА: applicationId пустой или "undefined"');
+        throw new Error('applicationId не может быть пустым или "undefined"');
+      }
+      
+      if (!file) {
+        throw new Error('Файл не предоставлен');
+      }
 
-      console.log('Загрузка файла:', { applicationId, fileName: file.name, fileCategory, fileType: file.type });
+      const calculatedIsImage = isImage || file.type.startsWith('image/');
+      
+      // Генерируем уникальное имя файла
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
+      const filePath = `${applicationId}/${fileCategory}/${fileName}`;
 
-      // Генерируем имя файла и путь
-      const fileExt = file.name.split('.').pop();
-      const fileId = crypto.randomUUID();
-      const fileName = `${fileId}.${fileExt}`;
-      const filePath = `${applicationId}/${fileName}`;
-
-      // Определяем, является ли файл изображением
-      const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      const calculatedIsImage = isImage || imageTypes.includes(file.type);
+      console.log('Загружаем файл в Storage:', { filePath, fileName });
 
       // Загружаем файл в Storage
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('application_files')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -1025,6 +1066,16 @@ export const applicationFiles = {
         console.error('Ошибка загрузки файла в Storage:', uploadError);
         return { data: null, error: uploadError };
       }
+
+      console.log('Файл загружен в Storage, вызываем RPC функцию с параметрами:', {
+        p_application_id: applicationId,
+        p_file_path: filePath,
+        p_file_name: file.name,
+        p_file_type: file.type,
+        p_file_size: file.size,
+        p_is_image: calculatedIsImage,
+        p_file_category: fileCategory
+      });
 
       // Используем обновленную RPC функцию для создания записи в таблице application_files
       const { data, error } = await supabase.rpc('upload_application_file', {

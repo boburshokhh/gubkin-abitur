@@ -221,31 +221,31 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 <div>
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Фамилия</h4>
-                  <p class="text-gray-900">{{ application.users?.last_name || application.last_name || 'Не указана' }}</p>
+                  <p class="text-gray-900">{{ application.last_name || application.users?.last_name || 'Не указана' }}</p>
                 </div>
                 <div>
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Имя</h4>
-                  <p class="text-gray-900">{{ application.users?.first_name || application.first_name || 'Не указано' }}</p>
+                  <p class="text-gray-900">{{ application.first_name || application.users?.first_name || 'Не указано' }}</p>
                 </div>
                 <div>
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Отчество</h4>
-                  <p class="text-gray-900">{{ application.users?.middle_name || application.middle_name || 'Не указано' }}</p>
+                  <p class="text-gray-900">{{ application.middle_name || application.users?.middle_name || 'Не указано' }}</p>
                 </div>
                 <div>
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Дата рождения</h4>
-                  <p class="text-gray-900">{{ formatDate(application.users?.birth_date || application.birth_date) }}</p>
+                  <p class="text-gray-900">{{ formatDate(application.birth_date || application.users?.birth_date) }}</p>
                 </div>
                 <div>
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Пол</h4>
-                  <p class="text-gray-900">{{ getGenderText(application.users?.gender || application.gender) }}</p>
+                  <p class="text-gray-900">{{ getGenderText(application.gender || application.users?.gender) }}</p>
                 </div>
                 <div>
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Регион</h4>
-                  <p class="text-gray-900">{{ application.users?.regions?.name || application.regions?.name || 'Не указан' }}</p>
+                  <p class="text-gray-900">{{ application.regions?.name || application.users?.regions?.name || 'Не указан' }}</p>
                 </div>
                 <div>
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Телефон</h4>
-                  <p class="text-gray-900">{{ application.users?.phone || application.phone || 'Не указан' }}</p>
+                  <p class="text-gray-900">{{ application.phone || application.users?.phone || 'Не указан' }}</p>
                 </div>
                 <div>
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Телефон родителей</h4>
@@ -253,7 +253,7 @@
                 </div>
                 <div>
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Email</h4>
-                  <p class="text-gray-900">{{ application.users?.email || application.email || 'Не указан' }}</p>
+                  <p class="text-gray-900">{{ application.email || application.users?.email || 'Не указан' }}</p>
                 </div>
               </div>
             </div>
