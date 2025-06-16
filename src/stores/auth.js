@@ -40,8 +40,10 @@ export const useAuthStore = defineStore('auth', () => {
           }
         } else {
           user.value = session.user;
-          await loadUserProfile();
-          await loadUserRole();
+          // Передаем пользователя из сессии, чтобы избежать дублирующего запроса
+          const profileData = await loadUserProfile(session.user);
+          // Передаем загруженный профиль, чтобы избежать дополнительного запроса к БД
+          await loadUserRole(profileData);
         }
       } else {
           user.value = null;
@@ -60,11 +62,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // Загрузка профиля пользователя
-  const loadUserProfile = async () => {
-    if (!user.value) return null
+  const loadUserProfile = async (userFromSession = null) => {
+    const currentUser = userFromSession || user.value;
+    if (!currentUser) return null
 
     try {
-      const { data, error: profileError } = await supabaseUsers.getProfile()
+      // Передаем пользователя чтобы избежать дублирующего вызова к auth.getUser()
+      const { data, error: profileError } = await supabaseUsers.getProfile(currentUser)
       
       if (profileError) {
         console.error('Ошибка загрузки профиля:', profileError)
@@ -82,21 +86,23 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // Загрузка роли пользователя
-  const loadUserRole = async () => {
-    if (!user.value) return null
+  const loadUserRole = async (profileData = null) => {
+    const currentUser = user.value;
+    if (!currentUser) return null
 
     try {
-      if (profile.value) {
-        if (profile.value.role_id) {
-          userRole.value = profile.value.role_id
-          return userRole.value
-        }
+      // Если профиль уже загружен, используем его
+      const currentProfile = profileData || profile.value;
+      if (currentProfile && currentProfile.role_id) {
+        userRole.value = currentProfile.role_id
+        return currentProfile.role_id
       }
       
+      // Только если роль не найдена в профиле, делаем дополнительный запрос
       const { data, error: roleError } = await supabase
         .from('users')
         .select('role_id')
-        .eq('id', user.value.id)
+        .eq('id', currentUser.id)
         .single()
       
       if (!roleError && data && data.role_id) {
@@ -175,8 +181,10 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = data?.user || null
       
       if (user.value) {
-        await loadUserProfile()
-        await loadUserRole()
+        // Передаем пользователя чтобы избежать дублирующего запроса
+        const profileData = await loadUserProfile(user.value)
+        // Передаем загруженный профиль, чтобы избежать дополнительного запроса к БД
+        await loadUserRole(profileData)
       }
       
       return { success: true, data: data.user }
@@ -265,8 +273,10 @@ export const useAuthStore = defineStore('auth', () => {
       emailToVerify.value = null
       
       if (user.value) {
-        await loadUserProfile()
-        await loadUserRole()
+        // Передаем пользователя чтобы избежать дублирующего запроса
+        const profileData = await loadUserProfile(user.value)
+        // Передаем загруженный профиль, чтобы избежать дополнительного запроса к БД
+        await loadUserRole(profileData)
       }
       
       return { success: true }
@@ -406,8 +416,10 @@ export const useAuthStore = defineStore('auth', () => {
 
         // Обновляем пользователя с новой сессией
         user.value = newSession.user;
-        await loadUserProfile();
-        await loadUserRole();
+        // Передаем пользователя чтобы избежать дублирующего запроса
+        const profileData = await loadUserProfile(newSession.user);
+        // Передаем загруженный профиль, чтобы избежать дополнительного запроса к БД
+        await loadUserRole(profileData);
         
         return { 
           success: true, 
@@ -419,8 +431,10 @@ export const useAuthStore = defineStore('auth', () => {
       // Если сессия существует и токен валиден
       if (currentSession?.user) {
         user.value = currentSession.user;
-        await loadUserProfile();
-        await loadUserRole();
+        // Передаем пользователя чтобы избежать дублирующего запроса
+        const profileData = await loadUserProfile(currentSession.user);
+        // Передаем загруженный профиль, чтобы избежать дополнительного запроса к БД
+        await loadUserRole(profileData);
         
         return { 
           success: true, 

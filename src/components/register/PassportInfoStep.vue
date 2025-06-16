@@ -31,6 +31,7 @@
           placeholder="AA 1234567"
           required
           :error="errors.passport_series"
+          :class="{ 'border-red-500': errors.passport_series }"
         />
       </div>
       <div>
@@ -40,6 +41,7 @@
           label="Дата выдачи"
           required
           :error="errors.passport_issue_date"
+          :class="{ 'border-red-500': errors.passport_issue_date }"
         />
       </div>
     </div>
@@ -51,6 +53,7 @@
         placeholder="Укажите орган, выдавший паспорт"
         required
         :error="errors.passport_issued_by"
+        :class="{ 'border-red-500': errors.passport_issued_by }"
       />
     </div>
     <p class="text-sm text-gray-500 bg-yellow-100 p-2 rounded-lg">
@@ -61,10 +64,11 @@
     </p>
     <FileUploadField
       fieldName="passportScan"
-      label="Скан или фото паспорта/ID-карты"
+      label="Скан или фото паспорта/ID-карты (обязательно)"
       :isUploading="fileUploading.passportScan"
       :preview="filePreview.passportScan"
       :error="errors.passportScan"
+      required
       @change="(file) => $emit('file-change', file, 'passportScan')"
       @view="() => $emit('file-view', 'passportScan')"
       @reset="() => $emit('file-reset', 'passportScan')"
@@ -85,9 +89,11 @@
         :preview="filePreview.passportTranslation"
         :error="errors.passportTranslation"
         accept=".pdf"
+        required
         @change="(file) => $emit('file-change', file, 'passportTranslation')"
         @view="() => $emit('file-view', 'passportTranslation')"
         @reset="() => $emit('file-reset', 'passportTranslation')"
+        :class="{ 'border-red-500': errors.passportTranslation }"
       />
     </div>
   </div>

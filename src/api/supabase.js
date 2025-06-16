@@ -41,10 +41,9 @@ supabase.auth.onAuthStateChange((event, session) => {
           // Ищем auth store по токену
           const authStore = Array.from(stores.values()).find(s => s.$id === 'auth');
           if (authStore && session?.user) {
-            // Обновляем пользователя в store
+            // Просто обновляем пользователя в store без повторного вызова initAuth
+            // это избегает дублирования запросов при событиях аутентификации
             authStore.user = session.user;
-            // Инициализируем auth store
-            authStore.initAuth();
           }
         }
       }).catch(err => {
@@ -282,8 +281,15 @@ export const auth = {
 // Функции для работы с пользователями
 export const users = {
   // Получить профиль текущего пользователя
-  async getProfile() {
-    const { data: { user } } = await supabase.auth.getUser()
+  async getProfile(userFromSession = null) {
+    // Если пользователь передан из сессии, используем его
+    // Иначе получаем пользователя из auth (для обратной совместимости)
+    let user = userFromSession;
+    if (!user) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      user = authUser;
+    }
+    
     if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
 
     try {
@@ -353,8 +359,15 @@ export const users = {
   },
 
   // Обновить профиль пользователя
-  async updateProfile(profileData) {
-    const { data: { user } } = await supabase.auth.getUser()
+  async updateProfile(profileData, userFromSession = null) {
+    // Если пользователь передан из сессии, используем его
+    // Иначе получаем пользователя из auth (для обратной совместимости)
+    let user = userFromSession;
+    if (!user) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      user = authUser;
+    }
+    
     if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
 
     try {
@@ -585,9 +598,9 @@ export const applications = {
     try {
       console.log('Получение заявки по ID:', id);
       
-      // Используем обновленную RPC функцию, которая возвращает JSON
+      // Используем новую RPC функцию get_application_details
       const { data, error } = await supabase.rpc('get_application_details', {
-        application_id_param: id
+        app_id: id
       });
 
       if (error) {
@@ -611,11 +624,13 @@ export const applications = {
       applicationData.documents = applicationData.documents || [];
       applicationData.application_files = applicationData.application_files || [];
       applicationData.olympiad_certificates = applicationData.olympiad_certificates || [];
+      applicationData.application_history = applicationData.application_history || [];
 
       console.log('Отформатированные данные заявки с файлами:', applicationData);
       console.log('Количество документов:', applicationData.documents.length);
       console.log('Количество файлов заявления:', applicationData.application_files.length);
       console.log('Количество сертификатов олимпиад:', applicationData.olympiad_certificates.length);
+      console.log('Количество записей истории:', applicationData.application_history.length);
       return { data: applicationData, error: null };
 
     } catch (err) {
@@ -842,28 +857,45 @@ export const applications = {
 
       console.log('Обновление статуса заявки:', { applicationId, statusId, comment });
 
-      // Используем новую RPC функцию, которая обновляет статус и создает запись в истории
-      const { data, error } = await supabase.rpc('update_application_status_with_history', {
-        p_application_id: applicationId,
-        p_status_id: statusId,
-        p_comment: comment || ''
+      // Используем новую RPC функцию add_application_comment
+      const { data, error } = await supabase.rpc('add_application_comment', {
+        app_id: applicationId,
+        new_status_id: statusId,
+        comment_text: comment || null,
+        user_id: user.id
       });
 
       if (error) {
-        console.error('Ошибка при вызове RPC update_application_status_with_history:', error);
+        console.error('Ошибка при вызове RPC add_application_comment:', error);
         return { data: null, error };
       }
 
       console.log('Результат обновления статуса:', data);
 
       return { 
-        data: data.application, 
-        historyRecord: { id: data.history_id }, 
+        data: data, 
         error: null 
       };
     } catch (err) {
       console.error('Ошибка обновления статуса заявки:', err)
       return { data: null, error: err }
+    }
+  },
+
+  // Получить все статусы заявлений
+  async getStatuses() {
+    try {
+      const { data, error } = await supabase
+        .from('application_statuses')
+        .select('*')
+        .order('id');
+      
+      if (error) throw error;
+      
+      return { data, error: null };
+    } catch (err) {
+      console.error('Ошибка при получении статусов заявлений:', err);
+      return { data: null, error: err };
     }
   }
 }

@@ -21,6 +21,24 @@
             :totalSteps="totalSteps" 
           />
           
+          <!-- Информация о валидации текущего шага -->
+          <!-- <div v-if="!isCurrentStepValid && Object.keys(errors).length === 0" 
+               class="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded-md">
+            <div class="flex items-start">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-yellow-800">Заполните все обязательные поля</h3>
+                <p class="mt-1 text-sm text-yellow-700">
+                  Для перехода к следующему шагу необходимо заполнить все поля, отмеченные звездочкой (*).
+                </p>
+              </div>
+            </div>
+          </div> -->
+          
           <!-- Полноэкранный индикатор загрузки -->
           <SubmissionLoader 
             v-if="isSubmitting" 
@@ -165,6 +183,10 @@ const isSubmitted = ref(false);
 const errors = ref({});
 const applicationNumber = ref('');
 
+// Переменные для отслеживания прогресса отправки
+const submissionProgress = ref(0);
+const submissionStatus = ref('');
+
 const userApplications = ref([])
 const currentApplication = ref(null)
 const applicationDocuments = ref([])
@@ -218,10 +240,7 @@ onMounted(async () => {
     appStore.loadRegions()
   ]);
   
-  // console.log('Регионы после загрузки:', appStore.regions);
-  // Сохраняем регионы в локальный массив для гарантированного доступа
   regionsData.value = [...appStore.regions];
-  // console.log('Локальная копия регионов:', regionsData.value);
   
   if (authStore.user && !authStore.profile) {
     await authStore.initAuth();
@@ -240,7 +259,7 @@ onMounted(async () => {
     form.value.phone = p.phone || '';
     form.value.gender = p.gender || 'male';
     form.value.region_id = p.region_id || null;
-    form.value.birthDate = p.birth_date || null; // null вместо пустой строки
+    form.value.birthDate = p.birth_date || null;
   }
   
   isFormLoading.value = false;
@@ -262,30 +281,44 @@ function validateStep() {
   errors.value = {};
   const f = form.value;
   
-  if (currentStep.value === 5) {
-    console.log('Данные формы на шаге подтверждения:', JSON.stringify(f));
-  }
-  
   if (currentStep.value === 1) {
-    if (!f.lastName || !f.firstName) errors.value.name = 'Фамилия и имя обязательны.';
-    if (!f.birthDate) errors.value.birthDate = 'Дата рождения обязательна.';
-    if (!f.phone) errors.value.phone = 'Телефон обязателен.';
-    if (!f.email) errors.value.email = 'Email обязателен.';
-  } else if (currentStep.value === 2) {
-    // console.log('passport_series',f.passport_series,f.passport_issue_date,f.passport_issued_by);
-    if (!f.passport_series) errors.value.passport_series = 'Серия и номер паспорта обязательны.';
-    if (!f.passport_issue_date) errors.value.passport_issue_date = 'Дата выдачи обязательна.';
-    if (!f.passport_issued_by) errors.value.passport_issued_by = 'Кем выдан паспорт, обязательно.';
+    // Личные данные - все поля обязательны
+    if (!f.lastName?.trim()) errors.value.lastName = 'Фамилия обязательна для заполнения.';
+    if (!f.firstName?.trim()) errors.value.firstName = 'Имя обязательно для заполнения.';
+    if (!f.birthDate) errors.value.birthDate = 'Дата рождения обязательна для заполнения.';
+    if (!f.region_id) errors.value.region_id = 'Регион проживания обязателен для заполнения.';
+    if (!f.phone?.trim()) errors.value.phone = 'Телефон обязателен для заполнения.';
+    if (!f.parentPhone?.trim()) errors.value.parentPhone = 'Телефон родителя обязателен для заполнения.';
+    if (!f.email?.trim()) errors.value.email = 'Email обязателен для заполнения.';
+    if (!f.gender?.trim()) errors.value.gender = 'Пол обязателен для заполнения.';
     
-    // Проверка обязательного файла скана паспорта
+    // Дополнительная валидация email
+    if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) {
+      errors.value.email = 'Введите корректный email адрес.';
+    }
+    
+  } else if (currentStep.value === 2) {
+    // Паспортные данные - все поля обязательны
+    if (!f.passport_series?.trim()) errors.value.passport_series = 'Серия и номер паспорта обязательны для заполнения.';
+    if (!f.passport_issue_date) errors.value.passport_issue_date = 'Дата выдачи паспорта обязательна для заполнения.';
+    if (!f.passport_issued_by?.trim()) errors.value.passport_issued_by = 'Орган, выдавший паспорт, обязателен для заполнения.';
+    
+    // Проверка загрузки файла паспорта
     if (!f.passportScan && !filePreview.value.passportScan) {
       errors.value.passportScan = 'Загрузка скана паспорта обязательна.';
     }
+    // Проверка загрузки перевода паспорта
+    if (!f.passportTranslation && !filePreview.value.passportTranslation) {
+      errors.value.passportTranslation = 'Загрузка нотариально заверенного перевода паспорта обязательна.';
+    }
+    
   } else if (currentStep.value === 3) {
-    if (!f.education_level) errors.value.education_level = 'Уровень образования обязателен.';
-    if (!f.education_institution) errors.value.education_institution = 'Учебное заведение обязательно.';
-    if (!f.education_document_number) errors.value.education_document_number = 'Номер документа об образовании обязателен.';
-    if (!f.education_document_date) errors.value.education_document_date = 'Дата документа об образовании обязательна.';
+    // Образование - все поля обязательны
+    if (!f.education_level?.trim()) errors.value.education_level = 'Уровень образования обязателен для заполнения.';
+    if (!f.education_institution?.trim()) errors.value.education_institution = 'Название учебного заведения обязательно для заполнения.';
+    if (!f.education_graduation_year) errors.value.education_graduation_year = 'Год окончания обязателен для заполнения.';
+    if (!f.education_document_number?.trim()) errors.value.education_document_number = 'Номер документа об образовании обязателен для заполнения.';
+    if (!f.education_document_date) errors.value.education_document_date = 'Дата выдачи документа об образовании обязательна для заполнения.';
     
     // Проверка обязательных файлов
     if (!f.photoFile && !filePreview.value.photoFile) {
@@ -294,42 +327,150 @@ function validateStep() {
     if (!f.educationScan && !filePreview.value.educationScan) {
       errors.value.educationScan = 'Загрузка документа об образовании обязательна.';
     }
+    
+    // Валидация года окончания
+    const currentYear = new Date().getFullYear();
+    if (f.education_graduation_year && (f.education_graduation_year < 1950 || f.education_graduation_year > currentYear + 1)) {
+      errors.value.education_graduation_year = `Год окончания должен быть от 1950 до ${currentYear + 1}.`;
+    }
+    
   } else if (currentStep.value === 4) {
+    // Выбор программ - обязательно выбрать хотя бы одну программу
     if (!f.choices || f.choices.length === 0) {
       errors.value.choices = 'Необходимо выбрать хотя бы одну образовательную программу.';
-    } else if (f.choices.some(c => !c.profile_id)) {
+    } else {
+      // Проверяем, что все выбранные программы корректно заполнены
+      const invalidChoices = f.choices.filter(choice => !choice.profile_id);
+      if (invalidChoices.length > 0) {
       errors.value.choices = 'Пожалуйста, завершите выбор для всех указанных приоритетов.';
-    } else if (f.choices.length > 1) {
-      // Проверяем, что все выбранные профили имеют одинаковый набор экзаменов
-      // Эта проверка выполняется на клиенте для быстрой обратной связи
-      // Дополнительная проверка будет выполнена на сервере при отправке формы
-      const firstProfileId = f.choices[0].profile_id;
-      
-      // Проверка уже выполнена в компоненте ProgramSelectionStep,
-      // здесь просто проверяем, что у нас есть совместимые профили
-      if (firstProfileId) {
-        // Фактически, проверка уже выполнена при выборе профилей в ProgramSelectionStep
-        // Если пользователь смог выбрать профили, значит они имеют одинаковый набор экзаменов
-        // Но можно добавить дополнительную проверку, если необходимо
       }
+    }
+    
+    // Проверка формы финансирования
+    if (!f.funding_form?.trim()) {
+      errors.value.funding_form = 'Форма финансирования обязательна для заполнения.';
+    }
+  } else if (currentStep.value === 5) {
+    // На шаге подтверждения: если выбран олимпиады, сертификат обязателен
+    if (f.olympiad_participant && !f.olympiadCertificate && !filePreview.value.olympiadCertificate) {
+      errors.value.olympiadCertificate = 'Загрузка сертификата олимпиады обязательна.';
     }
   }
   
   return Object.keys(errors.value).length === 0;
 }
 
+// Вычисляемое свойство для проверки готовности текущего шага
+const isCurrentStepValid = computed(() => {
+  const f = form.value;
+  
+  if (currentStep.value === 1) {
+    return !!(
+      f.lastName?.trim() &&
+      f.firstName?.trim() &&
+      f.birthDate &&
+      f.region_id &&
+      f.phone?.trim() &&
+      f.parentPhone?.trim() &&
+      f.email?.trim() &&
+      f.gender?.trim() &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email || '')
+    );
+  } else if (currentStep.value === 2) {
+    return !!(
+      f.passport_series?.trim() &&
+      f.passport_issue_date &&
+      f.passport_issued_by?.trim() &&
+      (f.passportScan || filePreview.value.passportScan) &&
+      (f.passportTranslation || filePreview.value.passportTranslation)
+    );
+  } else if (currentStep.value === 3) {
+    const currentYear = new Date().getFullYear();
+    const isYearValid = f.education_graduation_year && 
+                       f.education_graduation_year >= 1950 && 
+                       f.education_graduation_year <= currentYear + 1;
+    
+    return !!(
+      f.education_level?.trim() &&
+      f.education_institution?.trim() &&
+      isYearValid &&
+      f.education_document_number?.trim() &&
+      f.education_document_date &&
+      (f.photoFile || filePreview.value.photoFile) &&
+      (f.educationScan || filePreview.value.educationScan)
+    );
+  } else if (currentStep.value === 4) {
+    return !!(
+      f.choices &&
+      f.choices.length > 0 &&
+      f.choices.every(choice => choice.profile_id) &&
+      f.funding_form?.trim()
+    );
+  } else if (currentStep.value === 5) {
+    // На шаге подтверждения: если выбран олимпиады, сертификат обязателен
+    if (f.olympiad_participant) {
+      return !!(f.olympiadCertificate || filePreview.value.olympiadCertificate);
+    }
+    return true;
+  }
+  
+  return false;
+});
+
 // Навигация
 function nextStep() {
-  // console.log('nextStep',validateStep());
-  if (validateStep()) {
-    if (currentStep.value < totalSteps) currentStep.value++;
-  } else {
-    toast.warning('Пожалуйста, заполните все обязательные поля.');
+  // Принудительно запускаем валидацию
+  const isValid = validateStep();
+  
+  if (!isValid) {
+    // Показываем детализированное сообщение об ошибках
+    const errorFields = Object.keys(errors.value);
+    const errorMessages = errorFields.map(field => {
+      const fieldLabels = {
+        lastName: 'Фамилия',
+        firstName: 'Имя',
+        birthDate: 'Дата рождения',
+        region_id: 'Регион проживания',
+        phone: 'Телефон',
+        parentPhone: 'Телефон родителя',
+        email: 'Email',
+        gender: 'Пол',
+        passport_series: 'Серия и номер паспорта',
+        passport_issue_date: 'Дата выдачи паспорта',
+        passport_issued_by: 'Орган, выдавший паспорт',
+        passportScan: 'Скан паспорта',
+        passportTranslation: 'Нотариально заверенный перевод паспорта',
+        education_level: 'Уровень образования',
+        education_institution: 'Учебное заведение',
+        education_graduation_year: 'Год окончания',
+        education_document_number: 'Номер документа об образовании',
+        education_document_date: 'Дата выдачи документа',
+        photoFile: 'Фотография 3х4',
+        educationScan: 'Документ об образовании',
+        choices: 'Выбор образовательных программ',
+        funding_form: 'Форма финансирования'
+      };
+      
+      return fieldLabels[field] || field;
+    });
+    
+    toast.error(`Пожалуйста, заполните следующие обязательные поля: ${errorMessages.join(', ')}`);
+    return;
+  }
+  
+  if (currentStep.value < totalSteps) {
+    currentStep.value++;
+    // Очищаем ошибки при успешном переходе
+    errors.value = {};
   }
 }
 
 function prevStep() {
-  if (currentStep.value > 1) currentStep.value--;
+  if (currentStep.value > 1) {
+    currentStep.value--;
+    // Очищаем ошибки при переходе назад
+    errors.value = {};
+  }
 }
 
 // Отправка формы
@@ -340,12 +481,17 @@ async function submitForm() {
   }
   
   isSubmitting.value = true;
+  submissionProgress.value = 0;
+  submissionStatus.value = 'Подготовка данных заявления...';
   
   try {
-    // Подготавливаем данные для отправки, заменяя пустые строки в полях дат на null
+    // Этап 1: Подготовка данных (10%)
+    await new Promise(resolve => setTimeout(resolve, 500));
+    submissionProgress.value = 10;
+    submissionStatus.value = 'Обработка персональных данных...';
+    
     const applicationPayload = { ...form.value };
     
-    // Обрабатываем поля дат - заменяем пустые строки на null
     const dateFields = ['birthDate', 'passport_issue_date', 'education_document_date'];
     dateFields.forEach(field => {
       if (applicationPayload[field] === '') {
@@ -353,25 +499,16 @@ async function submitForm() {
       }
     });
     
-    // Обрабатываем обязательные поля document_date и document_number
-    // Сопоставляем их с education_document_date и education_document_number
     applicationPayload.document_date = applicationPayload.education_document_date;
     applicationPayload.document_number = applicationPayload.education_document_number || '';
     
-    // Добавляем ФИО в заявку
     applicationPayload.first_name = applicationPayload.firstName;
     applicationPayload.last_name = applicationPayload.lastName;
     applicationPayload.middle_name = applicationPayload.middleName;
     applicationPayload.birth_date = applicationPayload.birthDate;
     
-    // Преобразуем parentPhone в parent_phone для соответствия полю в БД
     applicationPayload.parent_phone = applicationPayload.parentPhone;
     
-    // Логируем данные для отладки
-    console.log('parentPhone из формы:', applicationPayload.parentPhone);
-    console.log('parent_phone для БД:', applicationPayload.parent_phone);
-    
-    // Убираем поля файлов и временные поля ФИО, которые не относятся к таблице applications
     delete applicationPayload.passportScan;
     delete applicationPayload.passportTranslation;
     delete applicationPayload.photoFile;
@@ -381,40 +518,21 @@ async function submitForm() {
     delete applicationPayload.lastName;
     delete applicationPayload.middleName;
     delete applicationPayload.birthDate;
-    delete applicationPayload.parentPhone; // Удаляем camelCase версию после преобразования
+    delete applicationPayload.parentPhone;
 
+    // Этап 2: Создание заявления (20%)
+    submissionProgress.value = 20;
+    submissionStatus.value = 'Создание заявления в системе...';
+    
     const { success, data, error } = await appStore.createApplication(applicationPayload);
     
-    console.log('=== ОТЛАДКА СОЗДАНИЯ ЗАЯВЛЕНИЯ ===');
-    console.log('Результат createApplication:', { success, data, error });
-    console.log('Тип success:', typeof success);
-    console.log('Тип data:', typeof data);
-    console.log('Тип error:', typeof error);
-    
     if (!success || !data) {
-      console.error('Ошибка: success =', success, ', data =', data, ', error =', error);
       throw new Error(error || 'Не удалось создать заявление');
     }
     
-    // RPC функция create_application возвращает JSON с полем application_id
-    console.log('Содержимое data:', JSON.stringify(data, null, 2));
-    console.log('data.application_id:', data.application_id);
-    console.log('data.id:', data.id);
-    
     let applicationId = data.application_id || data.id;
     
-    console.log('Извлеченный applicationId:', applicationId);
-    console.log('Тип applicationId:', typeof applicationId);
-    console.log('applicationId === undefined:', applicationId === undefined);
-    console.log('applicationId === null:', applicationId === null);
-    console.log('!applicationId:', !applicationId);
-    
     if (!applicationId) {
-      console.error('КРИТИЧЕСКАЯ ОШИБКА: applicationId пустой!');
-      console.error('data:', data);
-      
-      // ВРЕМЕННО: для отладки попробуем найти любое существующее заявление
-      console.log('Пытаемся найти существующее заявление для тестирования...');
       try {
         const { data: existingApps } = await supabase
           .from('applications')
@@ -423,81 +541,110 @@ async function submitForm() {
         
         if (existingApps && existingApps.length > 0) {
           const testApplicationId = existingApps[0].id;
-          console.log('ВРЕМЕННО используем существующий applicationId для тестирования:', testApplicationId);
-          
-          // Показываем предупреждение пользователю
           toast.warning('ВНИМАНИЕ: Используется тестовый режим загрузки файлов');
-          
-          // Продолжаем с тестовым ID
           applicationId = testApplicationId;
         } else {
           throw new Error('Не удалось найти существующие заявления для тестирования');
         }
       } catch (testError) {
-        console.error('Ошибка при поиске тестового заявления:', testError);
         throw new Error('Не удалось получить ID созданного заявления. Data: ' + JSON.stringify(data));
       }
     }
     
-    console.log('=== НАЧИНАЕМ ЗАГРУЗКУ ФАЙЛОВ ===');
-    console.log('applicationId для загрузки файлов:', applicationId);
+    // Этап 3: Подготовка файлов для загрузки (30%)
+    submissionProgress.value = 30;
+    submissionStatus.value = 'Подготовка документов к загрузке...';
+    await new Promise(resolve => setTimeout(resolve, 300));
     
-    // Загружаем обязательные файлы
     const fileUploads = [];
+    const fileNames = [];
     
-    // Загрузка скана паспорта (в application_files с категорией 'passport_scan')
     if (form.value.passportScan) {
       fileUploads.push(
         applicationFiles.upload(applicationId, form.value.passportScan, 'passport_scan', false)
       );
+      fileNames.push('Скан паспорта');
     }
     
-    // Загрузка нотариально заверенного перевода паспорта (в application_files с категорией 'passport_translation')
     if (form.value.passportTranslation) {
       fileUploads.push(
         applicationFiles.upload(applicationId, form.value.passportTranslation, 'passport_translation', false)
       );
+      fileNames.push('Перевод паспорта');
     }
     
-    // Загрузка фотографии (в application_files с категорией 'photo')
     if (form.value.photoFile) {
       fileUploads.push(
         applicationFiles.upload(applicationId, form.value.photoFile, 'photo', true)
       );
+      fileNames.push('Фотография 3х4');
     }
     
-    // Загрузка документа об образовании (в application_files с категорией 'education_scan')
     if (form.value.educationScan) {
       fileUploads.push(
         applicationFiles.upload(applicationId, form.value.educationScan, 'education_scan', false)
       );
+      fileNames.push('Документ об образовании');
     }
     
-    // Загрузка сертификата олимпиады (если есть)
     if (form.value.olympiad_participant && form.value.olympiadCertificate) {
       fileUploads.push(
         olympiadCertificates.upload(applicationId, form.value.olympiadCertificate)
       );
+      fileNames.push('Сертификат олимпиады');
     }
     
-    // Ждем завершения всех загрузок
+    // Этап 4: Загрузка файлов (30% -> 85%)
     if (fileUploads.length > 0) {
-      const uploadResults = await Promise.allSettled(fileUploads);
+      submissionStatus.value = `Загрузка документов (0 из ${fileUploads.length})...`;
       
-      // Проверяем результаты загрузки
+      const totalFiles = fileUploads.length;
+      const progressPerFile = 55 / totalFiles; // 55% для всех файлов (30% -> 85%)
+      
+      const uploadResults = await Promise.allSettled(
+        fileUploads.map(async (uploadPromise, index) => {
+          try {
+            submissionStatus.value = `Загрузка: ${fileNames[index]}...`;
+            const result = await uploadPromise;
+            
+            // Обновляем прогресс после каждого файла
+            submissionProgress.value = Math.min(30 + (index + 1) * progressPerFile, 85);
+            submissionStatus.value = `Загружено: ${fileNames[index]} (${index + 1} из ${totalFiles})`;
+            
+            // Небольшая задержка для плавного отображения прогресса
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            return result;
+          } catch (error) {
+            submissionStatus.value = `Ошибка загрузки: ${fileNames[index]}`;
+            throw error;
+          }
+        })
+      );
+      
       const failedUploads = uploadResults.filter(result => result.status === 'rejected');
       if (failedUploads.length > 0) {
-        console.error('Некоторые файлы не удалось загрузить:', failedUploads);
         toast.warning('Заявление создано, но некоторые файлы не удалось загрузить. Пожалуйста, добавьте их позже в личном кабинете.');
       }
+    } else {
+      submissionProgress.value = 85;
     }
+    
+    // Этап 5: Финализация (85% -> 100%)
+    submissionProgress.value = 90;
+    submissionStatus.value = 'Финализация заявления...';
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    submissionProgress.value = 100;
+    submissionStatus.value = 'Заявление успешно отправлено!';
+    await new Promise(resolve => setTimeout(resolve, 800));
     
     isSubmitted.value = true;
     applicationNumber.value = applicationId;
     toast.success('Ваше заявление успешно отправлено!');
     
   } catch (err) {
-    console.error('Ошибка при отправке заявления:', err);
+    submissionStatus.value = 'Ошибка при отправке заявления';
     toast.error(err.message || 'Произошла непредвиденная ошибка при отправке заявления.');
     errors.value.submit = err.message;
   } finally {
@@ -541,7 +688,6 @@ const onDirectionChange = async () => {
       availableProfiles.value = profilesData;
     }
   } catch (error) {
-    console.error('Ошибка при загрузке профилей:', error);
     toast.error('Не удалось загрузить профили для выбранного направления');
   }
 };
@@ -565,7 +711,6 @@ const onProfileChange = async () => {
       availableSpecialties.value = specialtiesData;
     }
   } catch (error) {
-    console.error('Ошибка при загрузке специальностей:', error);
     toast.error('Не удалось загрузить специальности для выбранного профиля');
   }
 };

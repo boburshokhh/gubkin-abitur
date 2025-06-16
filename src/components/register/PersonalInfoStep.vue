@@ -12,6 +12,7 @@
           placeholder="Введите фамилию"
           required
           :error="errors.lastName"
+          :class="{ 'border-red-500': errors.lastName }"
         />
       </div>
       <div>
@@ -21,6 +22,7 @@
           placeholder="Введите имя"
           required
           :error="errors.firstName"
+          :class="{ 'border-red-500': errors.firstName }"
         />
       </div>
     </div>
@@ -40,16 +42,18 @@
           label="Дата рождения"
           required
           :error="errors.birthDate"
+          :class="{ 'border-red-500': errors.birthDate }"
         />
       </div>
     </div>
     
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Регион проживания</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1 required-field">Регион проживания</label>
         <select 
           v-model="modelValue.region_id"
           class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+          :class="{ 'border-red-500': errors.region_id }"
           required
         >
           <option value="">Выберите регион</option>
@@ -80,6 +84,7 @@
           placeholder="+998 __ ___ __ __"
           required
           :error="errors.phone"
+          :class="{ 'border-red-500': errors.phone }"
           @input="() => $emit('phone-format', 'phone')"
         >
           <template #prefix>
@@ -97,6 +102,7 @@
           placeholder="+998 __ ___ __ __"
           required
           :error="errors.parentPhone"
+          :class="{ 'border-red-500': errors.parentPhone }"
           @input="() => $emit('phone-format', 'parentPhone')"
         >
           <template #prefix>
@@ -110,13 +116,15 @@
           type="email"
           label="Email"
           placeholder="example@mail.com"
+          required
           :error="errors.email"
+          :class="{ 'border-red-500': errors.email }"
         />
       </div>
     </div>
     
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Пол</label>
+      <label class="block text-sm font-medium text-gray-700 mb-1 required-field">Пол</label>
       <div class="flex space-x-4">
         <label class="inline-flex items-center">
           <input 
@@ -180,3 +188,11 @@ const foreignRegion = computed(() => {
 });
 
 </script>
+
+<style scoped>
+.required-field::after {
+  content: " *";
+  color: #ef4444;
+  font-weight: bold;
+}
+</style>

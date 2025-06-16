@@ -3,6 +3,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import HomePage from '@/views/HomePage.vue'
 import AuthPage from '@/views/AuthPage.vue'
+import VerifyEmailPage from '@/views/VerifyEmailPage.vue'
+import AuthCallbackPage from '@/views/AuthCallbackPage.vue'
 import NotFoundPage from '@/views/NotFoundPage.vue'
 import { watch } from 'vue'
 
@@ -35,7 +37,7 @@ const routes = [
   {
     path: '/verify-email',
     name: 'verify-email',
-    component: () => import('@/views/VerifyEmailPage.vue'),
+    component: VerifyEmailPage,
     meta: {
       title: 'Подтверждение email - Приёмная кампания Губкинского университета'
     }
@@ -43,7 +45,7 @@ const routes = [
   {
     path: '/auth/callback',
     name: 'auth-callback',
-    component: () => import('@/views/AuthCallbackPage.vue'),
+    component: AuthCallbackPage,
     meta: {
       title: 'Подтверждение авторизации - Приёмная кампания Губкинского университета'
     },

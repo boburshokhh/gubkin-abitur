@@ -23,10 +23,12 @@
     <!-- Форма данных об образовании -->
     <div class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Уровень образования</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1 required-field">Уровень образования</label>
         <select 
           v-model="modelValue.education_level" 
           class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+          :class="{ 'border-red-500': errors.education_level }"
+          required
         >
           <option value="">Выберите уровень образования</option>
           <option value="high-school">Среднее общее (11 классов)</option>
@@ -44,6 +46,7 @@
             placeholder="Полное название школы/колледжа/лицея"
             required
             :error="errors.education_institution"
+            :class="{ 'border-red-500': errors.education_institution }"
           />
         </div>
         <div>
@@ -54,6 +57,7 @@
             placeholder="2023"
             required
             :error="errors.education_graduation_year"
+            :class="{ 'border-red-500': errors.education_graduation_year }"
           />
         </div>
       </div>
@@ -66,6 +70,7 @@
             placeholder="Номер аттестата/диплома"
             required
             :error="errors.education_document_number"
+            :class="{ 'border-red-500': errors.education_document_number }"
           />
         </div>
         <div>
@@ -75,6 +80,7 @@
             label="Дата выдачи документа"
             required
             :error="errors.education_document_date"
+            :class="{ 'border-red-500': errors.education_document_date }"
           />
         </div>
       </div>
@@ -94,7 +100,7 @@
         </p>
         <FileUploadField
           fieldName="photoFile"
-          label="Фотография 3х4 см (обязательно) *"
+          label="Фотография 3х4 см (обязательно)"
           :isUploading="fileUploading.photoFile"
           :preview="filePreview.photoFile"
           :error="errors.photoFile"
@@ -115,7 +121,7 @@
         </p>
         <FileUploadField
           fieldName="educationScan"
-          label="Скан или фото документа об образовании (обязательно) *"
+          label="Скан или фото документа об образовании (обязательно)"
           :isUploading="fileUploading.educationScan"
           :preview="filePreview.educationScan"
           :error="errors.educationScan"
@@ -192,4 +198,12 @@ const emit = defineEmits(['update:modelValue', 'file-change', 'file-view', 'file
 // watch(() => props.modelValue.education_document_date, (newValue) => {
 //   console.log('EducationInfoStep: education_document_date изменился на', newValue);
 // });
-</script> 
+</script>
+
+<style scoped>
+.required-field::after {
+  content: " *";
+  color: #ef4444;
+  font-weight: bold;
+}
+</style> 

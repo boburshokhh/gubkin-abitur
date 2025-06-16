@@ -3,17 +3,25 @@
     <h2 class="text-xl font-semibold mb-2">Выбор образовательных программ</h2>
     <p class="text-sm text-gray-600 mb-6">Вы можете выбрать до 3-х профилей или специализаций. После выбора первой программы, система предложит только те, у которых совпадает набор вступительных испытаний.</p>
 
+    <!-- Отображение ошибок валидации -->
+    <div v-if="errors.choices" class="mb-4 p-3 bg-red-50 border border-red-300 rounded-md">
+      <p class="text-sm text-red-700">{{ errors.choices }}</p>
+    </div>
+
     <div class="space-y-6">
       <!-- Первый селект - полный список профилей -->
-      <div class="p-4 border rounded-lg bg-gray-50 relative">
-        <h3 class="font-medium text-gray-800 mb-3">Приоритет 1</h3>
+      <div class="p-4 border rounded-lg bg-gray-50 relative"
+           :class="{ 'border-red-500 bg-red-50': errors.choices }">
+        <h3 class="font-medium text-gray-800 mb-3 required-field">Приоритет 1</h3>
           <div>
-          <label for="profile-1" class="block text-sm font-medium text-gray-700">Профиль/Специализация</label>
+          <label for="profile-1" class="block text-sm font-medium text-gray-700 required-field">Профиль/Специализация</label>
           <select 
             id="profile-1" 
             v-model="selectedProfiles[0]" 
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" 
+            :class="{ 'border-red-500': errors.choices }"
             @change="onFirstProfileChange"
+            required
           >
             <option :value="null" disabled>-- Выберите профиль --</option>
             <option v-for="profile in allProfilesWithDetails" :key="profile.id" :value="profile.id">
@@ -70,6 +78,37 @@
     <div v-if="compatibleProfiles.length > 0 && selectedProfiles[0]" class="mt-4 p-3 bg-blue-50 text-blue-800 rounded-md">
       <p class="text-sm">Вы выбрали первый профиль. Система предложит программы с таким же набором вступительных испытаний.</p>
     </div>
+
+    <!-- Форма финансирования -->
+    <!-- <div class="mt-6 p-4 border rounded-lg bg-gray-50"
+         :class="{ 'border-red-500 bg-red-50': errors.funding_form }">
+      <h3 class="font-medium text-gray-800 mb-3">Форма финансирования *</h3>
+      <div class="space-y-2">
+        <label class="inline-flex items-center">
+          <input 
+            type="radio" 
+            v-model="modelValue.funding_form" 
+            value="budget" 
+            class="h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+            :class="{ 'border-red-500': errors.funding_form }"
+            required
+          >
+          <span class="ml-2">Бюджетная основа</span>
+        </label>
+        <label class="inline-flex items-center">
+          <input 
+            type="radio" 
+            v-model="modelValue.funding_form" 
+            value="contract" 
+            class="h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+            :class="{ 'border-red-500': errors.funding_form }"
+            required
+          >
+          <span class="ml-2">Договорная основа</span>
+        </label>
+      </div>
+      <p v-if="errors.funding_form" class="mt-1 text-sm text-red-600">{{ errors.funding_form }}</p>
+    </div> -->
   </div>
 </template>
 
@@ -85,6 +124,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  errors: {
+    type: Object,
+    default: () => ({})
+  }
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -232,3 +275,11 @@ watch(selectedProfiles, (newSelectedProfiles) => {
 }, { deep: true });
 
 </script>
+
+<style scoped>
+.required-field::after {
+  content: " *";
+  color: #ef4444;
+  font-weight: bold;
+}
+</style>

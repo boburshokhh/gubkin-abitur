@@ -159,6 +159,7 @@
       <FileUploadField
         fieldName="olympiadCertificate"
         label="Сертификаты олимпиад"
+        required
         :isUploading="fileUploading.olympiadCertificate"
         :preview="filePreview.olympiadCertificate"
         :error="errors.olympiadCertificate"

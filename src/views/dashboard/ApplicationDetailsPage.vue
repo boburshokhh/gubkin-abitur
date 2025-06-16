@@ -902,15 +902,16 @@ onMounted(async () => {
 async function loadApplicationHistory(applicationId) {
   isHistoryLoading.value = true;
   try {
-    const { data, error: historyError } = await applications.getApplicationHistory(applicationId);
+    // Используем новую функцию get_application_details, которая уже включает историю
+    const { data, error: detailsError } = await applications.getById(applicationId);
     
-    if (historyError) {
-      console.error('Ошибка при загрузке истории заявления:', historyError);
+    if (detailsError) {
+      console.error('Ошибка при загрузке деталей заявления:', detailsError);
       return;
     }
     
-    if (data && data.length > 0) {
-      applicationHistory.value = data;
+    if (data && data.application_history && data.application_history.length > 0) {
+      applicationHistory.value = data.application_history;
     } else {
       // Если истории нет, добавляем исходное создание заявки
       if (application.value) {

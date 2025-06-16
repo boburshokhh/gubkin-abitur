@@ -59,7 +59,7 @@
                 </div>
                 <div>
                   <span class="text-sm text-gray-500">Контактный телефон:</span>
-                  <p>{{ application?.users?.phone || 'Не указан' }}</p>
+                  <p>{{ application?.phone || 'Не указан' }}</p>
                 </div>
                 <div>
                   <span class="text-sm text-gray-500">Телефон родителя:</span>
@@ -67,7 +67,7 @@
                 </div>
                 <div>
                   <span class="text-sm text-gray-500">Email:</span>
-                  <p>{{ application?.users?.email || 'Не указан' }}</p>
+                  <p>{{ application?.email || 'Не указан' }}</p>
                 </div>
                 <div>
                   <span class="text-sm text-gray-500">Пол:</span>
@@ -215,12 +215,23 @@
                         </div>
                       </div>
                       <div class="flex space-x-2">
-                        <button @click="viewApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="Просмотреть">
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 inline-flex items-center" 
+                          title="Просмотреть"
+                        >
                           <EyeIcon class="h-4 w-4" />
-                        </button>
-                        <button @click="downloadApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100" title="Скачать">
+                        </a>
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          download
+                          class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 inline-flex items-center" 
+                          title="Скачать"
+                        >
                           <ArrowDownTrayIcon class="h-4 w-4" />
-                        </button>
+                        </a>
                         <!-- Прямые ссылки для скачивания и просмотра -->
                         <!-- <a 
                           :href="getApplicationFileUrl(file)" 
@@ -261,12 +272,23 @@
                         </div>
                       </div>
                       <div class="flex space-x-2">
-                        <button @click="viewApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="Просмотреть">
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 inline-flex items-center" 
+                          title="Просмотреть"
+                        >
                           <EyeIcon class="h-4 w-4" />
-                        </button>
-                        <button @click="downloadApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100" title="Скачать">
+                        </a>
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          download
+                          class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 inline-flex items-center" 
+                          title="Скачать"
+                        >
                           <ArrowDownTrayIcon class="h-4 w-4" />
-                        </button>
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -289,12 +311,23 @@
                         </div>
                       </div>
                       <div class="flex space-x-2">
-                        <button @click="viewApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="Просмотреть">
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 inline-flex items-center" 
+                          title="Просмотреть"
+                        >
                           <EyeIcon class="h-4 w-4" />
-                        </button>
-                        <button @click="downloadApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100" title="Скачать">
+                        </a>
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          download
+                          class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 inline-flex items-center" 
+                          title="Скачать"
+                        >
                           <ArrowDownTrayIcon class="h-4 w-4" />
-                        </button>
+                        </a>
                         <!-- Прямые ссылки для скачивания и просмотра -->
                         <!-- <a 
                           :href="getApplicationFileUrl(file)" 
@@ -335,12 +368,23 @@
                         </div>
                       </div>
                       <div class="flex space-x-2">
-                        <button @click="viewApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="Просмотреть">
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 inline-flex items-center" 
+                          title="Просмотреть"
+                        >
                           <EyeIcon class="h-4 w-4" />
-                        </button>
-                        <button @click="downloadApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100" title="Скачать">
+                        </a>
+                        <a 
+                          :href="getApplicationFileUrl(file)" 
+                          target="_blank" 
+                          download
+                          class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 inline-flex items-center" 
+                          title="Скачать"
+                        >
                           <ArrowDownTrayIcon class="h-4 w-4" />
-                        </button>
+                        </a>
                         <!-- Прямые ссылки для скачивания и просмотра -->
                         <!-- <a 
                           :href="getApplicationFileUrl(file)" 
@@ -388,12 +432,23 @@
                       </div>
                     </div>
                     <div class="flex space-x-2">
-                      <button @click="viewDocument(doc)" class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200" title="Просмотреть">
+                      <a 
+                        :href="getDocumentUrl(doc)" 
+                        target="_blank" 
+                        class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 inline-flex items-center" 
+                        title="Просмотреть"
+                      >
                         <EyeIcon class="h-4 w-4" />
-                      </button>
-                      <button @click="downloadDocument(doc)" class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200" title="Скачать">
+                      </a>
+                      <a 
+                        :href="getDocumentUrl(doc)" 
+                        target="_blank" 
+                        download
+                        class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 inline-flex items-center" 
+                        title="Скачать"
+                      >
                         <ArrowDownTrayIcon class="h-4 w-4" />
-                      </button>
+                      </a>
                       <!-- Прямые ссылки для скачивания и просмотра -->
                       <!-- <a 
                         :href="getDocumentUrl(doc)" 
@@ -437,12 +492,23 @@
                       </div>
                     </div>
                     <div class="flex space-x-2">
-                      <button @click="viewApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="Просмотреть">
+                      <a 
+                        :href="getApplicationFileUrl(file)" 
+                        target="_blank" 
+                        class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 inline-flex items-center" 
+                        title="Просмотреть"
+                      >
                         <EyeIcon class="h-4 w-4" />
-                      </button>
-                      <button @click="downloadApplicationFile(file)" class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100" title="Скачать">
+                      </a>
+                      <a 
+                        :href="getApplicationFileUrl(file)" 
+                        target="_blank" 
+                        download
+                        class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 inline-flex items-center" 
+                        title="Скачать"
+                      >
                         <ArrowDownTrayIcon class="h-4 w-4" />
-                      </button>
+                      </a>
                       <!-- Прямые ссылки для скачивания и просмотра -->
                       <!-- <a 
                         :href="getApplicationFileUrl(file)" 
@@ -484,16 +550,20 @@
                       </div>
                     </div>
                     <div class="flex space-x-2">
-                      <button @click="viewOlympiadCertificate(cert)" class="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200" title="Просмотреть">
+                      <a 
+                        :href="getOlympiadCertificateUrl(cert)" 
+                        target="_blank" 
+                        class="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200 inline-flex items-center" 
+                        title="Просмотреть"
+                      >
                         <EyeIcon class="h-4 w-4" />
-                      </button>
-                      <!-- Прямые ссылки для скачивания и просмотра -->
-                       <a 
+                      </a>
+                      <a 
                         :href="getOlympiadCertificateUrl(cert)" 
                         target="_blank" 
                         download
                         class="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 inline-flex items-center" 
-                        title="Прямое скачивание"
+                        title="Скачать"
                       >
                         <ArrowDownTrayIcon class="h-4 w-4" />
                       </a>
@@ -546,6 +616,39 @@
               </div>
             </div>
             
+            <!-- История изменений статуса -->
+            <div v-if="application?.application_history && application.application_history.length > 0" class="px-4 py-5 bg-gray-50 rounded-lg">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">История изменений статуса</h3>
+              <div class="space-y-3">
+                <div v-for="(historyItem, index) in application.application_history" :key="index" class="bg-white p-4 rounded-md border border-gray-200">
+                  <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                      <div class="flex items-center space-x-2 mb-2">
+                        <span 
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                          :class="getStatusClass(historyItem.status_id)"
+                        >
+                          {{ historyItem.status?.name || 'Неизвестный статус' }}
+                        </span>
+                        <span class="text-xs text-gray-500">
+                          {{ formatDate(historyItem.created_at) }}
+                        </span>
+                      </div>
+                      <div v-if="historyItem.comment" class="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                        {{ historyItem.comment }}
+                      </div>
+                      <div v-else class="text-xs text-gray-400 italic">
+                        Без комментария
+                      </div>
+                    </div>
+                    <div v-if="historyItem.created_by_user" class="text-xs text-gray-500 ml-4">
+                      {{ historyItem.created_by_user.first_name }} {{ historyItem.created_by_user.last_name }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Управление статусом (только для администраторов) -->
             <div class="px-4 py-5 bg-yellow-50 rounded-lg border border-yellow-200">
               <h3 class="text-lg font-medium text-gray-900 mb-4">Обновление статуса</h3>
@@ -601,84 +704,12 @@
       </div>
     </div>
   </div>
-  
-  
-  <!-- Модальное окно для просмотра документа -->
-  <div v-if="showDocumentModal" class="fixed inset-0 overflow-y-auto z-[200]">
-    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-      <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-      </div>
-      
-      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-      
-      <div 
-        class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
-        role="dialog"
-        aria-modal="true"
-      >
-        <div class="bg-gray-50 px-4 py-3 sm:px-6 flex justify-between items-center border-b border-gray-200">
-          <h3 class="text-lg font-medium text-gray-900">
-            {{ selectedDocument?.document_types?.name || selectedDocument?.name || 'Просмотр документа' }}
-          </h3>
-          <button 
-            @click="closeDocumentModal" 
-            type="button" 
-            class="text-gray-400 hover:text-gray-500"
-          >
-            <span class="sr-only">Закрыть</span>
-            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        <div class="bg-white p-6 max-h-[80vh] overflow-auto">
-          <div v-if="documentLoading" class="flex justify-center items-center h-64">
-            <svg class="animate-spin h-10 w-10 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-          
-          <div v-else-if="documentError" class="text-center py-10">
-            <XCircleIcon class="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Ошибка загрузки документа</h3>
-            <p class="text-sm text-gray-500">{{ documentError }}</p>
-          </div>
-          
-          <div v-else>
-            <!-- Отображение документа в зависимости от типа -->
-            <div v-if="isPdf" class="h-[70vh]">
-              <iframe :src="documentUrl" class="w-full h-full" frameborder="0"></iframe>
-            </div>
-            
-            <div v-else-if="isImage" class="flex justify-center">
-              <img :src="documentUrl" class="max-w-full max-h-[70vh] object-contain" alt="Документ" />
-            </div>
-            
-            <div v-else class="text-center py-10">
-              <DocumentTextIcon class="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 class="text-lg font-medium text-gray-900 mb-2">Предпросмотр недоступен</h3>
-              <p class="text-sm text-gray-500 mb-4">Документ данного формата нельзя просмотреть в браузере</p>
-              <button 
-                @click="downloadCurrentDocument()" 
-                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                <ArrowDownTrayIcon class="h-4 w-4 mr-2" />
-                Скачать документ
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue';
-import { supabase, documents, applicationFiles, olympiadCertificates } from '@/api/supabase';
+import { supabase, documents, applicationFiles, olympiadCertificates, applications } from '@/api/supabase';
 import { useToast } from 'vue-toastification';
 import { 
   DocumentTextIcon, 
@@ -715,24 +746,7 @@ const toast = useToast();
 const newStatus = ref(props.application?.status_id || null);
 const comment = ref(props.application?.admin_comment || '');
 
-// Состояние для просмотра документов
-const showDocumentModal = ref(false);
-const selectedDocument = ref(null);
-const documentUrl = ref('');
-const documentLoading = ref(false);
-const documentError = ref(null);
-
-// Проверка типа документа
-const isPdf = computed(() => {
-  return selectedDocument.value?.file_type === 'application/pdf' || 
-         selectedDocument.value?.name?.toLowerCase().endsWith('.pdf');
-});
-
-const isImage = computed(() => {
-  const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-  return imageTypes.includes(selectedDocument.value?.file_type) || 
-         /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(selectedDocument.value?.name || '');
-});
+// Удалены неиспользуемые переменные для модального окна просмотра документов
 
 // Обновляем локальное состояние при изменении заявки
 watch(() => props.application, (newApplication) => {
@@ -755,6 +769,8 @@ function close() {
 function updateStatus() {
   if (!newStatus.value) return;
   
+  // Просто уведомляем родительский компонент о необходимости обновления
+  // Родительский компонент сам выполнит API вызов
   emit('update-status', { 
     applicationId: props.application.id, 
     statusId: newStatus.value,
@@ -888,101 +904,11 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-// Просмотр документа
-async function viewDocument(documentItem) {
-  selectedDocument.value = documentItem;
-  showDocumentModal.value = true;
-  documentLoading.value = true;
-  documentError.value = null;
-  documentUrl.value = '';
-  
-  try {
-    const { data, error } = await documents.getSignedUrl(documentItem.id);
-    
-    if (error) {
-      console.error('Ошибка при получении URL для просмотра:', error);
-      documentError.value = `Ошибка: ${error.message || 'Не удалось получить доступ к документу'}`;
-      return;
-    }
-    
-    if (!data || !data.signedUrl) {
-      console.error('URL для просмотра отсутствует в ответе');
-      documentError.value = 'Не удалось получить URL для просмотра документа';
-      return;
-    }
-    
-    documentUrl.value = data.signedUrl;
-  } catch (err) {
-    console.error('Ошибка при загрузке документа:', err);
-    documentError.value = `Ошибка при загрузке: ${err.message || 'Неизвестная ошибка'}`;
-  } finally {
-    documentLoading.value = false;
-  }
-}
+// Функция viewDocument удалена - теперь используются прямые ссылки
 
-// Просмотр файла заявления
-async function viewApplicationFile(fileItem) {
-  selectedDocument.value = fileItem;
-  showDocumentModal.value = true;
-  documentLoading.value = true;
-  documentError.value = null;
-  documentUrl.value = '';
-  
-  try {
-    const { data, error } = await applicationFiles.getSignedUrl(fileItem.id);
-    
-    if (error) {
-      console.error('Ошибка при получении URL для просмотра файла:', error);
-      documentError.value = `Ошибка: ${error.message || 'Не удалось получить доступ к файлу'}`;
-      return;
-    }
-    
-    if (!data || !data.signedUrl) {
-      console.error('URL для просмотра файла отсутствует в ответе');
-      documentError.value = 'Не удалось получить URL для просмотра файла';
-      return;
-    }
-    
-    documentUrl.value = data.signedUrl;
-  } catch (err) {
-    console.error('Ошибка при загрузке файла:', err);
-    documentError.value = `Ошибка при загрузке: ${err.message || 'Неизвестная ошибка'}`;
-  } finally {
-    documentLoading.value = false;
-  }
-}
+// Функция viewApplicationFile удалена - теперь используются прямые ссылки
 
-// Просмотр сертификата олимпиады
-async function viewOlympiadCertificate(cert) {
-  selectedDocument.value = cert;
-  showDocumentModal.value = true;
-  documentLoading.value = true;
-  documentError.value = null;
-  documentUrl.value = '';
-  
-  try {
-    const { data, error } = await olympiadCertificates.getSignedUrl(cert.id);
-    
-    if (error) {
-      console.error('Ошибка при получении URL сертификата олимпиады:', error);
-      documentError.value = `Ошибка: ${error.message || 'Не удалось получить доступ к сертификату'}`;
-      return;
-    }
-    
-    if (!data || !data.signedUrl) {
-      console.error('URL для просмотра сертификата отсутствует в ответе');
-      documentError.value = 'Не удалось получить URL для просмотра сертификата';
-      return;
-    }
-    
-    documentUrl.value = data.signedUrl;
-  } catch (err) {
-    console.error('Ошибка при загрузке сертификата олимпиады:', err);
-    documentError.value = `Ошибка при загрузке: ${err.message || 'Неизвестная ошибка'}`;
-  } finally {
-    documentLoading.value = false;
-  }
-}
+// Функция viewOlympiadCertificate удалена - теперь используются прямые ссылки
 
 // Закрытие модального окна просмотра документа
 function closeDocumentModal() {
