@@ -15,7 +15,7 @@
               <li>Сканированная цветная копия оригинала первой страницы паспорта и копия нотариально заверенного перевода на кириллицу и загружайте их поотдельности</li>
               <li>Для ID-карты: лицевая и обратная стороны — в одном PDF-файле.</li>
               <li>Абитуриент должен достичь 16-летнего возраста на момент подачи документов.</li>
-              <li>Если отсутствует нотариально заверенный перевод, необходимо предоставить копию свидетельства о рождении, если оно оформлено на кириллице.</li>
+            
             </ul>
           </div>
           
@@ -69,6 +69,7 @@
       :preview="filePreview.passportScan"
       :error="errors.passportScan"
       required
+      accept=".pdf"
       @change="(file) => $emit('file-change', file, 'passportScan')"
       @view="() => $emit('file-view', 'passportScan')"
       @reset="() => $emit('file-reset', 'passportScan')"
@@ -84,7 +85,7 @@
       </p> -->
       <FileUploadField
         fieldName="passportTranslation"
-        label="Нотариально заверенный перевод паспорта (PDF)"
+        label="Нотариально заверенный перевод паспорта (PDF) (обязательно)"
         :isUploading="fileUploading.passportTranslation"
         :preview="filePreview.passportTranslation"
         :error="errors.passportTranslation"

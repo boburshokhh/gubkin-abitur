@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase, auth as supabaseAuth, users as supabaseUsers } from '@/api/supabase'
+import { supabase, auth as supabaseAuth, users as supabaseUsers, clearSupabaseStorage } from '@/api/supabase'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -66,6 +66,12 @@ export const useAuthStore = defineStore('auth', () => {
     const currentUser = userFromSession || user.value;
     if (!currentUser) return null
 
+    // Проверяем, есть ли уже загруженный профиль для этого пользователя
+    if (profile.value && profile.value.id === currentUser.id) {
+      console.log('Профиль уже загружен, пропускаем запрос к БД');
+      return profile.value;
+    }
+
     try {
       // Передаем пользователя чтобы избежать дублирующего вызова к auth.getUser()
       const { data, error: profileError } = await supabaseUsers.getProfile(currentUser)
@@ -90,6 +96,12 @@ export const useAuthStore = defineStore('auth', () => {
     const currentUser = user.value;
     if (!currentUser) return null
 
+    // Проверяем, есть ли уже загруженная роль
+    if (userRole.value && userRole.value !== null) {
+      console.log('Роль пользователя уже загружена, пропускаем запрос к БД');
+      return userRole.value;
+    }
+
     try {
       // Если профиль уже загружен, используем его
       const currentProfile = profileData || profile.value;
@@ -99,6 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
       
       // Только если роль не найдена в профиле, делаем дополнительный запрос
+      console.log('Загружаем роль пользователя из БД');
       const { data, error: roleError } = await supabase
         .from('users')
         .select('role_id')
@@ -200,19 +213,37 @@ export const useAuthStore = defineStore('auth', () => {
   // Выход
   const logout = async () => {
     try {
-      const { error: signOutError } = await supabaseAuth.signOut()
-      
-      if (signOutError) throw signOutError
-      
+      // Сначала очищаем состояние store
       user.value = null
       profile.value = null
       userRole.value = null
+      error.value = null
+      emailToVerify.value = null
+      
+      // Очищаем localStorage от всех данных Supabase
+      clearSupabaseStorage()
+      
+      // Вызываем signOut из API
+      const { success, error: signOutError } = await supabaseAuth.signOut()
+      
+      if (!success && signOutError) {
+        console.warn('Предупреждение при выходе:', signOutError)
+        // Не выбрасываем ошибку, так как состояние уже очищено
+      }
       
       return { success: true }
     } catch (err) {
       console.error('Ошибка выхода:', err)
-      error.value = err.message || 'Не удалось выйти'
-      return { success: false, error: error.value }
+      
+      // Даже при ошибке принудительно очищаем состояние
+      user.value = null
+      profile.value = null
+      userRole.value = null
+      error.value = null
+      emailToVerify.value = null
+      clearSupabaseStorage()
+      
+      return { success: true } // Возвращаем success: true, так как состояние очищено
     }
   }
 
@@ -398,7 +429,8 @@ export const useAuthStore = defineStore('auth', () => {
           user.value = null;
           profile.value = null;
           userRole.value = null;
-          localStorage.removeItem('supabase.auth.token');
+          // Очищаем все данные Supabase из localStorage
+          clearSupabaseStorage();
           
           return { 
             success: false, 
@@ -514,7 +546,8 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = null;
         profile.value = null;
         userRole.value = null;
-        localStorage.removeItem('supabase.auth.token');
+        // Очищаем все данные Supabase из localStorage
+        clearSupabaseStorage();
         return { success: true, authenticated: false };
       }
     } catch (err) {

@@ -79,6 +79,16 @@
       </div>
       <div>
         <BaseInput
+          v-model="modelValue.address"
+          type="text"
+          label="Полный адрес места проживания"
+          required
+          :error="errors.address"
+          :class="{ 'border-red-500': errors.address }"
+        />
+      </div>
+      <div>
+        <BaseInput
           v-model="modelValue.phone"
           label="Телефон"
           placeholder="+998 __ ___ __ __"

@@ -243,6 +243,10 @@
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Регион</h4>
                   <p class="text-gray-900">{{ application.regions?.name || application.users?.regions?.name || 'Не указан' }}</p>
                 </div>
+                <div class="sm:col-span-2 lg:col-span-3">
+                  <h4 class="text-gray-500 text-sm font-medium mb-1">Полный адрес места проживания</h4>
+                  <p class="text-gray-900">{{ application.address || 'Не указан' }}</p>
+                </div>
                 <div>
                   <h4 class="text-gray-500 text-sm font-medium mb-1">Телефон</h4>
                   <p class="text-gray-900">{{ application.phone || application.users?.phone || 'Не указан' }}</p>
@@ -810,7 +814,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useApplicationStore } from '@/stores/application';
-import { supabase, applications } from '@/api/supabase';
+import { supabase } from '@/api/supabase';
 
 const route = useRoute();
 const router = useRouter();
@@ -887,8 +891,8 @@ onMounted(async () => {
     if (!success) {
       error.value = appStore.error || 'Не удалось загрузить данные заявления';
     } else {
-      // Загружаем историю изменений статуса
-      await loadApplicationHistory(applicationId);
+      // Инициализируем историю из уже загруженных данных
+      loadApplicationHistory(applicationId);
     }
   } catch (err) {
     console.error('Ошибка при загрузке заявления:', err);
@@ -902,16 +906,9 @@ onMounted(async () => {
 async function loadApplicationHistory(applicationId) {
   isHistoryLoading.value = true;
   try {
-    // Используем новую функцию get_application_details, которая уже включает историю
-    const { data, error: detailsError } = await applications.getById(applicationId);
-    
-    if (detailsError) {
-      console.error('Ошибка при загрузке деталей заявления:', detailsError);
-      return;
-    }
-    
-    if (data && data.application_history && data.application_history.length > 0) {
-      applicationHistory.value = data.application_history;
+    // Используем уже загруженные данные из store вместо повторного API вызова
+    if (application.value && application.value.application_history && application.value.application_history.length > 0) {
+      applicationHistory.value = application.value.application_history;
     } else {
       // Если истории нет, добавляем исходное создание заявки
       if (application.value) {
@@ -942,8 +939,10 @@ async function submitApplication() {
       throw new Error(result.error || 'Не удалось отправить заявление');
     }
     
-    // Обновляем историю после успешной отправки заявления
-    await loadApplicationHistory(application.value.id);
+    // После успешной отправки заявления, перезагружаем данные заявления
+    await appStore.loadApplication(application.value.id);
+    // Обновляем историю из уже загруженных данных
+    loadApplicationHistory(application.value.id);
   } catch (err) {
     console.error('Ошибка при отправке заявления:', err);
     error.value = err.message;

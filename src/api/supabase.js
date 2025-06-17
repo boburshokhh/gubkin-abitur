@@ -10,6 +10,35 @@ if (!supabaseUrl || !supabaseKey) {
   console.error('Отсутствуют переменные окружения Supabase. Пожалуйста, проверьте ваш .env файл')
 }
 
+// Утилитарная функция для очистки всех данных Supabase из localStorage
+export const clearSupabaseStorage = () => {
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-')) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // Удаляем все ключи Supabase
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+    });
+    
+    // Также удаляем другие возможные ключи
+    localStorage.removeItem('supabase.auth.token');
+    localStorage.removeItem('supabase.auth.lastEvent');
+    localStorage.removeItem('supabase.auth.lastEventTime');
+    localStorage.removeItem('supabase.auth.lastRefresh');
+    localStorage.removeItem('auth-store');
+    
+    console.log('localStorage очищен от данных Supabase');
+  } catch (error) {
+    console.error('Ошибка очистки localStorage:', error);
+  }
+};
+
 // Добавляем настройки для надежного сохранения сессии
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
@@ -20,9 +49,21 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 })
 
+// Переменная для предотвращения дублирующих обновлений
+let lastAuthEventTime = 0;
+const AUTH_EVENT_DEBOUNCE = 1000; // 1 секунда
+
 // Настраиваем обработчики аутентификации
 supabase.auth.onAuthStateChange((event, session) => {
-  console.log('Supabase Auth event:', event, 'Session exists:', !!session);
+  // console.log('Supabase Auth event:', event, 'Session exists:', !!session);
+  
+  // Добавляем debounce для предотвращения частых обновлений
+  const currentTime = Date.now();
+  if (currentTime - lastAuthEventTime < AUTH_EVENT_DEBOUNCE) {
+    // console.log('Пропускаем обработку события - слишком рано');
+    return;
+  }
+  lastAuthEventTime = currentTime;
   
   // При смене статуса аутентификации сохраняем информацию в localStorage 
   // для диагностических целей и для упрощения восстановления состояния
@@ -41,9 +82,13 @@ supabase.auth.onAuthStateChange((event, session) => {
           // Ищем auth store по токену
           const authStore = Array.from(stores.values()).find(s => s.$id === 'auth');
           if (authStore && session?.user) {
-            // Просто обновляем пользователя в store без повторного вызова initAuth
-            // это избегает дублирования запросов при событиях аутентификации
-            authStore.user = session.user;
+            // Проверяем, нужно ли обновлять пользователя
+            if (!authStore.user || authStore.user.id !== session.user.id) {
+              // console.log('Обновляем пользователя в store');
+              authStore.user = session.user;
+            } else {
+              // console.log('Пользователь уже актуален, пропускаем обновление');
+            }
           }
         }
       }).catch(err => {
@@ -82,7 +127,7 @@ export const auth = {
   getSession: async () => {
     try {
       const { data, error } = await supabase.auth.getSession();
-      console.log('getSession result:', !!data?.session, 'error:', !!error);
+      // console.log('getSession result:', !!data?.session, 'error:', !!error);
       return { data, error };
     } catch (err) {
       console.error('Ошибка получения сессии:', err);
@@ -94,7 +139,7 @@ export const auth = {
   refreshSession: async () => {
     try {
       const { data, error } = await supabase.auth.refreshSession();
-      console.log('refreshSession result:', !!data?.session, 'error:', !!error);
+      // console.log('refreshSession result:', !!data?.session, 'error:', !!error);
       return { data, error };
     } catch (err) {
       console.error('Ошибка обновления сессии:', err);
@@ -115,8 +160,8 @@ export const auth = {
         }
       }
       
-      console.log('URL для редиректа:', redirectTo);
-      console.log('Параметры регистрации (options):', options);
+      // console.log('URL для редиректа:', redirectTo);
+      // console.log('Параметры регистрации (options):', options);
       
       // Передаем email, password и options напрямую в supabase.auth.signUp
       const { data, error } = await supabase.auth.signUp({
@@ -128,16 +173,9 @@ export const auth = {
         }
       });
       
-      // Дополнительная проверка ответа
-      console.log('Ответ signUp:', {
-        success: !error,
-        userData: data?.user?.user_metadata,
-        error
-      });
-      
       // Резервное обновление метаданных (можно оставить на всякий случай)
       if (data?.user && options?.data && (!data.user.user_metadata?.first_name || !data.user.user_metadata?.last_name)) {
-        console.log('Обновляем метаданные пользователя после регистрации...');
+        // console.log('Обновляем метаданные пользователя после регистрации...');
         try {
           const { error: updateError } = await supabase.auth.updateUser({
             data: options.data // Используем данные из options
@@ -146,7 +184,7 @@ export const auth = {
           if (updateError) {
             console.error('Ошибка обновления метаданных:', updateError.message);
           } else {
-            console.log('Метаданные успешно обновлены');
+            // console.log('Метаданные успешно обновлены');
           }
         } catch (updateErr) {
           console.error('Исключение при обновлении метаданных:', updateErr);
@@ -178,11 +216,26 @@ export const auth = {
   // Выход
   signOut: async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Сначала очищаем localStorage от всех данных Supabase
+      clearSupabaseStorage();
+      
+      // Теперь вызываем signOut
+      const { error } = await supabase.auth.signOut({
+        scope: 'local' // Только локальный выход, не глобальный
+      });
+      
+      if (error) {
+        console.warn('Предупреждение при выходе:', error.message);
+        // Не выбрасываем ошибку, так как localStorage уже очищен
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('Ошибка выхода из системы:', error);
+      
+      // Даже при ошибке очищаем localStorage принудительно
+      clearSupabaseStorage();
+      
       return { success: false, error: error.message };
     }
   },
@@ -201,7 +254,7 @@ export const auth = {
         redirectTo = `${siteUrl}/auth/callback`;
       }
       
-      console.log('URL для редиректа при верификации:', redirectTo);
+      // console.log('URL для редиректа при верификации:', redirectTo);
       
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -265,7 +318,7 @@ export const auth = {
         redirectTo = `${siteUrl}/reset-password`;
       }
       
-      console.log('URL для редиректа при сбросе пароля:', redirectTo);
+      // console.log('URL для редиректа при сбросе пароля:', redirectTo);
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectTo
@@ -276,7 +329,7 @@ export const auth = {
       return { error: err };
     }
   }
-}
+};
 
 // Функции для работы с пользователями
 export const users = {
@@ -302,7 +355,7 @@ export const users = {
 
       // Если профиль не найден, создаем его
       if (error && (error.code === 'PGRST116' || error.message?.includes('contains 0 rows'))) {
-        console.log('Профиль пользователя не существует, создаем новый профиль')
+        // console.log('Профиль пользователя не существует, создаем новый профиль')
         
         // Берем данные из объекта пользователя auth
         const userData = {
@@ -596,7 +649,7 @@ export const applications = {
   // Получить одну заявку по ID с использованием оптимизированной RPC функции
   async getById(id) {
     try {
-      console.log('Получение заявки по ID:', id);
+      // console.log('Получение заявки по ID:', id);
       
       // Используем новую RPC функцию get_application_details
       const { data, error } = await supabase.rpc('get_application_details', {
@@ -608,7 +661,7 @@ export const applications = {
         return { data: null, error };
       }
 
-      console.log('Данные заявки получены:', data);
+      // console.log('Данные заявки получены:', data);
       
       if (!data) {
         return { data: null, error: new Error('Заявка не найдена') };
@@ -626,11 +679,11 @@ export const applications = {
       applicationData.olympiad_certificates = applicationData.olympiad_certificates || [];
       applicationData.application_history = applicationData.application_history || [];
 
-      console.log('Отформатированные данные заявки с файлами:', applicationData);
-      console.log('Количество документов:', applicationData.documents.length);
-      console.log('Количество файлов заявления:', applicationData.application_files.length);
-      console.log('Количество сертификатов олимпиад:', applicationData.olympiad_certificates.length);
-      console.log('Количество записей истории:', applicationData.application_history.length);
+      // console.log('Отформатированные данные заявки с файлами:', applicationData);
+      // console.log('Количество документов:', applicationData.documents.length);
+      // console.log('Количество файлов заявления:', applicationData.application_files.length);
+      // console.log('Количество сертификатов олимпиад:', applicationData.olympiad_certificates.length);
+      // console.log('Количество записей истории:', applicationData.application_history.length);
       return { data: applicationData, error: null };
 
     } catch (err) {
@@ -703,8 +756,8 @@ export const applications = {
         app_data: applicationData
       });
       
-      console.log('Ответ от RPC create_application:', { data, error });
-      console.log('Тип data:', typeof data);
+      // console.log('Ответ от RPC create_application:', { data, error });
+      // console.log('Тип data:', typeof data);
       
       if (error) throw error;
 
@@ -713,7 +766,7 @@ export const applications = {
       if (typeof data === 'string') {
         try {
           parsedData = JSON.parse(data);
-          console.log('Распарсенные данные:', parsedData);
+          // console.log('Распарсенные данные:', parsedData);
         } catch (parseError) {
           console.error('Ошибка парсинга JSON:', parseError);
           throw new Error('Некорректный ответ от сервера');
@@ -721,9 +774,9 @@ export const applications = {
       }
       
       // Проверяем структуру ответа
-      console.log('Структура parsedData:', parsedData);
-      console.log('parsedData.application_id:', parsedData?.application_id);
-      console.log('parsedData.success:', parsedData?.success);
+      // console.log('Структура parsedData:', parsedData);
+      // console.log('parsedData.application_id:', parsedData?.application_id);
+      // console.log('parsedData.success:', parsedData?.success);
       
       // Если RPC функция вернула объект с полем success = false
       if (parsedData && parsedData.success === false) {
@@ -855,7 +908,7 @@ export const applications = {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') }
 
-      console.log('Обновление статуса заявки:', { applicationId, statusId, comment });
+      // console.log('Обновление статуса заявки:', { applicationId, statusId, comment });
 
       // Используем новую RPC функцию add_application_comment
       const { data, error } = await supabase.rpc('add_application_comment', {
@@ -870,7 +923,7 @@ export const applications = {
         return { data: null, error };
       }
 
-      console.log('Результат обновления статуса:', data);
+      // console.log('Результат обновления статуса:', data);
 
       return { 
         data: data, 
@@ -1006,7 +1059,7 @@ export const documents = {
         throw new Error('Документ не найден или отсутствует путь к файлу');
       }
       
-      console.log('Получен путь к файлу:', docData.file_path);
+      // console.log('Получен путь к файлу:', docData.file_path);
       
       // Используем getPublicUrl для получения прямого URL к файлу
       // Это работает, если бакет публичный, что нормально для документов заявлений
@@ -1022,7 +1075,7 @@ export const documents = {
         throw new Error('Не удалось получить URL документа');
       }
       
-      console.log('Получен публичный URL:', urlData.publicUrl);
+      // console.log('Получен публичный URL:', urlData.publicUrl);
       
       // Возвращаем в том же формате, что и прежний метод для совместимости
       return { 
@@ -1057,17 +1110,6 @@ export const applicationFiles = {
   // Загрузить файл заявления (фотографию или документ)
   async upload(applicationId, file, fileCategory = 'general', isImage = false) {
     try {
-      console.log('=== applicationFiles.upload НАЧАЛО ===');
-      console.log('Параметры вызова:', {
-        applicationId,
-        applicationIdType: typeof applicationId,
-        applicationIdIsUndefined: applicationId === undefined,
-        applicationIdIsNull: applicationId === null,
-        fileName: file?.name,
-        fileCategory,
-        isImage
-      });
-      
       if (!applicationId || applicationId === 'undefined') {
         console.error('КРИТИЧЕСКАЯ ОШИБКА: applicationId пустой или "undefined"');
         throw new Error('applicationId не может быть пустым или "undefined"');
@@ -1084,7 +1126,7 @@ export const applicationFiles = {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
       const filePath = `${applicationId}/${fileCategory}/${fileName}`;
 
-      console.log('Загружаем файл в Storage:', { filePath, fileName });
+      // console.log('Загружаем файл в Storage:', { filePath, fileName });
 
       // Загружаем файл в Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -1098,16 +1140,6 @@ export const applicationFiles = {
         console.error('Ошибка загрузки файла в Storage:', uploadError);
         return { data: null, error: uploadError };
       }
-
-      console.log('Файл загружен в Storage, вызываем RPC функцию с параметрами:', {
-        p_application_id: applicationId,
-        p_file_path: filePath,
-        p_file_name: file.name,
-        p_file_type: file.type,
-        p_file_size: file.size,
-        p_is_image: calculatedIsImage,
-        p_file_category: fileCategory
-      });
 
       // Используем обновленную RPC функцию для создания записи в таблице application_files
       const { data, error } = await supabase.rpc('upload_application_file', {
@@ -1125,7 +1157,7 @@ export const applicationFiles = {
         return { data: null, error };
       }
 
-      console.log('Файл успешно загружен:', { fileId: data, fileCategory });
+      // console.log('Файл успешно загружен:', { fileId: data, fileCategory });
       return { data: { id: data }, error: null };
     } catch (err) {
       console.error('Ошибка при загрузке файла заявления:', err);
@@ -1516,7 +1548,7 @@ export const olympiadCertificates = {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { data: null, error: new Error('Пользователь не аутентифицирован') };
 
-      console.log('Загрузка сертификата олимпиады:', { applicationId, fileName: file.name, fileType: file.type });
+      // console.log('Загрузка сертификата олимпиады:', { applicationId, fileName: file.name, fileType: file.type });
 
       // Генерируем имя файла и путь
       const fileExt = file.name.split('.').pop();
@@ -1552,7 +1584,7 @@ export const olympiadCertificates = {
         return { data: null, error };
       }
 
-      console.log('Сертификат олимпиады успешно загружен:', { certificateId: data });
+      // console.log('Сертификат олимпиады успешно загружен:', { certificateId: data });
       return { data: { id: data }, error: null };
     } catch (err) {
       console.error('Ошибка при загрузке сертификата олимпиады:', err);

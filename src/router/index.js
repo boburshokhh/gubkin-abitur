@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
+import { clearSupabaseStorage } from '@/api/supabase'
 import HomePage from '@/views/HomePage.vue'
 import AuthPage from '@/views/AuthPage.vue'
 import VerifyEmailPage from '@/views/VerifyEmailPage.vue'
@@ -191,7 +192,8 @@ router.beforeEach(async (to, from, next) => {
       
       if (!success || !authStore.isAuthenticated) {
         console.log('Сессия недействительна, необходимо войти заново');
-        localStorage.removeItem('supabase.auth.token');
+        // Очищаем все данные Supabase из localStorage
+        clearSupabaseStorage();
         toast.error('Сессия истекла. Пожалуйста, войдите снова.');
         
         return next({

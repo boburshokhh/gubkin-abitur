@@ -57,6 +57,10 @@
                   <span class="text-sm text-gray-500">Регион:</span>
                   <p>{{ getRegionName() }}</p>
                 </div>
+                <div class="md:col-span-2">
+                  <span class="text-sm text-gray-500">Полный адрес места проживания:</span>
+                  <p>{{ application?.address || 'Не указан' }}</p>
+                </div>
                 <div>
                   <span class="text-sm text-gray-500">Контактный телефон:</span>
                   <p>{{ application?.phone || 'Не указан' }}</p>

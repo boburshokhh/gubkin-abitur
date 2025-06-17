@@ -102,9 +102,31 @@ const handleLogout = async () => {
 };
 
 // Обновление данных пользователя при переходе между маршрутами
+let refreshTimeout = null;
 const refreshUserData = async () => {
-  if (authStore.isAuthenticated) {
+  // Добавляем debounce для предотвращения частых вызовов
+  if (refreshTimeout) {
+    clearTimeout(refreshTimeout);
+  }
+  
+  refreshTimeout = setTimeout(async () => {
+    if (!authStore.isAuthenticated || authStore.loading) {
+      return;
+    }
+    
     try {
+      // Проверяем, нужно ли обновлять сессию
+      const currentTime = Date.now();
+      const lastRefresh = localStorage.getItem('supabase.auth.lastRefresh');
+      
+      // Обновляем не чаще чем раз в 30 секунд
+      if (lastRefresh && (currentTime - parseInt(lastRefresh)) < 30000) {
+        console.log('Пропускаем обновление сессии - слишком рано');
+        return;
+      }
+      
+      localStorage.setItem('supabase.auth.lastRefresh', currentTime.toString());
+      
       const { success, authenticated } = await authStore.refreshSession();
       
       if (success && !authenticated) {
@@ -115,15 +137,24 @@ const refreshUserData = async () => {
     } catch (error) {
       console.error('Ошибка при обновлении данных пользователя:', error);
     }
-  }
+  }, 500); // Debounce 500ms
 };
 
 // Обновляем данные пользователя при изменении маршрута
 // только когда маршрут требует авторизации или проверки роли
-watch(() => router.currentRoute.value, (newRoute) => {
-  if (newRoute.meta.requiresAuth || newRoute.meta.roles) {
-    refreshUserData();
+watch(() => router.currentRoute.value, (newRoute, oldRoute) => {
+  // Пропускаем если маршрут не изменился или не требует авторизации
+  if (!newRoute.meta.requiresAuth && !newRoute.meta.roles) {
+    return;
   }
+  
+  // Пропускаем если переходим с одного защищенного маршрута на другой
+  if (oldRoute && (oldRoute.meta.requiresAuth || oldRoute.meta.roles)) {
+    console.log('Пропускаем обновление при переходе между защищенными маршрутами');
+    return;
+  }
+  
+  refreshUserData();
 });
 
 // Подтверждение выхода из системы

@@ -125,6 +125,7 @@
           :isUploading="fileUploading.educationScan"
           :preview="filePreview.educationScan"
           :error="errors.educationScan"
+          accept=".pdf"
           @change="(file) => $emit('file-change', file, 'educationScan')"
           @view="() => $emit('file-view', 'educationScan')"
           @reset="() => $emit('file-reset', 'educationScan')"

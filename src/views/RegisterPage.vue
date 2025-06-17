@@ -209,6 +209,7 @@ const form = ref({
   middleName: '',
   birthDate: null, // null вместо пустой строки для поля типа date
   region_id: null,
+  address: '', // Добавляем поле адреса
   phone: '',
   parentPhone: '',
   email: '',
@@ -287,6 +288,7 @@ function validateStep() {
     if (!f.firstName?.trim()) errors.value.firstName = 'Имя обязательно для заполнения.';
     if (!f.birthDate) errors.value.birthDate = 'Дата рождения обязательна для заполнения.';
     if (!f.region_id) errors.value.region_id = 'Регион проживания обязателен для заполнения.';
+    if (!f.address?.trim()) errors.value.address = 'Полный адрес места проживания обязателен для заполнения.';
     if (!f.phone?.trim()) errors.value.phone = 'Телефон обязателен для заполнения.';
     if (!f.parentPhone?.trim()) errors.value.parentPhone = 'Телефон родителя обязателен для заполнения.';
     if (!f.email?.trim()) errors.value.email = 'Email обязателен для заполнения.';
@@ -370,6 +372,7 @@ const isCurrentStepValid = computed(() => {
       f.firstName?.trim() &&
       f.birthDate &&
       f.region_id &&
+      f.address?.trim() &&
       f.phone?.trim() &&
       f.parentPhone?.trim() &&
       f.email?.trim() &&
@@ -431,6 +434,7 @@ function nextStep() {
         firstName: 'Имя',
         birthDate: 'Дата рождения',
         region_id: 'Регион проживания',
+        address: 'Полный адрес места проживания',
         phone: 'Телефон',
         parentPhone: 'Телефон родителя',
         email: 'Email',

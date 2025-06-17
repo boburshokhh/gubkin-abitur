@@ -160,6 +160,7 @@
         fieldName="olympiadCertificate"
         label="Сертификаты олимпиад"
         required
+        accept=".pdf"
         :isUploading="fileUploading.olympiadCertificate"
         :preview="filePreview.olympiadCertificate"
         :error="errors.olympiadCertificate"

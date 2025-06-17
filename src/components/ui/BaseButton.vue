@@ -1,6 +1,8 @@
 <template>
-  <button
-    :type="type"
+  <component
+    :is="tag"
+    :type="tag === 'button' ? type : undefined"
+    :to="tag === 'router-link' ? to : undefined"
     :class="[
       'flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2',
       sizeClasses,
@@ -8,7 +10,7 @@
       disabled ? 'opacity-50 cursor-not-allowed' : '',
       loading ? 'relative !text-transparent' : ''
     ]"
-    :disabled="disabled || loading"
+    :disabled="tag === 'button' ? (disabled || loading) : undefined"
     v-bind="$attrs"
   >
     <slot />
@@ -19,17 +21,26 @@
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
     </div>
-  </button>
+  </component>
 </template>
 
 <script setup>
 import { computed } from 'vue';
 
 const props = defineProps({
+  tag: {
+    type: String,
+    default: 'button',
+    validator: (value) => ['button', 'router-link', 'a'].includes(value)
+  },
+  to: {
+    type: [String, Object],
+    default: undefined
+  },
   variant: {
     type: String,
     default: 'default',
-    validator: (value) => ['default', 'primary', 'danger', 'outline', 'ghost'].includes(value)
+    validator: (value) => ['default', 'primary', 'danger', 'outline', 'ghost', 'link'].includes(value)
   },
   size: {
     type: String,
@@ -66,7 +77,8 @@ const variantClasses = computed(() => {
     primary: 'bg-primary-600 text-white hover:bg-primary-700',
     danger: 'bg-red-600 text-white hover:bg-red-700',
     outline: 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50',
-    ghost: 'bg-transparent text-gray-700 hover:bg-gray-100'
+    ghost: 'bg-transparent text-gray-700 hover:bg-gray-100',
+    link: 'bg-transparent text-primary-600 hover:text-primary-800 hover:underline p-0'
   }[props.variant];
 });
 </script> 
