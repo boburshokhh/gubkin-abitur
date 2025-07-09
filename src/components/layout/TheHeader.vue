@@ -124,11 +124,18 @@
               Войти
             </router-link>
             <router-link 
+              v-if="isAdmissionOpen"
               to="/register" 
               class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
             >
               Подать документы
             </router-link>
+            <span 
+              v-else
+              class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-500 bg-gray-100 cursor-not-allowed"
+            >
+              Прием закрыт
+            </span>
           </template>
         </div>
 
@@ -231,11 +238,18 @@
               Войти
               </button>
               <button 
+                v-if="isAdmissionOpen"
                 @click="router.push('/register'); showMobileMenu = false"
                 class="w-full flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-primary-600 hover:bg-primary-700"
             >
               Подать документы
               </button>
+              <span 
+                v-else
+                class="w-full flex justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-500 bg-gray-100 cursor-not-allowed"
+              >
+                Прием закрыт
+              </span>
             </div>
           </template>
         </div>
@@ -273,6 +287,9 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const toast = useToast();
+
+// Проверка статуса приемной кампании
+const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
 
 // Ссылки навигации
 const navigationLinks = [

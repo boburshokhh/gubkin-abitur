@@ -1,5 +1,9 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <!-- Если прием закрыт, показываем сообщение -->
+  <AdmissionClosedMessage v-if="!isAdmissionOpen" />
+  
+  <!-- Если прием открыт, показываем форму -->
+  <div v-else class="min-h-screen bg-gray-50">
     <!-- Заголовок страницы -->
     <section class="py-10 md:py-16 bg-gradient-to-r from-primary-600 to-primary-800 text-white">
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -168,11 +172,15 @@ import EducationInfoStep from '@/components/register/EducationInfoStep.vue';
 import ProgramSelectionStep from '@/components/register/ProgramSelectionStep.vue';
 import ConfirmationStep from '@/components/register/ConfirmationStep.vue';
 import SuccessMessage from '@/components/register/SuccessMessage.vue';
+import AdmissionClosedMessage from '@/components/register/AdmissionClosedMessage.vue';
 
 const router = useRouter();
 const appStore = useApplicationStore();
 const authStore = useAuthStore();
 const toast = useToast();
+
+// Проверка статуса приемной кампании
+const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
 
 const totalSteps = 5;
 const currentStep = ref(1);

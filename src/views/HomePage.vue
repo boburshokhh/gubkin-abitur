@@ -11,8 +11,24 @@
             Подай документы онлайн для поступления в Филиал РГУ нефти и газа (НИУ) имени И.М. Губкина в городе Ташкенте
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <BaseButton tag="router-link" to="/register" size="lg" variant="light" class="font-semibold">
+            <BaseButton 
+              v-if="isAdmissionOpen"
+              tag="router-link" 
+              to="/register" 
+              size="lg" 
+              variant="light" 
+              class="font-semibold"
+            >
               Подать документы
+            </BaseButton>
+            <BaseButton 
+              v-else
+              disabled
+              size="lg" 
+              variant="outline" 
+              class="font-semibold text-gray-500 border-gray-300 cursor-not-allowed"
+            >
+              Прием документов закрыт
             </BaseButton>
             <BaseButton tag="router-link" to="/admission2025" size="lg" variant="primary" class="border border-white">
               Вся информация о приеме
@@ -232,6 +248,9 @@
 import BaseButton from '@/components/base/BaseButton.vue';
 import { ref } from 'vue';
 import { BaseCard } from '@/components/ui';
+
+// Проверка статуса приемной кампании
+const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
 
 // Демо-данные для секции FAQ
 const faqs = ref([

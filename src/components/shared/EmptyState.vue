@@ -6,14 +6,22 @@
     <h2 class="text-xl font-medium text-gray-900 mb-2">У вас пока нет заявлений</h2>
     <p class="text-gray-600 mb-4">Подайте документы для поступления, заполнив форму</p>
     <router-link 
+      v-if="isAdmissionOpen"
       to="/register" 
       class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
     >
       Подать заявление
     </router-link>
+    <span 
+      v-else
+      class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-500 bg-gray-100 cursor-not-allowed"
+    >
+      Прием закрыт
+    </span>
   </div>
 </template>
 
 <script setup>
-// Импорты иконок убраны, используем обычные SVG
+// Проверка статуса приемной кампании
+const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
 </script> 

@@ -28,6 +28,7 @@
       </router-link>
       
       <router-link 
+        v-if="isAdmissionOpen"
         to="/register" 
         class="px-3 md:px-4 py-2 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center justify-center sm:justify-start"
       >
@@ -38,6 +39,17 @@
           Подать новое заявление
         </span>
       </router-link>
+      <span 
+        v-else
+        class="px-3 md:px-4 py-2 rounded-md text-sm font-medium bg-gray-400 text-gray-700 cursor-not-allowed flex items-center justify-center sm:justify-start"
+      >
+        <span class="flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+          Прием закрыт
+        </span>
+      </span>
     </div>
   </div>
 </template>
@@ -47,6 +59,9 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
 const route = useRoute();
+
+// Проверка статуса приемной кампании
+const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
 
 const isApplicationsActive = computed(() => route.path.includes('/dashboard/applications'));
 const isProfileActive = computed(() => route.path === '/dashboard/profile');
