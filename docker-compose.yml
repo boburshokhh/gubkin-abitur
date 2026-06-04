@@ -64,6 +64,10 @@ services:
       S3_SECRET_KEY: minioadminpassword
       S3_BUCKET_DOCUMENTS: application-documents
       S3_BUCKET_FILES: application-files
+      SMTP_HOST: mail.api.gubkin.uz
+      SMTP_PORT: 587
+      SMTP_USER: priem@api.gubkin.uz
+      SMTP_PASS: 1234bobur$$
     depends_on:
       db:
         condition: service_healthy

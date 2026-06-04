@@ -123,17 +123,126 @@ router.get('/auth/session', requireAuth, async (req, res) => {
   }
 });
 
-// Имитация OTP и подтверждения почты (для совместимости)
-router.post('/auth/send-otp', (req, res) => {
-  res.json({ success: true, message: 'OTP отправлен на почту' });
+const { sendEmail } = require('../utils/mailer');
+
+// Хранилище OTP в памяти (для простоты)
+// В production лучше использовать Redis или таблицу в БД
+const otpStorage = new Map();
+
+// Реальная отправка OTP
+router.post('/auth/send-otp', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email обязателен' });
+  }
+
+  // Генерируем 6-значный код
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Сохраняем код на 10 минут
+  otpStorage.set(email, {
+    code: otpCode,
+    expiresAt: Date.now() + 10 * 60 * 1000
+  });
+
+  const subject = 'Код подтверждения - Приемная кампания Губкинского университета';
+  const text = `Ваш код подтверждения: ${otpCode}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+      <h2 style="color: #003366; text-align: center;">Губкинский университет</h2>
+      <p style="font-size: 16px; color: #333;">Здравствуйте!</p>
+      <p style="font-size: 16px; color: #333;">Ваш код подтверждения для доступа к порталу абитуриента:</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <span style="display: inline-block; padding: 15px 25px; font-size: 24px; font-weight: bold; background-color: #f4f4f4; color: #003366; border-radius: 5px; letter-spacing: 5px;">${otpCode}</span>
+      </div>
+      <p style="font-size: 14px; color: #666;">Код действителен в течение 10 минут.</p>
+      <p style="font-size: 14px; color: #666;">Если вы не запрашивали этот код, просто проигнорируйте данное письмо.</p>
+      <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+      <p style="font-size: 12px; color: #999; text-align: center;">Это автоматическое письмо, пожалуйста, не отвечайте на него.</p>
+    </div>
+  `;
+
+  const sent = await sendEmail(email, subject, text, html);
+
+  if (sent) {
+    res.json({ success: true, message: 'OTP отправлен на почту' });
+  } else {
+    res.status(500).json({ error: 'Ошибка при отправке email. Пожалуйста, попробуйте позже.' });
+  }
 });
 
-router.post('/auth/verify-otp', (req, res) => {
-  res.json({ success: true, message: 'OTP успешно подтвержден' });
+router.post('/auth/verify-otp', async (req, res) => {
+  const { email, token } = req.body;
+  if (!email || !token) {
+    return res.status(400).json({ error: 'Email и код обязательны' });
+  }
+
+  const storedOtp = otpStorage.get(email);
+  if (!storedOtp) {
+    return res.status(400).json({ error: 'Код не запрашивался или срок его действия истек' });
+  }
+
+  if (Date.now() > storedOtp.expiresAt) {
+    otpStorage.delete(email);
+    return res.status(400).json({ error: 'Срок действия кода истек' });
+  }
+
+  if (storedOtp.code !== token) {
+    return res.status(400).json({ error: 'Неверный код подтверждения' });
+  }
+
+  // Код верный, очищаем его и обновляем статус пользователя в БД
+  otpStorage.delete(email);
+  
+  try {
+    await db.query('UPDATE users SET updated_at = NOW() WHERE email = $1', [email]);
+    res.json({ success: true, message: 'OTP успешно подтвержден' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка при подтверждении' });
+  }
 });
 
-router.post('/auth/reset-password', (req, res) => {
-  res.json({ success: true, message: 'Ссылка для сброса пароля отправлена' });
+router.post('/auth/reset-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email обязателен' });
+  }
+  
+  // Генерируем новый пароль
+  const newPassword = Math.random().toString(36).slice(-8);
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  
+  try {
+    const result = await db.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2 RETURNING id', [passwordHash, email]);
+    
+    if (result.rows.length === 0) {
+      // Для безопасности не сообщаем, что email не найден, просто возвращаем success
+      return res.json({ success: true, message: 'Если email существует, на него отправлен новый пароль' });
+    }
+    
+    const subject = 'Сброс пароля - Приемная кампания Губкинского университета';
+    const text = \`Ваш новый пароль: \${newPassword}\`;
+    const html = \`
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+        <h2 style="color: #003366; text-align: center;">Губкинский университет</h2>
+        <p style="font-size: 16px; color: #333;">Здравствуйте!</p>
+        <p style="font-size: 16px; color: #333;">Ваш пароль был успешно сброшен.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <p style="font-size: 14px; color: #666; margin-bottom: 5px;">Ваш новый пароль:</p>
+          <span style="display: inline-block; padding: 15px 25px; font-size: 20px; font-weight: bold; background-color: #f4f4f4; color: #003366; border-radius: 5px;">\${newPassword}</span>
+        </div>
+        <p style="font-size: 14px; color: #666;">Рекомендуем изменить его после входа в личный кабинет.</p>
+        <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+        <p style="font-size: 12px; color: #999; text-align: center;">Это автоматическое письмо, пожалуйста, не отвечайте на него.</p>
+      </div>
+    \`;
+
+    await sendEmail(email, subject, text, html);
+    res.json({ success: true, message: 'Новый пароль отправлен на почту' });
+  } catch (err) {
+    console.error('Ошибка сброса пароля:', err);
+    res.status(500).json({ error: 'Ошибка сброса пароля' });
+  }
 });
 
 
