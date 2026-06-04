@@ -826,7 +826,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useApplicationStore } from '@/stores/application';
-import { supabase } from '@/api/supabase';
+import { appApi } from '@/api/app-api';
 
 const route = useRoute();
 const router = useRouter();
@@ -974,7 +974,7 @@ function getDocumentUrl(document) {
       return '#';
     }
     
-    const { data } = supabase.storage
+    const { data } = appApi.storage
       .from('application_documents')
       .getPublicUrl(document.file_path);
     
@@ -1168,7 +1168,7 @@ function getApplicationFileUrl(file) {
       return '#';
     }
     
-    const { data } = supabase.storage
+    const { data } = appApi.storage
       .from('application_files')
       .getPublicUrl(file.file_path);
     
@@ -1186,8 +1186,8 @@ function getOlympiadCertificateUrl(cert) {
       return '#';
     }
     
-    // Согласно коду из supabase.js, сертификаты хранятся в application_files bucket
-    const { data } = supabase.storage
+    // Согласно коду из appApi.js, сертификаты хранятся в application_files bucket
+    const { data } = appApi.storage
       .from('application_files')
       .getPublicUrl(cert.file_path);
     

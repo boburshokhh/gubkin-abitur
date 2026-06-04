@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import * as applicationsApi from '../api/applications'
 import * as documentsApi from '../api/documents'
-import { excelExport, supabase } from '../api/supabase'
+import { excelExport, appApi } from '../api/app-api'
 import { levels as levelsApi, directions as directionsApi, profiles as profilesApi } from '../api/education'
 
 export const useApplicationStore = defineStore('application', () => {
@@ -314,8 +314,8 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
     
     try {
-      // Предполагаем, что в supabase.js есть соответствующий метод
-      const { data, error: loadError } = await supabase
+      // Предполагаем, что в appApi.js есть соответствующий метод
+      const { data, error: loadError } = await appApi
         .from('regions')
         .select('*')
         .order('name')
@@ -408,7 +408,7 @@ export const useApplicationStore = defineStore('application', () => {
     error.value = null
     
     try {
-      const { data, error: certError } = await supabase
+      const { data, error: certError } = await appApi
         .from('olympiad_certificates')
         .insert(certificateData)
         .select()

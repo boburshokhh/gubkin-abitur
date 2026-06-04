@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { appApi } from './app-api';
 
 /**
  * API для работы со статистикой приёмной кампании
@@ -8,7 +8,7 @@ import { supabase } from './supabase';
 // Общая статистика заявлений (публичная)
 export async function getGeneralStats() {
   try {
-    const { data, error } = await supabase.rpc('get_public_general_stats');
+    const { data, error } = await appApi.rpc('get_public_general_stats');
     
     if (error) throw error;
     
@@ -28,7 +28,7 @@ export async function getGeneralStats() {
 // Статистика по датам подачи документов (публичная)
 export async function getDailyStats(daysLimit = 30) {
   try {
-    const { data, error } = await supabase.rpc('get_public_daily_stats', {
+    const { data, error } = await appApi.rpc('get_public_daily_stats', {
       p_days_limit: daysLimit
     });
     
@@ -50,7 +50,7 @@ export async function getDailyStats(daysLimit = 30) {
 // Статистика по регионам (публичная)
 export async function getRegionalStats() {
   try {
-    const { data, error } = await supabase.rpc('get_public_regional_stats');
+    const { data, error } = await appApi.rpc('get_public_regional_stats');
     
     if (error) throw error;
     
@@ -70,7 +70,7 @@ export async function getRegionalStats() {
 // Статистика по профилям/программам (публичная)
 export async function getProgramStats() {
   try {
-    const { data, error } = await supabase.rpc('get_public_program_stats');
+    const { data, error } = await appApi.rpc('get_public_program_stats');
     
     if (error) throw error;
     
@@ -90,7 +90,7 @@ export async function getProgramStats() {
 // Статистика по статусам заявлений (публичная)
 export async function getStatusStats() {
   try {
-    const { data, error } = await supabase.rpc('get_public_status_stats');
+    const { data, error } = await appApi.rpc('get_public_status_stats');
     
     if (error) throw error;
     

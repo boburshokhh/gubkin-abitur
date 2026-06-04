@@ -57,17 +57,27 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgrespassword@db:5432/abitur
       PORT: 3000
-      JWT_SECRET: super-secret-gubkin-key-2026
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?FRONTEND_ORIGIN is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      TOKEN_PEPPER: ${TOKEN_PEPPER:?TOKEN_PEPPER is required}
+      ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-900}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      EMAIL_TOKEN_TTL_MINUTES: ${EMAIL_TOKEN_TTL_MINUTES:-1440}
+      PASSWORD_RESET_TOKEN_TTL_MINUTES: ${PASSWORD_RESET_TOKEN_TTL_MINUTES:-30}
+      INVITATION_TOKEN_TTL_DAYS: ${INVITATION_TOKEN_TTL_DAYS:-7}
       S3_ENDPOINT: http://minio:9000
       S3_REGION: us-east-1
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: minioadminpassword
       S3_BUCKET_DOCUMENTS: application-documents
       S3_BUCKET_FILES: application-files
-      SMTP_HOST: mail.api.gubkin.uz
-      SMTP_PORT: 587
-      SMTP_USER: priem@api.gubkin.uz
-      SMTP_PASS: 1234bobur$$
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_REJECT_UNAUTHORIZED: ${SMTP_REJECT_UNAUTHORIZED:-true}
+      SMTP_USER: ${SMTP_USER:?SMTP_USER is required}
+      SMTP_PASS: ${SMTP_PASS:?SMTP_PASS is required}
+      SMTP_FROM: ${SMTP_FROM:?SMTP_FROM is required}
     depends_on:
       db:
         condition: service_healthy

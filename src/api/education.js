@@ -1,9 +1,9 @@
-import { supabase } from './supabase';
+import { appApi } from './app-api';
 
 // --- Education Levels ---
 export const levels = {
   async getAll() {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('education_levels')
       .select('*')
       .order('id');
@@ -15,7 +15,7 @@ export const levels = {
 // --- Directions ---
 export const directions = {
   async getAll() {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('directions')
       .select('*, level:level_id(name)')
       .order('name');
@@ -23,7 +23,7 @@ export const directions = {
     return { data, error };
   },
   async getByLevel(levelId) {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('directions')
       .select('*')
       .eq('level_id', levelId)
@@ -32,17 +32,17 @@ export const directions = {
     return { data, error };
   },
   async create(directionData) {
-    const { data, error } = await supabase.from('directions').insert(directionData).select().single();
+    const { data, error } = await appApi.from('directions').insert(directionData).select().single();
     if (error) console.error('Error creating direction:', error);
     return { data, error };
   },
   async update(id, directionData) {
-    const { data, error } = await supabase.from('directions').update(directionData).eq('id', id).select().single();
+    const { data, error } = await appApi.from('directions').update(directionData).eq('id', id).select().single();
     if (error) console.error('Error updating direction:', error);
     return { data, error };
   },
   async delete(id) {
-    const { error } = await supabase.from('directions').delete().eq('id', id);
+    const { error } = await appApi.from('directions').delete().eq('id', id);
     if (error) console.error('Error deleting direction:', error);
     return { error };
   }
@@ -51,7 +51,7 @@ export const directions = {
 // --- Profiles & Exams ---
 export const profiles = {
   async getAllWithDetails() {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('profiles')
       .select(`
         *,
@@ -71,7 +71,7 @@ export const profiles = {
   },
   
   async getById(id) {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('profiles')
       .select(`
         *,
@@ -91,7 +91,7 @@ export const profiles = {
   },
 
   async getByDirection(directionId) {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('profiles')
       .select('*')
       .eq('direction_id', directionId)
@@ -103,7 +103,7 @@ export const profiles = {
   // Получить профили с таким же набором экзаменов
   async getWithSameExams(profileId) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await appApi
         .rpc('get_profiles_with_same_exams', { profile_id_param: profileId });
       
       if (error) {
@@ -121,7 +121,7 @@ export const profiles = {
   // Получить экзамены профиля
   async getExams(profileId) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await appApi
         .rpc('get_profile_exams', { profile_id_param: profileId });
       
       if (error) {
@@ -139,7 +139,7 @@ export const profiles = {
   // Проверить, что все выборы абитуриента имеют одинаковый набор экзаменов
   async validateChoices(applicationId) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await appApi
         .rpc('validate_application_choices', { application_id_param: applicationId });
       
       if (error) {
@@ -156,7 +156,7 @@ export const profiles = {
 
   async create(profileData) {
     const { exams, ...rest } = profileData;
-    const { data, error } = await supabase.from('profiles').insert(rest).select().single();
+    const { data, error } = await appApi.from('profiles').insert(rest).select().single();
     if (error) {
         console.error('Error creating profile:', error);
         return { data, error };
@@ -169,7 +169,7 @@ export const profiles = {
 
   async update(id, profileData) {
     const { exams, ...rest } = profileData;
-    const { data, error } = await supabase.from('profiles').update(rest).eq('id', id).select().single();
+    const { data, error } = await appApi.from('profiles').update(rest).eq('id', id).select().single();
     if (error) {
         console.error('Error updating profile:', error);
         return { data, error };
@@ -181,14 +181,14 @@ export const profiles = {
   },
 
   async delete(id) {
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    const { error } = await appApi.from('profiles').delete().eq('id', id);
     if (error) console.error('Error deleting profile:', error);
     return { error };
   },
 
   async saveExams(profileId, exams) {
     // First, delete old exams for this profile
-    const { error: deleteError } = await supabase.from('profile_exams').delete().eq('profile_id', profileId);
+    const { error: deleteError } = await appApi.from('profile_exams').delete().eq('profile_id', profileId);
     if (deleteError) {
         console.error('Error deleting old exams:', deleteError);
         return { error: deleteError };
@@ -201,7 +201,7 @@ export const profiles = {
             priority: exam.priority,
             min_score: exam.min_score || null
         }));
-        const { error: insertError } = await supabase.from('profile_exams').insert(examsToInsert);
+        const { error: insertError } = await appApi.from('profile_exams').insert(examsToInsert);
         if (insertError) {
             console.error('Error inserting new exams:', insertError);
             return { error: insertError };
@@ -213,7 +213,7 @@ export const profiles = {
   // Получить статистику по программам обучения
   async getApplicationStats(academicYear) {
     try {
-      const { data, error } = await supabase.rpc('get_program_application_stats', {
+      const { data, error } = await appApi.rpc('get_program_application_stats', {
         p_academic_year: academicYear || null
       });
       
@@ -233,7 +233,7 @@ export const profiles = {
 // --- Subjects ---
 export const subjects = {
     async getAll() {
-        const { data, error } = await supabase
+        const { data, error } = await appApi
             .from('subjects')
             .select('*')
             .order('name');
@@ -247,7 +247,7 @@ export const trends = {
   // Получить анализ трендов за несколько лет
   async getAnalysis(yearsCount = 3) {
     try {
-      const { data, error } = await supabase.rpc('get_trends_analysis', {
+      const { data, error } = await appApi.rpc('get_trends_analysis', {
         p_years_count: yearsCount
       });
       

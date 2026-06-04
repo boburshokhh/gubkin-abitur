@@ -161,7 +161,7 @@ import { BaseButton, BaseCard } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth';
 import { useApplicationStore } from '@/stores/application';
 import { useToast } from 'vue-toastification';
-import { supabase, documents, applicationFiles, olympiadCertificates } from '@/api/supabase';
+import { appApi, documents, applicationFiles, olympiadCertificates } from '@/api/app-api';
 
 // Импорт компонентов
 import ProgressBar from '@/components/register/ProgressBar.vue';
@@ -546,7 +546,7 @@ async function submitForm() {
     
     if (!applicationId) {
       try {
-        const { data: existingApps } = await supabase
+        const { data: existingApps } = await appApi
           .from('applications')
           .select('id')
           .limit(1);
@@ -689,7 +689,7 @@ const onDirectionChange = async () => {
   if (!form.value.direction) return;
   
   try {
-    const { data: profilesData, error } = await supabase
+    const { data: profilesData, error } = await appApi
       .from('profiles')
       .select('*')
       .eq('direction_id', form.value.direction);
@@ -712,7 +712,7 @@ const onProfileChange = async () => {
   if (!form.value.profile) return;
   
   try {
-    const { data: specialtiesData, error } = await supabase
+    const { data: specialtiesData, error } = await appApi
       .from('specialties')
       .select('*')
       .eq('profile_id', form.value.profile);

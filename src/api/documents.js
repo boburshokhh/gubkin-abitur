@@ -1,4 +1,4 @@
-import { documents } from './supabase'
+import { documents } from './app-api'
 
 // Экспортируем функции для работы с документами
 export const getByApplicationId = async (applicationId) => {

@@ -713,7 +713,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue';
-import { supabase, documents, applicationFiles, olympiadCertificates, applications } from '@/api/supabase';
+import { appApi, documents, applicationFiles, olympiadCertificates, applications } from '@/api/app-api';
 import { useToast } from 'vue-toastification';
 import { 
   DocumentTextIcon, 
@@ -1070,7 +1070,7 @@ function getDocumentUrl(document) {
       return '#';
     }
     
-    const { data } = supabase.storage
+    const { data } = appApi.storage
       .from('application_documents')
       .getPublicUrl(document.file_path);
     
@@ -1089,7 +1089,7 @@ function getApplicationFileUrl(file) {
       return '#';
     }
     
-    const { data } = supabase.storage
+    const { data } = appApi.storage
       .from('application_files')
       .getPublicUrl(file.file_path);
     
@@ -1108,8 +1108,8 @@ function getOlympiadCertificateUrl(cert) {
       return '#';
     }
     
-    // Согласно коду из supabase.js, сертификаты хранятся в application_files bucket
-    const { data } = supabase.storage
+    // Согласно коду из appApi.js, сертификаты хранятся в application_files bucket
+    const { data } = appApi.storage
       .from('application_files')
       .getPublicUrl(cert.file_path);
     

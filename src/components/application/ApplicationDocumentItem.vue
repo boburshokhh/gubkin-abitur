@@ -31,7 +31,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { supabase } from '@/api/supabase';
+import { appApi } from '@/api/app-api';
 
 const props = defineProps({
   document: {
@@ -46,7 +46,7 @@ const documentUrl = computed(() => {
     return props.document.publicUrl;
   }
   
-  // Создаем URL для скачивания из Supabase
+  // Создаем URL для скачивания из API
   try {
     // Проверяем наличие необходимых данных
     if (!props.document.file_path) {
@@ -55,7 +55,7 @@ const documentUrl = computed(() => {
     }
     
     // Используем getPublicUrl вместо signed URL для простоты и прямого доступа
-    const { data } = supabase.storage
+    const { data } = appApi.storage
       .from('application_documents') // Именно application_documents, а не documents!
       .getPublicUrl(props.document.file_path);
     

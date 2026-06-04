@@ -54,7 +54,7 @@
 import { ref, computed, reactive, onMounted, watch } from 'vue';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '@/stores/auth';
-import { supabase, applications as applicationsApi, statistics } from '@/api/supabase';
+import { appApi, applications as applicationsApi, statistics } from '@/api/app-api';
 
 // Импортируем компоненты
 import ApplicationFilters from './filters/ApplicationFilters.vue';
@@ -127,7 +127,7 @@ watch([filters, pagination], loadApplications, { deep: true });
 // Загрузка статусов заявок
 async function loadStatuses() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('application_statuses')
       .select('*')
       .order('id');

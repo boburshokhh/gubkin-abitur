@@ -47,6 +47,10 @@
         <UsersManagement />
       </div>
 
+      <div v-else-if="currentTab === 'invitations'" class="px-2 sm:px-0">
+        <InvitationsManagement />
+      </div>
+
       <div v-else-if="currentTab === 'educational-programs'" class="px-2 sm:px-0">
         <EducationalProgramsManager />
       </div>
@@ -64,6 +68,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
 import UsersManagement from './admin/UsersManagement.vue';
+import InvitationsManagement from './admin/InvitationsManagement.vue';
 import EducationalProgramsManager from './admin/educational-programs/EducationalProgramsManager.vue';
 import ApplicationsManager from '@/components/application/ApplicationsManager.vue';
 
@@ -79,6 +84,7 @@ const tabs = computed(() => {
   
   if (authStore.isAdmin && !authStore.isReviewer) {
     baseTabs.push({ id: 'users', name: 'Управление пользователями' });
+    baseTabs.push({ id: 'invitations', name: 'Приглашения' });
   }
   
   return baseTabs;

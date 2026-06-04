@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
-import { clearSupabaseStorage } from '@/api/supabase'
+import { clearAuthStorage } from '@/api/app-api'
 import HomePage from '@/views/HomePage.vue'
 import AuthPage from '@/views/AuthPage.vue'
 import VerifyEmailPage from '@/views/VerifyEmailPage.vue'
@@ -41,6 +41,33 @@ const routes = [
     component: VerifyEmailPage,
     meta: {
       title: 'Подтверждение email - Приёмная кампания Губкинского университета'
+    }
+  },
+  {
+    path: '/auth/forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/views/ForgotPasswordPage.vue'),
+    meta: {
+      title: 'Восстановление пароля - Приёмная кампания Губкинского университета',
+      guestOnly: true
+    }
+  },
+  {
+    path: '/auth/reset-password',
+    name: 'reset-password',
+    component: () => import('@/views/ResetPasswordPage.vue'),
+    meta: {
+      title: 'Сброс пароля - Приёмная кампания Губкинского университета',
+      guestOnly: true
+    }
+  },
+  {
+    path: '/auth/accept-invitation',
+    name: 'accept-invitation',
+    component: () => import('@/views/AcceptInvitationPage.vue'),
+    meta: {
+      title: 'Принять приглашение - Приёмная кампания Губкинского университета',
+      guestOnly: true
     }
   },
   {
@@ -192,8 +219,8 @@ router.beforeEach(async (to, from, next) => {
       
       if (!success || !authStore.isAuthenticated) {
         console.log('Сессия недействительна, необходимо войти заново');
-        // Очищаем все данные Supabase из localStorage
-        clearSupabaseStorage();
+        // Очищаем все данные API из localStorage
+        clearAuthStorage();
         toast.error('Сессия истекла. Пожалуйста, войдите снова.');
         
         return next({

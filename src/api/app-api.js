@@ -2,9 +2,12 @@ import axios from 'axios'
 
 // Инициализация Axios-клиента для работы с кастомным Express бэкендом
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
+let accessToken = null
+let isRefreshingSession = false
 
 export const apiClient = axios.create({
   baseURL: apiUrl,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -12,21 +15,40 @@ export const apiClient = axios.create({
 
 // Добавляем токен авторизации к каждому запросу, если он есть
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('sb-access-token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`
   }
   return config
 }, (error) => {
   return Promise.reject(error)
 })
 
+apiClient.interceptors.response.use((response) => response, async (error) => {
+  const originalRequest = error.config
+  const isAuthRefresh = originalRequest?.url?.includes('/auth/refresh')
+  const shouldRefresh = error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRefresh
+
+  if (!shouldRefresh) return Promise.reject(error)
+
+  originalRequest._retry = true
+  const { data, error: refreshError } = await auth.refreshSession()
+  if (refreshError || !data?.session?.access_token) {
+    clearAuthStorage()
+    return Promise.reject(error)
+  }
+
+  originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`
+  return apiClient(originalRequest)
+})
+
 // Утилитарная функция для очистки всех данных сессии из localStorage
-export const clearSupabaseStorage = () => {
+export const clearAuthStorage = () => {
   try {
-    localStorage.removeItem('sb-access-token')
-    localStorage.removeItem('sb-user')
-    localStorage.removeItem('supabase.auth.token')
+    accessToken = null
+    localStorage.removeItem('app-access-token')
+    localStorage.removeItem('app-user')
+    localStorage.removeItem('app.auth.token')
+    localStorage.removeItem('app.auth.lastRefresh')
     localStorage.removeItem('auth-store')
     console.log('localStorage успешно очищен от данных сессии')
   } catch (error) {
@@ -44,36 +66,52 @@ const handleError = (err) => {
 // 1. АУТЕНТИФИКАЦИЯ (Auth)
 export const auth = {
   getSession: async () => {
-    const token = localStorage.getItem('sb-access-token')
-    if (!token) return { data: { session: null }, error: null }
-    
     try {
+      if (!accessToken) {
+        const refreshResult = await auth.refreshSession()
+        if (refreshResult.error) return { data: { session: null }, error: null }
+        return refreshResult
+      }
+
       const response = await apiClient.get('/auth/session')
       const { session, user } = response.data
       if (session) {
-        session.user = user // Важно: добавляем user внутрь session, как в Supabase
+        session.user = user // Важно: добавляем user внутрь session, как в API
       }
-      localStorage.setItem('sb-user', JSON.stringify(user))
       return { data: { session }, error: null }
     } catch (err) {
-      clearSupabaseStorage()
+      clearAuthStorage()
       return { data: { session: null }, error: err.response?.data?.error ? new Error(err.response.data.error) : null }
     }
   },
   
   refreshSession: async () => {
-    return await auth.getSession()
+    if (isRefreshingSession) return { data: { session: null }, error: null }
+
+    try {
+      isRefreshingSession = true
+      const response = await apiClient.post('/auth/refresh')
+      const { session, user } = response.data
+      if (session?.access_token) accessToken = session.access_token
+      if (session) session.user = user
+      return { data: { session }, error: null }
+    } catch (err) {
+      clearAuthStorage()
+      return { data: { session: null }, error: err.response?.data?.error ? new Error(err.response.data.error) : err }
+    } finally {
+      isRefreshingSession = false
+    }
   },
   
   signUp: async ({ email, password, options }) => {
     try {
       const response = await apiClient.post('/auth/signup', { email, password, options })
       const { session, user } = response.data
-      
-      localStorage.setItem('sb-access-token', session.access_token)
-      localStorage.setItem('sb-user', JSON.stringify(user))
-      
-      triggerAuthChange('SIGNED_IN', session)
+      if (session?.access_token) {
+        accessToken = session.access_token
+        session.user = user
+        triggerAuthChange('SIGNED_IN', session)
+      }
       
       return { data: { session, user }, error: null }
     } catch (err) {
@@ -85,9 +123,8 @@ export const auth = {
     try {
       const response = await apiClient.post('/auth/signin', { email, password })
       const { session, user } = response.data
-      
-      localStorage.setItem('sb-access-token', session.access_token)
-      localStorage.setItem('sb-user', JSON.stringify(user))
+      accessToken = session.access_token
+      session.user = user
       
       triggerAuthChange('SIGNED_IN', session)
       
@@ -103,7 +140,7 @@ export const auth = {
     } catch (err) {
       console.warn('Ошибка при выходе на сервере:', err.message)
     } finally {
-      clearSupabaseStorage()
+      clearAuthStorage()
       triggerAuthChange('SIGNED_OUT', null)
     }
     return { success: true }
@@ -111,7 +148,7 @@ export const auth = {
 
   sendEmailVerification: async (email) => {
     try {
-      await apiClient.post('/auth/send-otp', { email })
+      await apiClient.post('/auth/resend-verification', { email })
       return { error: null }
     } catch (err) {
       return { error: new Error(err.response?.data?.error || err.message) }
@@ -120,7 +157,7 @@ export const auth = {
   
   sendOtpToEmail: async (email) => {
     try {
-      await apiClient.post('/auth/send-otp', { email })
+      await apiClient.post('/auth/resend-verification', { email })
       return { error: null }
     } catch (err) {
       return { error: new Error(err.response?.data?.error || err.message) }
@@ -129,8 +166,14 @@ export const auth = {
   
   verifyOtp: async (email, token) => {
     try {
-      const response = await apiClient.post('/auth/verify-otp', { email, token })
-      return { data: response.data, error: null }
+      const response = await apiClient.post('/auth/verify-email', { email, token })
+      const { session, user } = response.data
+      if (session?.access_token) {
+        accessToken = session.access_token
+        session.user = user
+        triggerAuthChange('SIGNED_IN', session)
+      }
+      return { data: { session, user }, error: null }
     } catch (err) {
       return handleError(err)
     }
@@ -138,10 +181,53 @@ export const auth = {
 
   resetPassword: async (email) => {
     try {
-      await apiClient.post('/auth/reset-password', { email })
+      await apiClient.post('/auth/password/forgot', { email })
       return { error: null }
     } catch (err) {
       return { error: new Error(err.response?.data?.error || err.message) }
+    }
+  },
+
+  resetPasswordWithToken: async ({ token, password }) => {
+    try {
+      await apiClient.post('/auth/password/reset', { token, password })
+      clearAuthStorage()
+      return { error: null }
+    } catch (err) {
+      return handleError(err)
+    }
+  },
+
+  changePassword: async ({ currentPassword, newPassword }) => {
+    try {
+      await apiClient.post('/auth/password/change', { currentPassword, newPassword })
+      return { error: null }
+    } catch (err) {
+      return handleError(err)
+    }
+  },
+
+  validateInvitation: async (token) => {
+    try {
+      const response = await apiClient.get('/invitations/validate', { params: { token } })
+      return { data: response.data.data, error: null }
+    } catch (err) {
+      return handleError(err)
+    }
+  },
+
+  acceptInvitation: async (payload) => {
+    try {
+      const response = await apiClient.post('/invitations/accept', payload)
+      const { session, user } = response.data
+      if (session?.access_token) {
+        accessToken = session.access_token
+        session.user = user
+        triggerAuthChange('SIGNED_IN', session)
+      }
+      return { data: { session, user }, error: null }
+    } catch (err) {
+      return handleError(err)
     }
   }
 }
@@ -190,6 +276,35 @@ export const users = {
         params: { roleId, search, page, pageSize }
       })
       return { data: response.data.data, error: null }
+    } catch (err) {
+      return handleError(err)
+    }
+  }
+}
+
+export const invitations = {
+  getAll: async () => {
+    try {
+      const response = await apiClient.get('/invitations')
+      return { data: response.data.data || [], error: null }
+    } catch (err) {
+      return handleError(err)
+    }
+  },
+
+  create: async ({ email, roleId }) => {
+    try {
+      const response = await apiClient.post('/invitations', { email, role_id: roleId })
+      return { data: response.data.data, error: null }
+    } catch (err) {
+      return handleError(err)
+    }
+  },
+
+  revoke: async (id) => {
+    try {
+      await apiClient.post(`/invitations/${id}/revoke`)
+      return { error: null }
     } catch (err) {
       return handleError(err)
     }
@@ -604,7 +719,7 @@ export const logs = {
 // 10. ГЕНИАЛЬНЫЙ IMITATION QUERY BUILDER ДЛЯ SUPABASE
 // ==========================================
 
-class SupabaseQueryBuilder {
+class ApiQueryBuilder {
   constructor(table) {
     this.table = table
     this.selectFields = '*'
@@ -839,8 +954,8 @@ class SupabaseQueryBuilder {
   }
 }
 
-// 11. ГЛАВНЫЙ ЭКСПОРТ SUPABASE КЛИЕНТА
-export const supabase = {
+// 11. ГЛАВНЫЙ ЭКСПОРТ API КЛИЕНТА
+export const appApi = {
   auth: {
     signUp: async (params) => auth.signUp(params),
     signInWithPassword: async (params) => auth.signIn(params),
@@ -849,13 +964,28 @@ export const supabase = {
     refreshSession: async () => auth.refreshSession(),
     resend: async ({ email }) => auth.sendEmailVerification(email),
     signInWithOtp: async ({ email }) => auth.sendOtpToEmail(email),
-    verifyOtp: async ({ email, token }) => auth.verifyOtp(email, token),
+    verifyOtp: async ({ email, token, token_hash }) => auth.verifyOtp(email, token || token_hash),
     resetPasswordForEmail: async (email) => auth.resetPassword(email),
+    resetPasswordWithToken: async (params) => auth.resetPasswordWithToken(params),
+    changePassword: async (params) => auth.changePassword(params),
+    validateInvitation: async (token) => auth.validateInvitation(token),
+    acceptInvitation: async (payload) => auth.acceptInvitation(payload),
+    setSession: async ({ access_token }) => {
+      accessToken = access_token
+      return auth.getSession()
+    },
     getUser: async () => {
       const sessionRes = await auth.getSession()
       return { data: { user: sessionRes.data?.session?.user || null }, error: sessionRes.error }
     },
     updateUser: async ({ data }) => {
+      if (data?.password) {
+        return auth.changePassword({
+          currentPassword: data.currentPassword,
+          newPassword: data.password
+        })
+      }
+
       const profileRes = await users.updateProfile(data)
       return { data: { user: profileRes.data }, error: profileRes.error }
     },
@@ -868,7 +998,7 @@ export const supabase = {
   },
   
   from: (table) => {
-    return new SupabaseQueryBuilder(table)
+    return new ApiQueryBuilder(table)
   },
 
   rpc: async (fnName, params) => {
@@ -968,7 +1098,7 @@ export const supabase = {
             offset: params.p_offset
           }
         })
-        // Функция rpc в supabase должна вернуть сырой массив совместимых профилей
+        // Функция rpc в appApi должна вернуть сырой массив совместимых профилей
         return { data: res.data.data, error: null }
       }
 
@@ -995,4 +1125,4 @@ const triggerAuthChange = (event, session) => {
   })
   window.dispatchEvent(customEvent)
 }
-export default supabase
+export default appApi

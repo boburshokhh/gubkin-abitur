@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase, auth as supabaseAuth, users as supabaseUsers, clearSupabaseStorage } from '@/api/supabase'
+import { appApi, auth as authApi, users as usersApi, clearAuthStorage } from '@/api/app-api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -15,6 +15,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isApplicant = computed(() => userRole.value === 'applicant' || userRole.value === 1)
   const isAuthenticated = computed(() => !!user.value)
   const isEmailConfirmed = computed(() => user.value?.email_confirmed_at)
+  const isPendingVerification = computed(() => user.value?.user_metadata?.status === 'pending_verification')
 
   // Инициализация пользователя при загрузке приложения
   const initAuth = async () => {
@@ -22,7 +23,7 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true;
       error.value = null;
       
-      const { data: { session }, error: sessionError } = await supabaseAuth.getSession();
+      const { data: { session }, error: sessionError } = await authApi.getSession();
       
       if (sessionError) {
         console.error('Ошибка получения сессии:', sessionError);
@@ -74,7 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       // Передаем пользователя чтобы избежать дублирующего вызова к auth.getUser()
-      const { data, error: profileError } = await supabaseUsers.getProfile(currentUser)
+      const { data, error: profileError } = await usersApi.getProfile(currentUser)
       
       if (profileError) {
         console.error('Ошибка загрузки профиля:', profileError)
@@ -112,7 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
       
       // Только если роль не найдена в профиле, делаем дополнительный запрос
       console.log('Загружаем роль пользователя из БД');
-      const { data, error: roleError } = await supabase
+      const { data, error: roleError } = await appApi
         .from('users')
         .select('role_id')
         .eq('id', currentUser.id)
@@ -143,7 +144,7 @@ export const useAuthStore = defineStore('auth', () => {
       console.log('URL для редиректа:', redirectUrl);
       console.log('Данные пользователя при регистрации:', { email, firstName, lastName });
       
-      const { data, error: signUpError } = await supabaseAuth.signUp({
+      const { data, error: signUpError } = await authApi.signUp({
         email,
         password,
         options: {
@@ -184,7 +185,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      const { data, error: signInError } = await supabaseAuth.signIn({
+      const { data, error: signInError } = await authApi.signIn({
         email,
         password,
       })
@@ -220,11 +221,11 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = null
       emailToVerify.value = null
       
-      // Очищаем localStorage от всех данных Supabase
-      clearSupabaseStorage()
+      // Очищаем localStorage от всех данных API
+      clearAuthStorage()
       
       // Вызываем signOut из API
-      const { success, error: signOutError } = await supabaseAuth.signOut()
+      const { success, error: signOutError } = await authApi.signOut()
       
       if (!success && signOutError) {
         console.warn('Предупреждение при выходе:', signOutError)
@@ -241,7 +242,7 @@ export const useAuthStore = defineStore('auth', () => {
       userRole.value = null
       error.value = null
       emailToVerify.value = null
-      clearSupabaseStorage()
+      clearAuthStorage()
       
       return { success: true } // Возвращаем success: true, так как состояние очищено
     }
@@ -255,7 +256,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      const { error: verificationError } = await supabaseAuth.sendEmailVerification(emailAddress)
+      const { error: verificationError } = await authApi.sendEmailVerification(emailAddress)
       
       if (verificationError) throw verificationError
       
@@ -276,7 +277,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      const { error: otpError } = await supabaseAuth.sendOtpToEmail(emailAddress)
+      const { error: otpError } = await authApi.sendOtpToEmail(emailAddress)
       
       if (otpError) throw otpError
       
@@ -290,13 +291,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // Подтверждение email по коду
-  const verifyEmail = async (email, code) => {
+  const verifyEmail = async (email, token) => {
     try {
-      const { data, error: verifyError } = await supabaseAuth.verifyOtp({
-        email,
-        token: code,
-        type: 'email'
-      })
+      const { data, error: verifyError } = await authApi.verifyOtp(email, token)
       
       if (verifyError) throw verifyError
       
@@ -321,7 +318,7 @@ export const useAuthStore = defineStore('auth', () => {
   // Сброс пароля
   const resetPassword = async (email) => {
     try {
-      const { error: resetError } = await supabaseAuth.resetPassword(email)
+      const { error: resetError } = await authApi.resetPassword(email)
       
       if (resetError) throw resetError
       
@@ -333,10 +330,57 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const resetPasswordWithToken = async ({ token, password }) => {
+    try {
+      const { error: resetError } = await authApi.resetPasswordWithToken({ token, password })
+      if (resetError) throw resetError
+      return { success: true }
+    } catch (err) {
+      console.error('Ошибка установки нового пароля:', err)
+      error.value = err.message || 'Не удалось обновить пароль'
+      return { success: false, error: error.value }
+    }
+  }
+
+  const validateInvitation = async (token) => {
+    try {
+      const { data, error: invitationError } = await authApi.validateInvitation(token)
+      if (invitationError) throw invitationError
+      return { success: true, data }
+    } catch (err) {
+      console.error('Ошибка проверки приглашения:', err)
+      return { success: false, error: err.message || 'Приглашение недействительно' }
+    }
+  }
+
+  const acceptInvitation = async (payload) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const { data, error: invitationError } = await authApi.acceptInvitation(payload)
+      if (invitationError) throw invitationError
+
+      user.value = data?.user || null
+      if (user.value) {
+        const profileData = await loadUserProfile(user.value)
+        await loadUserRole(profileData)
+      }
+
+      return { success: true, data }
+    } catch (err) {
+      console.error('Ошибка принятия приглашения:', err)
+      error.value = err.message || 'Не удалось принять приглашение'
+      return { success: false, error: error.value }
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Обновление профиля
   const updateProfile = async (updates) => {
     try {
-      const { data, error: updateError } = await supabaseUsers.updateProfile(updates)
+      const { data, error: updateError } = await usersApi.updateProfile(updates)
       
       if (updateError) throw updateError
       
@@ -367,7 +411,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       console.log("Вызов функции getAllUsers из API");
       // Используем обновленную функцию из API вместо RPC
-      const { data, error } = await supabaseUsers.getAllUsers();
+      const { data, error } = await usersApi.getAllUsers();
       
       if (error) throw error;
       
@@ -387,7 +431,7 @@ export const useAuthStore = defineStore('auth', () => {
   const updateUserRole = async (userId, roleId) => {
     try {
       // Используем RPC вызов вместо прямого обращения к таблице
-      const { data, error } = await supabase
+      const { data, error } = await appApi
         .rpc('update_user_role', { 
           user_id: userId,
           new_role_id: roleId
@@ -409,7 +453,7 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = null;
       
       // Получаем текущую сессию
-      const { data: { session: currentSession }, error: sessionError } = await supabaseAuth.getSession();
+      const { data: { session: currentSession }, error: sessionError } = await authApi.getSession();
       
       if (sessionError) {
         console.error('Ошибка получения сессии:', sessionError);
@@ -421,7 +465,7 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('Сессия отсутствует или токен истек, пытаемся обновить...');
         
         // Пытаемся обновить токен
-        const { data: refreshData, error: refreshError } = await supabaseAuth.refreshSession();
+        const { data: refreshData, error: refreshError } = await authApi.refreshSession();
         
         if (refreshError) {
           console.error('Ошибка обновления токена:', refreshError);
@@ -429,8 +473,8 @@ export const useAuthStore = defineStore('auth', () => {
           user.value = null;
           profile.value = null;
           userRole.value = null;
-          // Очищаем все данные Supabase из localStorage
-          clearSupabaseStorage();
+          // Очищаем все данные API из localStorage
+          clearAuthStorage();
           
           return { 
             success: false, 
@@ -440,7 +484,7 @@ export const useAuthStore = defineStore('auth', () => {
         }
 
         // Если успешно обновили токен, получаем новую сессию
-        const { data: { session: newSession }, error: newSessionError } = await supabaseAuth.getSession();
+        const { data: { session: newSession }, error: newSessionError } = await authApi.getSession();
         
         if (newSessionError || !newSession) {
           throw new Error('Не удалось получить новую сессию после обновления токена');
@@ -526,7 +570,7 @@ export const useAuthStore = defineStore('auth', () => {
   // Принудительная проверка сессии при проблемах
   const forceCheckSession = async () => {
     try {
-      const { data: { session }, error: sessionError } = await supabaseAuth.getSession();
+      const { data: { session }, error: sessionError } = await authApi.getSession();
       
       if (sessionError) {
         // Очищаем состояние при ошибке
@@ -546,8 +590,8 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = null;
         profile.value = null;
         userRole.value = null;
-        // Очищаем все данные Supabase из localStorage
-        clearSupabaseStorage();
+        // Очищаем все данные API из localStorage
+        clearAuthStorage();
         return { success: true, authenticated: false };
       }
     } catch (err) {
@@ -568,11 +612,13 @@ export const useAuthStore = defineStore('auth', () => {
     isApplicant,
     isAuthenticated,
     isEmailConfirmed,
+    isPendingVerification,
     initAuth,
     register,
     login,
     logout,
     resetPassword,
+    resetPasswordWithToken,
     updateProfile,
     sendVerificationEmail,
     sendOtpCode,
@@ -582,7 +628,9 @@ export const useAuthStore = defineStore('auth', () => {
     getAllUsers,
     updateUserRole,
     refreshSession,
-    forceCheckSession
+    forceCheckSession,
+    validateInvitation,
+    acceptInvitation
   }
 }, {
   // Конфигурация для сохранения состояния в localStorage

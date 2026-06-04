@@ -1,22 +1,28 @@
 const nodemailer = require('nodemailer');
 
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'mail.api.gubkin.uz',
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false, // true for 465, false for other ports
+  host: requireEnv('SMTP_HOST'),
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_SECURE === 'true',
   auth: {
-    user: process.env.SMTP_USER || 'priem@api.gubkin.uz',
-    pass: process.env.SMTP_PASS || '1234bobur$',
+    user: requireEnv('SMTP_USER'),
+    pass: requireEnv('SMTP_PASS'),
   },
   tls: {
-    rejectUnauthorized: false
+    rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false'
   }
 });
 
 const sendEmail = async (to, subject, text, html) => {
   try {
     const info = await transporter.sendMail({
-      from: `"Приемная комиссия Губкинского университета" <${process.env.SMTP_USER || 'priem@api.gubkin.uz'}>`,
+      from: `"Приемная комиссия Губкинского университета" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to,
       subject,
       text,

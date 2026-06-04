@@ -1,10 +1,10 @@
-import { supabase } from './supabase';
+import { appApi } from './app-api';
 
 // Функции для работы с образовательными программами
 export const programs = {
   // Получить все программы с их профилями/специализациями и предметами
   async getAllWithTracksAndSubjects() {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('programs')
       .select(`
         *,
@@ -17,7 +17,7 @@ export const programs = {
   
   // Получить все программы с их профилями/специализациями
   async getAllWithTracks() {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('programs')
       .select(`
         *,
@@ -29,7 +29,7 @@ export const programs = {
   
   // Получить одну программу по ID
   async getById(id) {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('programs')
       .select(`
         *,
@@ -45,17 +45,17 @@ export const programs = {
   async create(programData) {
     // Удаляем id, чтобы база данных могла его сгенерировать
     const { id, ...dataToCreate } = programData; 
-    return supabase.from('programs').insert(dataToCreate).select().single();
+    return appApi.from('programs').insert(dataToCreate).select().single();
   },
 
   // Обновить программу
   async update(id, programData) {
-    return supabase.from('programs').update(programData).eq('id', id).select().single();
+    return appApi.from('programs').update(programData).eq('id', id).select().single();
   },
 
   // Удалить программу
   async delete(id) {
-    const { error } = await supabase
+    const { error } = await appApi
       .from('programs')
       .delete()
       .eq('id', id);
@@ -67,7 +67,7 @@ export const programs = {
 export const programTracks = {
   // Создать новый профиль/специализацию
   async create(trackData) {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('program_tracks')
       .insert(trackData)
       .select()
@@ -77,7 +77,7 @@ export const programTracks = {
 
   // Обновить профиль/специализацию
   async update(id, trackData) {
-    const { data, error } = await supabase
+    const { data, error } = await appApi
       .from('program_tracks')
       .update(trackData)
       .eq('id', id)
@@ -88,7 +88,7 @@ export const programTracks = {
 
   // Удалить профиль/специализацию
   async delete(id) {
-    const { error } = await supabase
+    const { error } = await appApi
       .from('program_tracks')
       .delete()
       .eq('id', id);
@@ -102,7 +102,7 @@ export const programSubjects = {
   // Сохранить предметы для программы
   async saveForProgram(programId, subjectsToSave) {
     // Сначала удаляем все существующие предметы для данной программы
-    await supabase.from('program_subjects').delete().eq('program_id', programId);
+    await appApi.from('program_subjects').delete().eq('program_id', programId);
     
     // Если нет новых предметов для сохранения, просто выходим
     if (!subjectsToSave || subjectsToSave.length === 0) {
@@ -119,6 +119,6 @@ export const programSubjects = {
       order_index: s.order_index
     }));
 
-    return supabase.from('program_subjects').insert(subjectsWithProgramId).select();
+    return appApi.from('program_subjects').insert(subjectsWithProgramId).select();
   }
 }; 

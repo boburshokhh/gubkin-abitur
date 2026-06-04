@@ -1,4 +1,4 @@
-import { applications } from './supabase'
+import { applications } from './app-api'
 
 // Экспортируем функции для работы с заявлениями
 export const getAll = async () => {

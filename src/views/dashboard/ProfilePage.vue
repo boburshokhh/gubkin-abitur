@@ -152,7 +152,7 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { supabase } from '@/api/supabase';
+import { appApi } from '@/api/app-api';
 import DashboardNavigation from '@/components/dashboard/DashboardNavigation.vue';
 import ProfileForm from '@/components/profile/ProfileForm.vue';
 
@@ -232,8 +232,8 @@ const changePassword = async () => {
     return;
   }
   
-  if (passwordForm.new_password.length < 6) {
-    passwordError.value = 'Пароль должен содержать минимум 6 символов';
+  if (passwordForm.new_password.length < 10) {
+    passwordError.value = 'Пароль должен содержать минимум 10 символов';
     return;
   }
   
@@ -246,20 +246,9 @@ const changePassword = async () => {
   isChangingPassword.value = true;
   
   try {
-    // Сначала входим с текущим паролем, чтобы убедиться, что он верный
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: authStore.user.email,
-      password: passwordForm.current_password
-    });
-    
-    if (signInError) {
-      passwordError.value = 'Неверный текущий пароль';
-      return;
-    }
-    
-    // Теперь меняем пароль
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: passwordForm.new_password
+    const { error: updateError } = await appApi.auth.updateUser({
+      password: passwordForm.new_password,
+      currentPassword: passwordForm.current_password
     });
     
     if (updateError) {

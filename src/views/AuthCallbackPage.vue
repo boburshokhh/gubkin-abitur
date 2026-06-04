@@ -46,7 +46,6 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { supabase } from '@/api/supabase';
 import { BaseButton } from '@/components/ui';
 
 const route = useRoute();
@@ -75,66 +74,11 @@ const formatErrorMessage = (message) => {
   return message;
 };
 
-// Функция для извлечения и обработки параметров из хэша URL
-const parseHashParams = (hashStr) => {
-  const params = {};
-  if (!hashStr) return params;
-  
-  try {
-    const parts = hashStr.split('&');
-    for (const part of parts) {
-      const [key, value] = part.split('=');
-      if (key && value) {
-        // Используем декодирование для всех значений
-        params[key] = decodeURIComponent(value.replace(/\+/g, ' '));
-      }
-    }
-  } catch (e) {
-    console.error('Ошибка при обработке хэш-параметров:', e);
-  }
-  
-  return params;
-};
-
 onMounted(async () => {
   try {
-    console.log('Начало обработки callback');
-    console.log('URL:', window.location.href);
-    
-    // Извлекаем хэш из URL, пропуская первый символ '#'
-    const hashStr = window.location.hash.substring(1);
-    console.log('Исходный хэш:', hashStr);
-    
-    // Используем улучшенную функцию для парсинга хэш-параметров
-    const hashParams = parseHashParams(hashStr);
-    
-    const accessToken = hashParams.access_token;
-    const refreshToken = hashParams.refresh_token;
-    const type = hashParams.type;
-    const errorCode = hashParams.error_code;
-    const errorDescription = hashParams.error_description;
-    
-    console.log('Обработанные хэш параметры:', { 
-      hasAccessToken: !!accessToken, 
-      hasRefreshToken: !!refreshToken,
-      type,
-      errorCode: errorCode || 'нет',
-      errorDesc: errorDescription ? '(присутствует)' : 'нет'
-    });
-    
-    // Проверяем наличие ошибок в hash
-    if (errorCode || errorDescription) {
-      console.error('Получена ошибка аутентификации:', errorCode, errorDescription);
-      // Используем форматированное сообщение об ошибке
-      error.value = formatErrorMessage(errorDescription) || 'Произошла ошибка при аутентификации';
-      loading.value = false;
-      return;
-    }
-    
-    // Получаем query параметры
     const queryParams = new URLSearchParams(window.location.search);
-    const tokenHash = queryParams.get('token_hash');
-    const queryType = queryParams.get('type');
+    const token = queryParams.get('token');
+    const type = queryParams.get('type');
     const queryErrorCode = queryParams.get('error_code');
     const queryErrorDescription = queryParams.get('error_description');
     
@@ -147,69 +91,21 @@ onMounted(async () => {
       return;
     }
     
-    console.log('Query параметры:', {
-      hasTokenHash: !!tokenHash,
-      type: queryType
-    });
-    
-    // Обрабатываем разные сценарии аутентификации
-    if (accessToken) {
-      console.log('Обработка сценария с access_token');
-      
-      // Устанавливаем токены в сессию
-      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken
-      });
-      
-      if (sessionError) {
-        console.error('Ошибка установки сессии:', sessionError);
-        throw sessionError;
-      }
-      
-      console.log('Сессия успешно установлена');
-      
-      // Обновляем данные пользователя в store
-      await authStore.initAuth();
-      success.value = true;
-      
-      // Перенаправляем на главную страницу через 2 секунды
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 2000);
-    } else if (tokenHash && queryType) {
-      console.log('Обработка верификации через token_hash');
-      
-      // Обрабатываем подтверждение email
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        type: queryType,
-        token_hash: tokenHash
-      });
-      
-      if (verifyError) {
-        console.error('Ошибка верификации:', verifyError);
-        // Форматируем сообщение об ошибке верификации
-        error.value = formatErrorMessage(verifyError.message) || 'Ошибка подтверждения email';
-        throw verifyError;
-      }
-      
-      console.log('Email успешно подтвержден');
-      
-      // Обновляем данные пользователя из сессии
-      await authStore.initAuth();
-      success.value = true;
-      
-      // Перенаправляем на главную страницу через 2 секунды
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 2000);
-    } else {
-      console.error('Не найдены необходимые параметры для аутентификации');
-      error.value = 'Ссылка аутентификации некорректна или устарела';
+    if (type !== 'email_verification' || !token) {
+      error.value = 'Ссылка подтверждения некорректна или устарела';
+      return;
     }
+
+    const result = await authStore.verifyEmail(null, token);
+    if (!result.success) throw new Error(result.error || 'Ошибка подтверждения email');
+
+    success.value = true;
+
+    setTimeout(() => {
+      router.push('/dashboard');
+    }, 1500);
   } catch (err) {
     console.error('Ошибка при обработке callback:', err);
-    // Форматируем сообщение об ошибке из исключения
     error.value = formatErrorMessage(err.message) || 'Что-то пошло не так при обработке аутентификации';
     success.value = false;
   } finally {

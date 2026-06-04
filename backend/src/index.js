@@ -1,22 +1,41 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const apiRouter = require('./routes/api');
+const authRouter = require('./routes/auth');
+const invitationsRouter = require('./routes/invitations');
+const { FRONTEND_ORIGIN } = require('./config/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Настройка CORS для работы с фронтендом
 app.use(cors({
-  origin: '*', // В продакшене лучше ограничить конкретными доменами
+  origin: FRONTEND_ORIGIN,
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+app.use(helmet());
+app.use(cookieParser());
 app.use(express.json());
 
+const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов. Попробуйте позже.' }
+});
+
 // Маршруты API
+app.use('/api/auth', authRateLimit, authRouter);
+app.use('/api/invitations', authRateLimit, invitationsRouter);
 app.use('/api', apiRouter);
 
 // Базовый эндпоинт для проверки здоровья (health check)

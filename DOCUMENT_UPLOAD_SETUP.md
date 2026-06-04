@@ -118,7 +118,7 @@ RETURNS UUID
 - Загрузка файлов при создании заявления
 - Интеграция с API functions
 
-### API (supabase.js)
+### API (app-api.js)
 - `documents.getTypes()` - получение типов документов
 - `documents.upload()` - загрузка документов
 - `applicationFiles.upload()` - загрузка фотографий

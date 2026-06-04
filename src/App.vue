@@ -41,7 +41,7 @@ const showLogoutConfirm = ref(false);
 onMounted(async () => {
   // Проверяем, есть ли признаки наличия сессии в localStorage, 
   // но при этом пользователь не считается авторизованным
-  const hasLocalToken = localStorage.getItem('supabase.auth.token');
+  const hasLocalToken = localStorage.getItem('app.auth.token');
   const isAuthenticated = !!authStore.user || authStore.isAuthenticated;
   
   console.log('App mounted', {
@@ -117,7 +117,7 @@ const refreshUserData = async () => {
     try {
       // Проверяем, нужно ли обновлять сессию
       const currentTime = Date.now();
-      const lastRefresh = localStorage.getItem('supabase.auth.lastRefresh');
+      const lastRefresh = localStorage.getItem('app.auth.lastRefresh');
       
       // Обновляем не чаще чем раз в 30 секунд
       if (lastRefresh && (currentTime - parseInt(lastRefresh)) < 30000) {
@@ -125,7 +125,7 @@ const refreshUserData = async () => {
         return;
       }
       
-      localStorage.setItem('supabase.auth.lastRefresh', currentTime.toString());
+      localStorage.setItem('app.auth.lastRefresh', currentTime.toString());
       
       const { success, authenticated } = await authStore.refreshSession();
       

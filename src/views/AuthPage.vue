@@ -71,9 +71,13 @@
                 v-model="form.password"
                 type="password"
                 required
+                :minlength="isLogin ? undefined : 10"
                 class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 :disabled="isLoading"
               />
+              <p v-if="!isLogin" class="mt-1 text-xs text-gray-500">
+                Минимум 10 символов, буквы и цифры.
+              </p>
             </div>
           </div>
 
@@ -89,6 +93,12 @@
             >
               {{ isLogin ? 'Войти' : 'Зарегистрироваться' }}
             </BaseButton>
+          </div>
+
+          <div v-if="isLogin" class="text-center">
+            <router-link to="/auth/forgot-password" class="text-sm font-medium text-primary-600 hover:text-primary-500">
+              Забыли пароль?
+            </router-link>
           </div>
         </form>
 
