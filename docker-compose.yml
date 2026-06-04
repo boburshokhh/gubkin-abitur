@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgrespassword
       POSTGRES_DB: abitur
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d
@@ -28,8 +28,8 @@ services:
     container_name: abitur-minio
     restart: always
     ports:
-      - "9002:9000"  # S3 API
-      - "9003:9001"  # MinIO Console
+      - "9005:9000"  # S3 API
+      - "9006:9001"  # MinIO Console
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadminpassword
@@ -53,7 +53,7 @@ services:
     container_name: abitur-backend
     restart: always
     ports:
-      - "3000:3000"
+      - "3005:3000"
     environment:
       DATABASE_URL: postgresql://postgres:postgrespassword@db:5432/abitur
       PORT: 3000
@@ -80,7 +80,7 @@ services:
     container_name: abitur-frontend
     restart: always
     ports:
-      - "8080:80"
+      - "8085:80"
     depends_on:
       - backend
     networks:
