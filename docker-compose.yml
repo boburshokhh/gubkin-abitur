@@ -24,7 +24,7 @@ services:
 
   # 2. Объектное хранилище MinIO
   minio:
-    image: minio/minio:RELEASE.2023-01-31T02-24-19Z
+    image: quay.io/minio/minio:RELEASE.2024-01-18T22-51-28Z-cpuv1
     container_name: abitur-minio
     restart: always
     ports:
@@ -39,7 +39,7 @@ services:
     networks:
       - abitur-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
       retries: 10
