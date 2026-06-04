@@ -50,6 +50,9 @@ export const auth = {
     try {
       const response = await apiClient.get('/auth/session')
       const { session, user } = response.data
+      if (session) {
+        session.user = user // Важно: добавляем user внутрь session, как в Supabase
+      }
       localStorage.setItem('sb-user', JSON.stringify(user))
       return { data: { session }, error: null }
     } catch (err) {
