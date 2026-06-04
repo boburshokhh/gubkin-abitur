@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # 1. База данных PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: abitur-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: abitur
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    networks:
+      - abitur-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d abitur"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Объектное хранилище MinIO
+  minio:
+    image: minio/minio:RELEASE.2023-11-20T23-26-44Z
+    container_name: abitur-minio
+    restart: always
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # MinIO Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadminpassword
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - abitur-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. Бэкенд на Node.js/Express
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: abitur-backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@db:5432/abitur
+      PORT: 3000
+      JWT_SECRET: super-secret-gubkin-key-2026
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadminpassword
+      S3_BUCKET_DOCUMENTS: application-documents
+      S3_BUCKET_FILES: application-files
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - abitur-network
+
+  # 4. Фронтенд на Vue 3 / Nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: abitur-frontend
+    restart: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - abitur-network
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  abitur-network:
+    driver: bridge
