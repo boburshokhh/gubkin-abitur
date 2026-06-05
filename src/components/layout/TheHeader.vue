@@ -249,12 +249,17 @@ const confirmLogout = async () => {
 }
 
 .the-header__inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 24px;
   width: min(1180px, calc(100% - 32px));
   height: 100%;
   margin: 0 auto;
+}
+
+.the-header__logo-link {
+  justify-self: start;
 }
 
 .the-header__logo {
@@ -263,12 +268,12 @@ const confirmLogout = async () => {
 }
 
 .the-header__menu {
-  flex: 1;
+  justify-self: center;
   border-bottom: 0;
 }
 
 .the-header__actions {
-  margin-left: auto;
+  justify-self: end;
 }
 
 .the-header__user-name {
@@ -277,7 +282,7 @@ const confirmLogout = async () => {
 
 .the-header__mobile-button {
   display: none;
-  margin-left: auto;
+  justify-self: end;
 }
 
 .the-header__drawer-actions {
@@ -285,6 +290,10 @@ const confirmLogout = async () => {
 }
 
 @media (max-width: 900px) {
+  .the-header__inner {
+    grid-template-columns: auto 1fr;
+  }
+
   .the-header__menu,
   .the-header__actions {
     display: none;
