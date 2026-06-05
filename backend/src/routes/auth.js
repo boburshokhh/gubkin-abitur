@@ -38,6 +38,10 @@ function formatUser(user) {
   };
 }
 
+function isEmailVerified(user) {
+  return Boolean(user.email_verified_at);
+}
+
 async function issueSession({ user, req, res }) {
   const session = await createSession({ user, req });
   setRefreshCookie(res, session.refreshToken, new Date(session.refreshExpiresAt));
@@ -61,8 +65,11 @@ router.post('/signup', async (req, res) => {
   if (!passwordValidation.isValid) return res.status(400).json({ error: passwordValidation.error });
 
   try {
-    const existing = await db.query('SELECT id, email, status FROM users WHERE LOWER(email) = $1', [email]);
-    if (existing.rows[0]?.status === 'active') {
+    const existing = await db.query(
+      'SELECT id, email, status, email_verified_at FROM users WHERE LOWER(email) = $1',
+      [email]
+    );
+    if (existing.rows[0]?.status === 'active' && isEmailVerified(existing.rows[0])) {
       return res.status(400).json({ error: 'Пользователь с таким email уже зарегистрирован' });
     }
 
@@ -80,7 +87,11 @@ router.post('/signup', async (req, res) => {
     } else {
       const refreshed = await db.query(
         `UPDATE users
-         SET password_hash = $2, first_name = $3, last_name = $4, updated_at = NOW()
+         SET password_hash = $2,
+             first_name = $3,
+             last_name = $4,
+             status = 'pending_verification',
+             updated_at = NOW()
          WHERE id = $1
          RETURNING id, email, first_name, last_name, middle_name, phone, role_id, status, email_verified_at`,
         [user.id, await hashPassword(password), firstName, lastName]
@@ -341,15 +352,26 @@ router.post('/resend-verification', async (req, res) => {
 
   try {
     const result = await db.query(
-      `SELECT id, email, status FROM users
-       WHERE LOWER(email) = $1 AND status = 'pending_verification'`,
+      `SELECT id, email, status, email_verified_at FROM users
+       WHERE LOWER(email) = $1
+         AND (status = 'pending_verification' OR email_verified_at IS NULL)`,
       [email]
     );
     const user = result.rows[0];
     if (user) {
       const token = await createAuthToken({ userId: user.id, email, type: 'email_verification', req });
       const emailPayload = verificationEmail({ token });
-      await sendEmail(email, emailPayload.subject, emailPayload.text, emailPayload.html);
+      const sent = await sendEmail(email, emailPayload.subject, emailPayload.text, emailPayload.html);
+      if (!sent) return res.status(500).json({ error: 'Не удалось отправить письмо подтверждения' });
+
+      if (user.status !== 'pending_verification') {
+        await db.query(
+          `UPDATE users
+           SET status = 'pending_verification', updated_at = NOW()
+           WHERE id = $1 AND email_verified_at IS NULL`,
+          [user.id]
+        );
+      }
     }
 
     return res.json({ success: true, message: GENERIC_VERIFICATION_MESSAGE });
