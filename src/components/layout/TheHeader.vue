@@ -27,36 +27,48 @@
 
       <el-space class="the-header__actions">
         <template v-if="isAuthenticated">
-          <div class="the-header__profile">
+          <div class="the-header__profile" aria-label="Профиль пользователя">
             <el-avatar :size="32">{{ userInitials }}</el-avatar>
             <div class="the-header__profile-info">
-              <el-text class="the-header__profile-email" truncated>
-                {{ userEmail }}
+              <el-text class="the-header__profile-name" truncated>
+                {{ userName }}
               </el-text>
-              <el-space class="the-header__profile-tags" :size="6">
-                <el-tag size="small" :type="roleTagType" effect="light">
-                  {{ roleLabel }}
-                </el-tag>
-                <el-tag size="small" :type="accountStatusType" effect="light">
-                  {{ accountStatusLabel }}
-                </el-tag>
-              </el-space>
+              <el-tag size="small" :type="roleTagType" effect="light">
+                {{ roleLabel }}
+              </el-tag>
             </div>
           </div>
 
-          <el-tooltip
-            v-if="hasStaffWorkspace"
-            :content="workspaceLabel"
-            placement="bottom"
+          <el-dropdown
+            trigger="click"
+            @command="handleUserCommand"
           >
-            <el-button :icon="Suitcase" circle @click="goToWorkspace" />
-          </el-tooltip>
-          <el-tooltip content="Личный кабинет" placement="bottom">
-            <el-button :icon="User" circle @click="goToProfile" />
-          </el-tooltip>
-          <el-tooltip content="Выйти" placement="bottom">
-            <el-button :icon="SwitchButton" circle type="danger" plain @click="confirmLogout" />
-          </el-tooltip>
+            <el-button class="the-header__profile-menu-button" plain>
+              Меню
+              <el-icon class="el-icon--right">
+                <ArrowDown />
+              </el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">
+                  Личный кабинет
+                </el-dropdown-item>
+                <el-dropdown-item
+                  v-if="hasStaffWorkspace"
+                  command="workspace"
+                >
+                  {{ workspaceLabel }}
+                </el-dropdown-item>
+                <el-dropdown-item disabled>
+                  Статус: {{ accountStatusLabel }}
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" divided>
+                  Выйти
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
 
         <template v-else>
@@ -152,7 +164,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { Menu, Suitcase, SwitchButton, User } from '@element-plus/icons-vue'
+import { ArrowDown, Menu } from '@element-plus/icons-vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 
@@ -232,6 +244,12 @@ const goToProfile = () => {
 
 const goToWorkspace = () => {
   goTo(workspacePath.value)
+}
+
+const handleUserCommand = (command) => {
+  if (command === 'profile') goToProfile()
+  if (command === 'workspace') goToWorkspace()
+  if (command === 'logout') confirmLogout()
 }
 
 const logout = async () => {
@@ -324,17 +342,14 @@ const confirmLogout = async () => {
   min-width: 0;
 }
 
-.the-header__profile-email {
+.the-header__profile-name {
   max-width: 220px;
   font-size: 13px;
   line-height: 1.2;
+  font-weight: 600;
 }
 
-.the-header__profile-tags {
-  flex-wrap: nowrap;
-}
-
-.the-header__profile-tags :deep(.el-space__item) {
+.the-header__profile-menu-button {
   flex-shrink: 0;
 }
 
