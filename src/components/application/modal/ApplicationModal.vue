@@ -1,35 +1,13 @@
 <template>
-  <div v-if="show" class="fixed inset-0 overflow-y-auto z-[100]">
-    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-      <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-      </div>
-      
-      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-      
-      <div 
-        class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-headline"
-      >
-        <div class="bg-gray-50 px-4 py-3 sm:px-6 flex justify-between items-center border-b border-gray-200">
-          <h3 class="text-lg font-medium text-gray-900" id="modal-headline">
-            Заявка №{{ application?.id?.substring(0, 8) }}
-          </h3>
-          <button 
-            @click="close" 
-            type="button" 
-            class="text-gray-400 hover:text-gray-500"
-          >
-            <span class="sr-only">Закрыть</span>
-            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 max-h-[80vh] overflow-y-auto">
+  <el-dialog
+    :model-value="show"
+    :title="`Заявка №${application?.id?.substring(0, 8) || ''}`"
+    width="900px"
+    class="application-modal"
+    destroy-on-close
+    @close="close"
+  >
+    <div class="application-modal__body">
           <!-- Индикатор загрузки -->
           <div v-if="isUpdating && !application" class="flex justify-center items-center py-10">
             <svg class="animate-spin h-10 w-10 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -654,60 +632,50 @@
             </div>
 
             <!-- Управление статусом (только для администраторов) -->
-            <div class="px-4 py-5 bg-yellow-50 rounded-lg border border-yellow-200">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Обновление статуса</h3>
-                <div class="space-y-4">
-                  <div>
-                    <label for="status" class="block text-sm font-medium text-gray-700">Изменить статус</label>
-                    <select 
-                      id="status" 
-                      v-model="newStatus" 
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                    >
-                      <option v-for="status in statuses" :key="status.id" :value="status.id">{{ status.name }}</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label for="comment" class="block text-sm font-medium text-gray-700">Комментарий</label>
-                    <textarea 
-                      id="comment" 
-                      v-model="comment" 
-                      rows="3" 
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+            <el-card shadow="never" class="application-modal__status-card">
+              <template #header>
+                <h3 class="application-modal__section-title">Обновление статуса</h3>
+              </template>
+
+              <el-form label-position="top">
+                <el-form-item label="Изменить статус">
+                  <el-select v-model="newStatus" class="application-modal__field">
+                    <el-option
+                      v-for="status in statuses"
+                      :key="status.id"
+                      :label="status.name"
+                      :value="status.id"
+                    />
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="Комментарий">
+                  <el-input
+                    v-model="comment"
+                    type="textarea"
+                    :rows="3"
                     placeholder="Добавьте комментарий к изменению статуса..."
-                    ></textarea>
-                </div>
-              </div>
-            </div>
-            
+                  />
+                </el-form-item>
+              </el-form>
+            </el-card>
           </div>
         </div>
-        
-        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-          <button 
-            @click="updateStatus"
-            type="button"
-            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:ml-3 sm:w-auto sm:text-sm"
-            :disabled="isUpdating || newStatus === application?.status_id"
-          >
-            <svg v-if="isUpdating" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            {{ isUpdating ? 'Обновление...' : 'Обновить статус' }}
-          </button>
-          <button 
-            @click="close"
-            type="button"
-            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-          >
-            Закрыть
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+
+    <template #footer>
+      <el-button @click="close">
+        Закрыть
+      </el-button>
+      <el-button
+        type="primary"
+        :loading="isUpdating"
+        :disabled="newStatus === application?.status_id"
+        @click="updateStatus"
+      >
+        Обновить статус
+      </el-button>
+    </template>
+  </el-dialog>
 
 </template>
 

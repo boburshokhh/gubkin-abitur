@@ -1,65 +1,38 @@
 <template>
-  <div class="min-h-screen bg-gray-100">
-    <header class="bg-white shadow">
-      <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-0">
-            Панель администратора
-          </h1>
-          <div class="flex flex-wrap items-center gap-2 sm:space-x-4">
-            <span class="text-sm text-gray-600 mr-1">
-              {{ authStore.profile?.first_name }} {{ authStore.profile?.last_name }}
-            </span>
-            <span 
-              class="inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-medium"
-              :class="{
-                'bg-purple-100 text-purple-800': authStore.isReviewer,
-                'bg-blue-100 text-blue-800': authStore.isAdmin && !authStore.isReviewer
-              }"
-            >
-              {{ getRoleName() }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </header>
+  <el-container class="admin-page">
+    <el-header class="admin-page__header">
+      <div class="admin-page__header-inner">
+        <el-page-header title="" content="Панель администратора" />
 
-    <main class="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
-      <div class="mb-4 sm:mb-6 border-b border-gray-200 overflow-x-auto">
-        <nav class="-mb-px flex space-x-4 sm:space-x-8 pb-1" aria-label="Tabs">
-          <button
+        <el-space wrap>
+          <el-text>
+            {{ authStore.profile?.first_name }} {{ authStore.profile?.last_name }}
+          </el-text>
+          <el-tag :type="authStore.isReviewer ? 'warning' : 'primary'" effect="light">
+            {{ getRoleName() }}
+          </el-tag>
+        </el-space>
+      </div>
+    </el-header>
+
+    <el-main class="admin-page__main">
+      <el-card shadow="never" class="admin-page__card">
+        <el-tabs v-model="currentTab" class="admin-page__tabs">
+          <el-tab-pane
             v-for="tab in tabs"
             :key="tab.id"
-            @click="currentTab = tab.id"
-            class="whitespace-nowrap py-2 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex-shrink-0"
-            :class="[
-              currentTab === tab.id
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            ]"
-          >
-            {{ tab.name }}
-          </button>
-        </nav>
-      </div>
+            :label="tab.name"
+            :name="tab.id"
+          />
+        </el-tabs>
 
-      <div v-if="currentTab === 'users'" class="px-2 sm:px-0">
-        <UsersManagement />
-      </div>
-
-      <div v-else-if="currentTab === 'invitations'" class="px-2 sm:px-0">
-        <InvitationsManagement />
-      </div>
-
-      <div v-else-if="currentTab === 'educational-programs'" class="px-2 sm:px-0">
-        <EducationalProgramsManager />
-      </div>
-
-      <div v-else-if="currentTab === 'applications'" class="px-2 sm:px-0">
-        <ApplicationsManager />
-      </div>
-    </main>
-  </div>
+        <UsersManagement v-if="currentTab === 'users'" />
+        <InvitationsManagement v-else-if="currentTab === 'invitations'" />
+        <EducationalProgramsManager v-else-if="currentTab === 'educational-programs'" />
+        <ApplicationsManager v-else-if="currentTab === 'applications'" />
+      </el-card>
+    </el-main>
+  </el-container>
 </template>
 
 <script setup>
@@ -111,10 +84,50 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.admin-page {
+  min-height: 100vh;
+  background: var(--el-bg-color-page);
+}
+
+.admin-page__header {
+  height: auto;
+  padding: 16px 24px;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-light);
+}
+
+.admin-page__header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.admin-page__main {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.admin-page__card {
+  border-radius: 12px;
+}
+
+.admin-page__tabs :deep(.el-tabs__header) {
+  margin-bottom: 24px;
+}
+
 @media (max-width: 640px) {
-  /* Стили для очень маленьких экранов */
-  .max-w-7xl {
-    width: 100%;
+  .admin-page__header-inner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-page__main {
+    padding: 12px;
   }
 }
 </style>

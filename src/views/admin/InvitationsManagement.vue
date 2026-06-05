@@ -1,93 +1,113 @@
 <template>
-  <div class="space-y-6">
-    <div class="bg-white shadow rounded-lg p-6">
-      <h3 class="text-lg font-medium text-gray-900">Отправить приглашение</h3>
-      <p class="mt-1 text-sm text-gray-500">Для сотрудников и администраторов используйте одноразовые invitation-ссылки.</p>
-
-      <form class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3" @submit.prevent="createInvitation">
+  <div class="invitations-management">
+    <el-card shadow="never">
+      <template #header>
         <div>
-          <label for="inviteEmail" class="block text-sm font-medium text-gray-700">Email</label>
-          <input
-            id="inviteEmail"
+          <h3 class="invitations-management__title">Отправить приглашение</h3>
+          <el-text type="info">
+            Для сотрудников и администраторов используйте одноразовые invitation-ссылки.
+          </el-text>
+        </div>
+      </template>
+
+      <el-form
+        :model="form"
+        label-position="top"
+        class="invitations-management__form"
+        @submit.prevent="createInvitation"
+      >
+        <el-form-item label="Email" required>
+          <el-input
             v-model="form.email"
             type="email"
-            required
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            placeholder="user@example.com"
+            clearable
           />
-        </div>
+        </el-form-item>
 
-        <div>
-          <label for="inviteRole" class="block text-sm font-medium text-gray-700">Роль</label>
-          <select
-            id="inviteRole"
-            v-model.number="form.roleId"
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+        <el-form-item label="Роль" required>
+          <el-select v-model="form.roleId" class="invitations-management__select">
+            <el-option label="Сотрудник приемной комиссии" :value="3" />
+            <el-option label="Администратор" :value="2" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item class="invitations-management__submit">
+          <el-button
+            type="primary"
+            native-type="submit"
+            :loading="isCreating"
+            :icon="Message"
           >
-            <option :value="3">Сотрудник приемной комиссии</option>
-            <option :value="2">Администратор</option>
-          </select>
-        </div>
+            Отправить
+          </el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
-        <div class="flex items-end">
-          <BaseButton type="submit" class="w-full" :disabled="isCreating">
-            {{ isCreating ? 'Отправка...' : 'Отправить' }}
-          </BaseButton>
+    <el-card shadow="never">
+      <template #header>
+        <div class="invitations-management__header">
+          <div>
+            <h3 class="invitations-management__title">Последние приглашения</h3>
+            <el-text type="info">Активные, принятые и отозванные ссылки.</el-text>
+          </div>
+          <el-button :loading="isLoading" :icon="Refresh" @click="loadInvitations">
+            Обновить
+          </el-button>
         </div>
-      </form>
-    </div>
+      </template>
 
-    <div class="bg-white shadow rounded-lg overflow-hidden">
-      <div class="px-6 py-4 flex items-center justify-between border-b border-gray-200">
-        <div>
-          <h3 class="text-lg font-medium text-gray-900">Последние приглашения</h3>
-          <p class="mt-1 text-sm text-gray-500">Активные, принятые и отозванные ссылки.</p>
-        </div>
-        <BaseButton variant="outline" @click="loadInvitations" :disabled="isLoading">
-          Обновить
-        </BaseButton>
-      </div>
+      <el-alert
+        v-if="error"
+        :title="error"
+        type="error"
+        show-icon
+        :closable="false"
+        class="invitations-management__alert"
+      />
 
-      <div v-if="isLoading" class="p-8 text-center text-sm text-gray-500">Загрузка...</div>
-      <div v-else-if="error" class="p-6 text-center text-red-600">{{ error }}</div>
-      <div v-else class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Роль</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Истекает</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="invitation in invitationsList" :key="invitation.id">
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ invitation.email }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ invitation.role_name }}</td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="getStatusClass(invitation)">
-                  {{ getStatusText(invitation) }}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDate(invitation.expires_at) }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                <button
-                  v-if="canRevoke(invitation)"
-                  class="text-red-600 hover:text-red-800"
-                  :disabled="isRevoking[invitation.id]"
-                  @click="revokeInvitation(invitation.id)"
-                >
-                  {{ isRevoking[invitation.id] ? 'Отзыв...' : 'Отозвать' }}
-                </button>
-              </td>
-            </tr>
-            <tr v-if="invitationsList.length === 0">
-              <td colspan="5" class="px-6 py-6 text-center text-sm text-gray-500">Приглашения не найдены</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <el-table
+        v-loading="isLoading"
+        :data="invitationsList"
+        row-key="id"
+        border
+        stripe
+        empty-text="Приглашения не найдены"
+      >
+        <el-table-column prop="email" label="Email" min-width="240" />
+        <el-table-column prop="role_name" label="Роль" min-width="220" />
+
+        <el-table-column label="Статус" width="140">
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row)" effect="light">
+              {{ getStatusText(row) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Истекает" min-width="180">
+          <template #default="{ row }">
+            {{ formatDate(row.expires_at) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Действия" width="150" align="right">
+          <template #default="{ row }">
+            <el-button
+              v-if="canRevoke(row)"
+              type="danger"
+              link
+              :loading="isRevoking[row.id]"
+              :icon="Delete"
+              @click="revokeInvitation(row.id)"
+            >
+              Отозвать
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
   </div>
 </template>
 
@@ -95,7 +115,7 @@
 import { onMounted, reactive, ref } from 'vue';
 import { useToast } from 'vue-toastification';
 import { invitations } from '@/api/app-api';
-import BaseButton from '@/components/ui/BaseButton.vue';
+import { Delete, Message, Refresh } from '@element-plus/icons-vue';
 
 const toast = useToast();
 const invitationsList = ref([]);
@@ -116,14 +136,12 @@ function getStatusText(invitation) {
   return 'Активно';
 }
 
-function getStatusClass(invitation) {
+function getStatusType(invitation) {
   const status = getStatusText(invitation);
-  return {
-    'bg-green-100 text-green-800': status === 'Принято',
-    'bg-blue-100 text-blue-800': status === 'Активно',
-    'bg-red-100 text-red-800': status === 'Отозвано',
-    'bg-gray-100 text-gray-800': status === 'Истекло'
-  };
+  if (status === 'Принято') return 'success';
+  if (status === 'Активно') return 'primary';
+  if (status === 'Отозвано') return 'danger';
+  return 'info';
 }
 
 function canRevoke(invitation) {
@@ -194,3 +212,58 @@ async function revokeInvitation(id) {
 
 onMounted(loadInvitations);
 </script>
+
+<style scoped>
+.invitations-management {
+  display: grid;
+  gap: 24px;
+}
+
+.invitations-management__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.invitations-management__title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.invitations-management__form {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.invitations-management__select {
+  width: 100%;
+}
+
+.invitations-management__submit {
+  margin-bottom: 18px;
+}
+
+.invitations-management__alert {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .invitations-management__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .invitations-management__form {
+    grid-template-columns: 1fr;
+  }
+
+  .invitations-management__submit {
+    margin-bottom: 0;
+  }
+}
+</style>

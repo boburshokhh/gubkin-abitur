@@ -1,44 +1,37 @@
 <template>
   <div class="applications-manager">
-    <div class="mb-6">
-      <h2 class="text-xl font-semibold text-gray-800 mb-4">
-        {{ isAdmin ? 'Управление заявками абитуриентов' : 'Обработка заявок абитуриентов' }}
-      </h2>
-      
-      <!-- Фильтры -->
-      <application-filters
-        :statuses="statuses"
-        :initial-filters="filters"
-        @update:filters="updateFilters"
-      />
-      
-      <!-- Статистика -->
-      <application-stats
-        :total-applications="totalApplications"
-        :new-applications-count="newApplicationsCount"
-      />
-      
-      <!-- Список заявок -->
-      <applications-table
-        :applications="paginatedApplications"
-        :statuses="statuses"
-        :loading="loading"
-        @view-application="openApplicationModal"
-      />
-      
-      <!-- Пагинация -->
-      <application-pagination
-        v-if="totalApplications > 0"
-        :current-page="pagination.currentPage"
-        :page-size="pagination.pageSize"
-        :total-items="totalApplications"
-        @change-page="handlePageChange"
-        @change-page-size="handlePageSizeChange"
-        class="mt-4"
-      />
-    </div>
-    
-    <!-- Модальное окно для просмотра и обновления заявки -->
+    <el-page-header
+      title=""
+      :content="isAdmin ? 'Управление заявками абитуриентов' : 'Обработка заявок абитуриентов'"
+    />
+
+    <application-filters
+      :statuses="statuses"
+      :initial-filters="filters"
+      @update:filters="updateFilters"
+    />
+
+    <application-stats
+      :total-applications="totalApplications"
+      :new-applications-count="newApplicationsCount"
+    />
+
+    <applications-table
+      :applications="paginatedApplications"
+      :statuses="statuses"
+      :loading="loading"
+      @view-application="openApplicationModal"
+    />
+
+    <application-pagination
+      v-if="totalApplications > 0"
+      :current-page="pagination.currentPage"
+      :page-size="pagination.pageSize"
+      :total-items="totalApplications"
+      @change-page="handlePageChange"
+      @change-page-size="handlePageSizeChange"
+    />
+
     <application-modal
       :show="showModal"
       :application="selectedApplication"
@@ -231,4 +224,11 @@ async function handleStatusUpdate({ applicationId, statusId, comment }) {
 }
 
 const paginatedApplications = computed(() => applicationsList.value);
-</script> 
+</script>
+
+<style scoped>
+.applications-manager {
+  display: grid;
+  gap: 24px;
+}
+</style>

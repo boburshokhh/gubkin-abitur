@@ -1,44 +1,46 @@
 <template>
-  <div class="overflow-x-auto bg-white rounded-lg shadow">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Абитуриент</th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата подачи</th>
-          <th scope="col" class="relative px-6 py-3"><span class="sr-only">Действия</span></th>
-          </tr>
-        </thead>
-      <tbody v-if="loading">
-        <tr><td colspan="6" class="text-center py-8">Загрузка...</td></tr>
-      </tbody>
-      <tbody v-else-if="applications.length === 0">
-        <tr><td colspan="6" class="text-center py-8">Заявки не найдены.</td></tr>
-      </tbody>
-      <tbody v-else class="bg-white divide-y divide-gray-200">
-        <tr v-for="app in applications" :key="app.id" class="hover:bg-gray-50">
-          <td class="px-6 py-4 whitespace-nowrap">
-            {{ app.applicant_full_name || getApplicantName(app) }}
-          </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="getStatusClass(app.status?.name || app.status_name)">
-              {{ app.status?.name || app.status_name }}
-              </span>
-            </td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(app.created_at) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-            <button @click="$emit('view-application', app)" class="text-primary-600 hover:text-primary-900">Просмотр</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-  </div>
+  <el-card shadow="never">
+    <el-table
+      v-loading="loading"
+      :data="applications"
+      row-key="id"
+      border
+      stripe
+      empty-text="Заявки не найдены"
+    >
+      <el-table-column label="Абитуриент" min-width="260">
+        <template #default="{ row }">
+          {{ row.applicant_full_name || getApplicantName(row) }}
+        </template>
+      </el-table-column>
+
+      <el-table-column label="Статус" width="180">
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status?.name || row.status_name)" effect="light">
+            {{ row.status?.name || row.status_name || 'Не указан' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="Дата подачи" width="160">
+        <template #default="{ row }">
+          {{ formatDate(row.created_at) }}
+        </template>
+      </el-table-column>
+
+      <el-table-column label="Действия" width="130" align="right">
+        <template #default="{ row }">
+          <el-button type="primary" link @click="$emit('view-application', row)">
+            Просмотр
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </el-card>
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
-
-const props = defineProps({
+defineProps({
   applications: {
     type: Array,
     required: true
@@ -55,14 +57,14 @@ const props = defineProps({
 
 defineEmits(['view-application']);
 
-const getStatusClass = (statusName) => {
-  const classes = {
-    'Подана': 'bg-blue-100 text-blue-800',
-    'Принята': 'bg-green-100 text-green-800',
-    'Отклонена': 'bg-red-100 text-red-800',
-    'Требует доработки': 'bg-yellow-100 text-yellow-800',
+const getStatusType = (statusName) => {
+  const types = {
+    'Подана': 'primary',
+    'Принята': 'success',
+    'Отклонена': 'danger',
+    'Требует доработки': 'warning',
   };
-  return classes[statusName] || 'bg-gray-100 text-gray-800';
+  return types[statusName] || 'info';
 };
 
 // Получение имени абитуриента в разных форматах данных
@@ -92,42 +94,6 @@ const getApplicantName = (app) => {
   
   // Если данные отсутствуют
   return 'Не указан';
-};
-
-// Получение названия направления
-const getDirectionName = (app) => {
-  // Если есть информация о направлении в выборке
-  if (app.direction_name) return app.direction_name;
-  if (app.direction_code) return app.direction_code;
-  
-  // Проверяем наличие объекта direction
-  if (app.direction && app.direction.name) return app.direction.name;
-  
-  // Если есть выбор образовательной программы
-  if (app.application_choices && app.application_choices.length > 0) {
-    const firstChoice = app.application_choices[0];
-    if (firstChoice.profile && firstChoice.profile.direction) {
-      return firstChoice.profile.direction.name || firstChoice.profile.direction.code || 'Не указано';
-    }
-  }
-  
-  return 'Не указано';
-};
-
-// Получение названия профиля/специальности
-const getProfileName = (app) => {
-  // Если есть информация о профиле в выборке
-  if (app.profile_name) return app.profile_name;
-  
-  // Если есть выбор образовательной программы
-  if (app.application_choices && app.application_choices.length > 0) {
-    const firstChoice = app.application_choices[0];
-    if (firstChoice.profile && firstChoice.profile.name) {
-      return firstChoice.profile.name;
-    }
-  }
-  
-  return 'Не указано';
 };
 
 // Форматирование даты

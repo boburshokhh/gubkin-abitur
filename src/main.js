@@ -11,6 +11,11 @@ import { useAuthStore } from './stores/auth'
 import Toast from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
 
+// Element Plus
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+
 // ApexCharts
 import VueApexCharts from 'vue3-apexcharts'
 
@@ -42,7 +47,12 @@ const app = createApp(App)
 app.use(pinia)
 app.use(router)
 app.use(Toast, toastOptions)
+app.use(ElementPlus)
 app.use(VueApexCharts)
+
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, component)
+}
 
 // Обработка ошибок
 app.config.errorHandler = (err, vm, info) => {

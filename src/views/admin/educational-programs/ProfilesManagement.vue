@@ -1,229 +1,217 @@
 <template>
-  <div class="bg-white shadow rounded-lg overflow-hidden">
-    <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
-      <div>
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Управление профилями и специализациями</h3>
-        <p class="mt-1 max-w-2xl text-sm text-gray-500">Добавление и редактирование профилей образовательных программ</p>
+  <el-card shadow="never" class="profiles-management">
+    <template #header>
+      <div class="profiles-management__header">
+        <div>
+          <h3 class="profiles-management__title">Управление профилями и специализациями</h3>
+          <el-text type="info">Добавление и редактирование профилей образовательных программ</el-text>
+        </div>
+        <el-button type="primary" :icon="Plus" @click="openCreateProfileModal">
+          Добавить профиль
+        </el-button>
       </div>
-      <BaseButton @click="openCreateProfileModal" variant="primary">Добавить профиль</BaseButton>
-    </div>
+    </template>
 
-    <!-- Фильтры -->
-    <div class="px-4 py-3 border-t border-gray-200 bg-gray-50">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Уровень образования</label>
-          <select v-model="filters.levelId" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
-            <option :value="null">Все уровни</option>
-            <option v-for="level in educationLevels" :key="level.id" :value="level.id">{{ level.name }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Направление</label>
-          <select v-model="filters.directionId" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
-            <option :value="null">Все направления</option>
-            <option v-for="direction in filteredDirections" :key="direction.id" :value="direction.id">
-              {{ direction.code }} - {{ direction.name }}
-            </option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Поиск</label>
-          <input v-model="filters.search" type="text" placeholder="Название профиля..." 
-                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
-        </div>
-      </div>
-    </div>
+    <el-form label-position="top" class="profiles-management__filters">
+      <el-form-item label="Уровень образования">
+        <el-select v-model="filters.levelId" clearable placeholder="Все уровни">
+          <el-option
+            v-for="level in educationLevels"
+            :key="level.id"
+            :label="level.name"
+            :value="level.id"
+          />
+        </el-select>
+      </el-form-item>
 
-    <!-- Таблица профилей -->
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Профиль/Специализация</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Направление</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Уровень</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Вступительные экзамены</th>
-            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
-          </tr>
-        </thead>
-        <tbody v-if="isLoading" class="bg-white divide-y divide-gray-200">
-          <tr>
-            <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">
-              <div class="flex justify-center mb-4">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-              </div>
-              <span>Загрузка данных...</span>
-            </td>
-          </tr>
-        </tbody>
-        <tbody v-else-if="filteredProfiles.length === 0" class="bg-white divide-y divide-gray-200">
-          <tr>
-            <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">
-              <div class="text-gray-400 mb-2">
-                <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h3 class="text-sm font-medium text-gray-900 mb-1">Профили не найдены</h3>
-              <p class="text-xs text-gray-500">Используйте кнопку "Добавить профиль" для создания нового</p>
-            </td>
-          </tr>
-        </tbody>
-        <tbody v-else class="bg-white divide-y divide-gray-200">
-          <tr v-for="profile in filteredProfiles" :key="profile.id" class="hover:bg-gray-50">
-            <td class="px-6 py-4 text-sm">
-              <div class="font-medium text-gray-900">{{ profile.name }}</div>
-              <div v-if="profile.description" class="text-gray-500 text-xs mt-1 max-w-xs truncate">{{ profile.description }}</div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <span v-if="profile.direction">
-                <div class="font-mono text-xs text-gray-600">{{ profile.direction.code }}</div>
-                <div class="text-sm">{{ profile.direction.name }}</div>
-              </span>
-              <span v-else class="italic text-gray-400">Не указано</span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <span v-if="profile.direction && profile.direction.level" 
-                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                    :class="getLevelBadgeClass(profile.direction.level.name)">
-                {{ profile.direction.level.name }}
-              </span>
-              <span v-else class="italic text-gray-400">Не указано</span>
-            </td>
-            <td class="px-6 py-4 text-sm text-gray-500">
-              <div v-if="profile.profile_exams && profile.profile_exams.length > 0" class="space-y-1">
-                <div v-for="exam in profile.profile_exams" :key="`${profile.id}-${exam.subject_id}`" class="flex items-center">
-                  <span class="mr-2 bg-primary-100 text-primary-800 px-2 py-0.5 rounded text-xs font-medium">{{ exam.priority }}</span>
-                  <span class="text-sm">{{ exam.subject ? exam.subject.name : getSubjectName(exam.subject_id) }}</span>
-                </div>
-              </div>
-              <div v-else class="text-gray-400 italic text-sm">Экзамены не настроены</div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <div class="flex justify-end space-x-2">
-                <BaseButton @click="openEditProfileModal(profile)" variant="outline" size="sm">
-                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Редактировать
-                </BaseButton>
-                <BaseButton @click="confirmDeleteProfile(profile.id)" variant="danger-outline" size="sm">
-                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Удалить
-                </BaseButton>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <el-form-item label="Направление">
+        <el-select v-model="filters.directionId" clearable filterable placeholder="Все направления">
+          <el-option
+            v-for="direction in filteredDirections"
+            :key="direction.id"
+            :label="`${direction.code} - ${direction.name}`"
+            :value="direction.id"
+          />
+        </el-select>
+      </el-form-item>
 
-    <!-- Модальное окно создания/редактирования профиля -->
-    <BaseModal v-model="showProfileModal" :title="currentProfile.id ? 'Редактирование профиля' : 'Добавление профиля'" class="!max-w-3xl">
-      <form @submit.prevent="saveProfile" class="space-y-6">
-        <!-- Основная информация -->
-        <div class="bg-gray-50 p-4 rounded-lg">
-          <h3 class="text-sm font-medium text-gray-800 mb-3">Основная информация</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Название профиля/специализации <span class="text-red-500">*</span>
-              </label>
-              <input v-model="currentProfile.name" required 
-                     placeholder="Например: Бурение нефтяных и газовых скважин (УРБ)"
-                     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500" />
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Уровень образования <span class="text-red-500">*</span>
-              </label>
-              <select v-model="selectedLevelId" required @change="onLevelChange"
-                      class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
-                <option :value="null">Выберите уровень</option>
-                <option v-for="level in educationLevels" :key="level.id" :value="level.id">{{ level.name }}</option>
-              </select>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Направление <span class="text-red-500">*</span>
-              </label>
-              <select v-model="currentProfile.direction_id" required
-                      class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
-                <option :value="null">Выберите направление</option>
-                <option v-for="direction in directionsForSelectedLevel" :key="direction.id" :value="direction.id">
-                  {{ direction.code }} - {{ direction.name }}
-                </option>
-              </select>
-            </div>
-            
-            <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Описание</label>
-              <textarea v-model="currentProfile.description" rows="3" 
-                        placeholder="Краткое описание профиля и особенностей подготовки..."
-                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"></textarea>
-            </div>
-          </div>
+      <el-form-item label="Поиск">
+        <el-input v-model="filters.search" placeholder="Название профиля..." clearable />
+      </el-form-item>
+    </el-form>
+
+    <el-table
+      v-loading="isLoading"
+      :data="filteredProfiles"
+      row-key="id"
+      border
+      stripe
+      empty-text="Профили не найдены"
+    >
+      <el-table-column label="Профиль/Специализация" min-width="280">
+        <template #default="{ row }">
+          <el-text tag="div" class="profiles-management__profile-name">{{ row.name }}</el-text>
+          <el-text v-if="row.description" type="info" size="small" truncated>
+            {{ row.description }}
+          </el-text>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="Направление" min-width="260">
+        <template #default="{ row }">
+          <template v-if="row.direction">
+            <el-tag type="success" effect="light">{{ row.direction.code }}</el-tag>
+            <el-text tag="div">{{ row.direction.name }}</el-text>
+          </template>
+          <el-text v-else type="info">Не указано</el-text>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="Уровень" width="170">
+        <template #default="{ row }">
+          <el-tag v-if="row.direction?.level" :type="getLevelTagType(row.direction.level.name)" effect="light">
+            {{ row.direction.level.name }}
+          </el-tag>
+          <el-text v-else type="info">Не указано</el-text>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="Вступительные экзамены" min-width="260">
+        <template #default="{ row }">
+          <el-space v-if="row.profile_exams?.length" wrap>
+            <el-tag
+              v-for="exam in row.profile_exams"
+              :key="`${row.id}-${exam.subject_id}`"
+              type="primary"
+              effect="light"
+            >
+              {{ exam.priority }}. {{ exam.subject ? exam.subject.name : getSubjectName(exam.subject_id) }}
+            </el-tag>
+          </el-space>
+          <el-text v-else type="info">Экзамены не настроены</el-text>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="Действия" width="170" align="right" fixed="right">
+        <template #default="{ row }">
+          <el-button-group>
+            <el-button size="small" :icon="Edit" @click="openEditProfileModal(row)">
+              Изменить
+            </el-button>
+            <el-button size="small" type="danger" :icon="Delete" @click="confirmDeleteProfile(row.id)" />
+          </el-button-group>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-dialog
+      v-model="showProfileModal"
+      :title="currentProfile.id ? 'Редактирование профиля' : 'Добавление профиля'"
+      width="760px"
+    >
+      <el-form :model="currentProfile" label-position="top" @submit.prevent="saveProfile">
+        <el-divider content-position="left">Основная информация</el-divider>
+
+        <el-form-item label="Название профиля/специализации" required>
+          <el-input
+            v-model="currentProfile.name"
+            placeholder="Например: Бурение нефтяных и газовых скважин (УРБ)"
+          />
+        </el-form-item>
+
+        <div class="profiles-management__dialog-grid">
+          <el-form-item label="Уровень образования" required>
+            <el-select
+              v-model="selectedLevelId"
+              placeholder="Выберите уровень"
+              class="profiles-management__select"
+              @change="onLevelChange"
+            >
+              <el-option
+                v-for="level in educationLevels"
+                :key="level.id"
+                :label="level.name"
+                :value="level.id"
+              />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="Направление" required>
+            <el-select
+              v-model="currentProfile.direction_id"
+              placeholder="Выберите направление"
+              class="profiles-management__select"
+              filterable
+            >
+              <el-option
+                v-for="direction in directionsForSelectedLevel"
+                :key="direction.id"
+                :label="`${direction.code} - ${direction.name}`"
+                :value="direction.id"
+              />
+            </el-select>
+          </el-form-item>
         </div>
-        
-        <!-- Вступительные экзамены -->
-        <div class="bg-blue-50 p-4 rounded-lg">
-          <h3 class="text-sm font-medium text-gray-800 mb-3">Вступительные экзамены</h3>
-          <div class="space-y-3">
-            <div v-for="(exam, index) in currentProfile.exams" :key="index" 
-                 class="flex items-center space-x-3 p-3 bg-white rounded border">
-              <div class="flex-shrink-0">
-                <span class="inline-flex items-center justify-center w-6 h-6 bg-primary-100 text-primary-800 text-xs font-medium rounded-full">
-                  {{ exam.priority }}
-                </span>
-              </div>
-              <div class="flex-1">
-                <select v-model="exam.subject_id" required
-                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
-                  <option :value="null">Выберите предмет</option>
-                  <option v-for="subject in allSubjects" :key="subject.id" :value="subject.id">{{ subject.name }}</option>
-                </select>
-              </div>
-              <div class="flex-shrink-0">
-                <BaseButton @click="removeExam(index)" variant="danger-outline" size="sm" type="button">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </BaseButton>
-              </div>
-            </div>
-            
-            <BaseButton @click="addExam" type="button" variant="outline" size="sm" class="w-full">
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Добавить экзамен
-            </BaseButton>
-          </div>
+
+        <el-form-item label="Описание">
+          <el-input
+            v-model="currentProfile.description"
+            type="textarea"
+            :rows="3"
+            placeholder="Краткое описание профиля и особенностей подготовки..."
+          />
+        </el-form-item>
+
+        <el-divider content-position="left">Вступительные экзамены</el-divider>
+
+        <div class="profiles-management__exams">
+          <el-card
+            v-for="(exam, index) in currentProfile.exams"
+            :key="index"
+            shadow="never"
+            class="profiles-management__exam"
+          >
+            <el-form-item :label="`Экзамен ${exam.priority}`" required>
+              <el-select
+                v-model="exam.subject_id"
+                placeholder="Выберите предмет"
+                class="profiles-management__select"
+              >
+                <el-option
+                  v-for="subject in allSubjects"
+                  :key="subject.id"
+                  :label="subject.name"
+                  :value="subject.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-button type="danger" plain :icon="Delete" @click="removeExam(index)">
+              Удалить
+            </el-button>
+          </el-card>
         </div>
-        
-        <!-- Кнопки -->
-        <div class="flex justify-end gap-3 pt-4 border-t">
-          <BaseButton @click="closeProfileModal" type="button" variant="outline">Отмена</BaseButton>
-          <BaseButton type="submit" variant="primary" :disabled="isSaving">
-            <span v-if="isSaving">Сохранение...</span>
-            <span v-else>{{ currentProfile.id ? 'Обновить профиль' : 'Создать профиль' }}</span>
-          </BaseButton>
-        </div>
-      </form>
-    </BaseModal>
-  </div>
+
+        <el-button plain :icon="Plus" class="profiles-management__add-exam" @click="addExam">
+          Добавить экзамен
+        </el-button>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="closeProfileModal">Отмена</el-button>
+        <el-button type="primary" :loading="isSaving" @click="saveProfile">
+          {{ currentProfile.id ? 'Обновить профиль' : 'Создать профиль' }}
+        </el-button>
+      </template>
+    </el-dialog>
+  </el-card>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useToast } from 'vue-toastification';
 import { levels as levelsApi, directions as directionsApi, profiles as profilesApi, subjects as subjectsApi } from '@/api/education';
-import { BaseButton, BaseModal } from '@/components/ui';
+import { ElMessageBox } from 'element-plus';
+import { Delete, Edit, Plus } from '@element-plus/icons-vue';
 
 // Состояние компонента
 const isLoading = ref(false);
@@ -338,16 +326,16 @@ function getSubjectName(subjectId) {
   return subject ? subject.name : 'Неизвестный предмет';
 }
 
-function getLevelBadgeClass(levelName) {
+function getLevelTagType(levelName) {
   switch (levelName) {
     case 'Бакалавриат':
-      return 'bg-blue-100 text-blue-800';
+      return 'primary';
     case 'Специалитет':
-      return 'bg-green-100 text-green-800';
+      return 'success';
     case 'Магистратура':
-      return 'bg-purple-100 text-purple-800';
+      return 'warning';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'info';
   }
 }
 
@@ -434,7 +422,17 @@ async function saveProfile() {
 }
 
 async function confirmDeleteProfile(profileId) {
-  if (confirm('Вы уверены, что хотите удалить этот профиль? Это действие нельзя отменить.')) {
+  try {
+    await ElMessageBox.confirm(
+      'Вы уверены, что хотите удалить этот профиль? Это действие нельзя отменить.',
+      'Подтверждение удаления',
+      {
+        confirmButtonText: 'Удалить',
+        cancelButtonText: 'Отмена',
+        type: 'warning'
+      }
+    );
+
     try {
       const { error } = await profilesApi.delete(profileId);
       
@@ -446,6 +444,8 @@ async function confirmDeleteProfile(profileId) {
     } catch (error) {
       toast.error(`Ошибка при удалении профиля: ${error.message}`);
     }
+  } catch {
+    // Пользователь отменил удаление.
   }
 }
 
@@ -465,3 +465,73 @@ function removeExam(index) {
   });
 }
 </script>
+
+<style scoped>
+.profiles-management__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profiles-management__title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.profiles-management__filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 8px;
+}
+
+.profiles-management__profile-name {
+  font-weight: 600;
+}
+
+.profiles-management__dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.profiles-management__select {
+  width: 100%;
+}
+
+.profiles-management__exams {
+  display: grid;
+  gap: 12px;
+}
+
+.profiles-management__exam {
+  background: var(--el-fill-color-lighter);
+}
+
+.profiles-management__add-exam {
+  width: 100%;
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .profiles-management__header,
+  .profiles-management__dialog-grid {
+    align-items: flex-start;
+    grid-template-columns: 1fr;
+  }
+
+  .profiles-management__header {
+    flex-direction: column;
+  }
+
+  .profiles-management__filters {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

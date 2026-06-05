@@ -1,220 +1,114 @@
 <template>
-  <div>
-    <div class="bg-white shadow rounded-lg overflow-hidden">
-      <div class="px-4 py-5 sm:px-6 flex flex-col sm:flex-row justify-between sm:items-center">
-        <div class="mb-4 sm:mb-0">
-          <h3 class="text-lg leading-6 font-medium text-gray-900">Управление пользователями</h3>
-          <p class="mt-1 max-w-2xl text-sm text-gray-500">Назначение сотрудников приемной комиссии</p>
+  <el-card shadow="never">
+    <template #header>
+      <div class="users-management__header">
+        <div>
+          <h3 class="users-management__title">Управление пользователями</h3>
+          <el-text type="info">Назначение сотрудников приемной комиссии</el-text>
         </div>
-        <div class="flex flex-col sm:flex-row gap-3">
-          <!-- Кнопка экспорта в Excel -->
-          <button
+
+        <el-space wrap>
+          <el-button
+            type="success"
+            :loading="isExporting"
+            :icon="Download"
             @click="exportUsersToExcel"
-            :disabled="isExporting"
-            class="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            {{ isExporting ? 'Экспорт...' : 'Экспорт в Excel' }}
-          </button>
-          
-          <button
-            @click="loadUsers"
-            class="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            Экспорт в Excel
+          </el-button>
+          <el-button :loading="isLoading" :icon="Refresh" @click="loadUsers">
             Обновить
-          </button>
-        </div>
+          </el-button>
+        </el-space>
       </div>
-      
-      <div class="border-t border-gray-200">
-        <div v-if="isLoading" class="flex justify-center items-center p-8">
-          <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
-        </div>
-        
-        <div v-else-if="error" class="p-6 text-center text-red-500">
-          {{ error }}
-        </div>
-        
-        <div v-else>
-          <!-- Десктопная версия таблицы (скрыта на мобильных) -->
-          <div class="hidden sm:block overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Пользователь
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Роль
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Действия
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="user in users" :key="user.id">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
-                        <span class="text-gray-500 text-sm font-medium">
-                          {{ getInitials(user.first_name, user.last_name) }}
-                        </span>
-                      </div>
-                      <div class="ml-4">
-                        <div class="text-sm font-medium text-gray-900">
-                          {{ user.first_name }} {{ user.last_name }}
-                        </div>
-                        <div class="text-sm text-gray-500">
-                          Рег: {{ formatDate(user.created_at) }}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {{ user.email }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <span 
-                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                        :class="{
-                          'bg-green-100 text-green-800': user.role_id === 1,
-                          'bg-blue-100 text-blue-800': user.role_id === 2,
-                          'bg-purple-100 text-purple-800': user.role_id === 3
-                        }"
-                      >
-                        {{ getRoleName(user.role_id) }}
-                      </span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div class="flex items-center space-x-2">
-                      <select 
-                        v-model="editableRoles[user.id]" 
-                        class="block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-                        :disabled="user.id === authStore.user?.id || isUpdating[user.id] || user.role_id === 2"
-                      >
-                        <option :value="1">Абитуриент</option>
-                        <option v-if="user.role_id === 2" :value="2">Администратор</option>
-                        <option :value="3">Сотрудник приемной комиссии</option>
-                      </select>
-                      
-                      <button 
-                        v-if="isRoleChanged(user)"
-                        @click="saveUserRole(user.id)"
-                        class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                        :disabled="isUpdating[user.id] || user.role_id === 2"
-                      >
-                        Сохранить
-                      </button>
-                      
-                      <span v-if="isUpdating[user.id]" class="ml-2 text-xs text-gray-500">Обновление...</span>
-                    </div>
-                    
-                    <div v-if="user.role_id === 2" class="mt-1 text-xs text-gray-500">
-                      Роль администратора нельзя изменить
-                    </div>
-                  </td>
-                </tr>
-                <tr v-if="users.length === 0">
-                  <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">
-                    Пользователи не найдены
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <!-- Мобильная версия списка (отображается только на мобильных) -->
-          <div class="sm:hidden">
-            <ul class="divide-y divide-gray-200">
-              <li v-for="user in users" :key="user.id" class="px-4 py-4">
-                <div class="flex items-center space-x-4">
-                  <div class="flex-shrink-0 h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span class="text-gray-500 font-medium">
-                      {{ getInitials(user.first_name, user.last_name) }}
-                    </span>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-900 truncate">
-                      {{ user.first_name }} {{ user.last_name }}
-                    </p>
-                    <p class="text-sm text-gray-500 truncate">
-                      {{ user.email }}
-                    </p>
-                    <div class="mt-1 flex items-center">
-                      <span 
-                        class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full"
-                        :class="{
-                          'bg-green-100 text-green-800': user.role_id === 1,
-                          'bg-blue-100 text-blue-800': user.role_id === 2,
-                          'bg-purple-100 text-purple-800': user.role_id === 3
-                        }"
-                      >
-                        {{ getRoleName(user.role_id) }}
-                      </span>
-                      <span class="ml-2 text-xs text-gray-500">
-                        Рег: {{ formatDate(user.created_at) }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="mt-4 flex flex-col space-y-3">
-                  <div v-if="user.role_id === 2" class="text-xs text-gray-500">
-                    Роль администратора нельзя изменить
-                  </div>
-                  <div v-else class="flex flex-col space-y-2">
-                    <select 
-                      v-model="editableRoles[user.id]" 
-                      class="block w-full pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 rounded-md"
-                      :disabled="user.id === authStore.user?.id || isUpdating[user.id]"
-                    >
-                      <option :value="1">Абитуриент</option>
-                      <option :value="3">Сотрудник приемной комиссии</option>
-                    </select>
-                    
-                    <div class="flex items-center justify-between">
-                      <button 
-                        v-if="isRoleChanged(user)"
-                        @click="saveUserRole(user.id)"
-                        class="w-full inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                        :disabled="isUpdating[user.id]"
-                      >
-                        {{ isUpdating[user.id] ? 'Обновление...' : 'Сохранить изменения' }}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </li>
-              
-              <li v-if="users.length === 0" class="px-4 py-6 text-center text-sm text-gray-500">
-                Пользователи не найдены
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+    </template>
+
+    <el-alert
+      v-if="error"
+      :title="error"
+      type="error"
+      show-icon
+      :closable="false"
+      class="users-management__alert"
+    />
+
+    <el-table
+      v-loading="isLoading"
+      :data="users"
+      row-key="id"
+      border
+      stripe
+      empty-text="Пользователи не найдены"
+    >
+      <el-table-column label="Пользователь" min-width="240">
+        <template #default="{ row }">
+          <el-space>
+            <el-avatar>
+              {{ getInitials(row.first_name, row.last_name) }}
+            </el-avatar>
+            <div>
+              <el-text tag="div" class="users-management__name">
+                {{ row.first_name }} {{ row.last_name }}
+              </el-text>
+              <el-text type="info" size="small">
+                Рег: {{ formatDate(row.created_at) }}
+              </el-text>
+            </div>
+          </el-space>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="email" label="Email" min-width="220" />
+
+      <el-table-column label="Роль" width="230">
+        <template #default="{ row }">
+          <el-tag :type="getRoleTagType(row.role_id)" effect="light">
+            {{ getRoleName(row.role_id) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="Действия" min-width="360" fixed="right">
+        <template #default="{ row }">
+          <el-space wrap>
+            <el-select
+              v-model="editableRoles[row.id]"
+              :disabled="row.id === authStore.user?.id || isUpdating[row.id] || row.role_id === 2"
+              style="width: 240px"
+            >
+              <el-option label="Абитуриент" :value="1" />
+              <el-option v-if="row.role_id === 2" label="Администратор" :value="2" />
+              <el-option label="Сотрудник приемной комиссии" :value="3" />
+            </el-select>
+
+            <el-button
+              v-if="isRoleChanged(row)"
+              type="primary"
+              size="small"
+              :loading="isUpdating[row.id]"
+              :disabled="row.role_id === 2"
+              @click="saveUserRole(row.id)"
+            >
+              Сохранить
+            </el-button>
+          </el-space>
+
+          <el-text v-if="row.role_id === 2" type="info" size="small">
+            Роль администратора нельзя изменить
+          </el-text>
+        </template>
+      </el-table-column>
+    </el-table>
+
+  </el-card>
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, computed } from 'vue';
+import { ref, onMounted, reactive } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
-import BaseButton from '@/components/ui/BaseButton.vue';
 import { useApplicationStore } from '@/stores/application';
-import * as XLSX from 'exceljs'; // Импорт для Excel
+import { Download, Refresh } from '@element-plus/icons-vue';
 
 const authStore = useAuthStore();
 const toast = useToast();
@@ -341,6 +235,15 @@ const getRoleName = (roleId) => {
   }
 };
 
+const getRoleTagType = (roleId) => {
+  switch (roleId) {
+    case 1: return 'success';
+    case 2: return 'primary';
+    case 3: return 'warning';
+    default: return 'info';
+  }
+};
+
 // Получение инициалов пользователя
 const getInitials = (firstName, lastName) => {
   if (!firstName && !lastName) return '?';
@@ -386,4 +289,35 @@ const exportUsersToExcel = async () => {
 onMounted(() => {
   loadUsers();
 });
-</script> 
+</script>
+
+<style scoped>
+.users-management__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.users-management__title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.users-management__name {
+  font-weight: 600;
+}
+
+.users-management__alert {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .users-management__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>
