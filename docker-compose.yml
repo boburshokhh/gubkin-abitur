@@ -50,6 +50,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-local}
+        GIT_SHA: ${GIT_SHA:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
     container_name: abitur-backend
     restart: always
     ports:
@@ -86,6 +90,12 @@ services:
         condition: service_healthy
     networks:
       - abitur-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   # 4. Фронтенд на Vue 3 / Nginx
   frontend:
@@ -95,14 +105,24 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_ADMISSION_OPEN: ${VITE_ADMISSION_OPEN:-true}
+        APP_VERSION: ${APP_VERSION:-local}
+        GIT_SHA: ${GIT_SHA:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
     container_name: abitur-frontend
     restart: always
     ports:
       - "8085:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - abitur-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/frontend-health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   postgres_data:

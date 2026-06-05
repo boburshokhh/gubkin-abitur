@@ -12,8 +12,35 @@ const { FRONTEND_ORIGIN } = require('./config/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const APP_VERSION = process.env.APP_VERSION || 'local';
+const GIT_SHA = process.env.GIT_SHA || 'unknown';
+const BUILD_DATE = process.env.BUILD_DATE || 'unknown';
 
 app.set('trust proxy', 1);
+
+app.use((req, res, next) => {
+  const startedAt = process.hrtime.bigint();
+
+  res.on('finish', () => {
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const ip = Array.isArray(forwardedFor)
+      ? forwardedFor[0]
+      : forwardedFor?.split(',')[0]?.trim() || req.ip;
+
+    console.log(JSON.stringify({
+      type: 'access',
+      method: req.method,
+      path: req.originalUrl,
+      status: res.statusCode,
+      durationMs: Number(durationMs.toFixed(1)),
+      ip,
+      userAgent: req.get('user-agent') || null
+    }));
+  });
+
+  next();
+});
 
 // Настройка CORS для работы с фронтендом
 app.use(cors({
@@ -42,7 +69,15 @@ app.use('/api', apiRouter);
 
 // Базовый эндпоинт для проверки здоровья (health check)
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.round(process.uptime()),
+    version: APP_VERSION,
+    gitSha: GIT_SHA,
+    buildDate: BUILD_DATE,
+    nodeEnv: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Глобальный обработчик ошибок
@@ -53,4 +88,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Сервер бэкенда успешно запущен на порту ${PORT}`);
+  console.log(`Backend build: version=${APP_VERSION} gitSha=${GIT_SHA} buildDate=${BUILD_DATE}`);
 });
