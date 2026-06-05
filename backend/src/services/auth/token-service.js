@@ -14,7 +14,7 @@ function getRefreshCookieOptions(expiresAt = null) {
   return {
     httpOnly: true,
     secure: IS_PRODUCTION,
-    sameSite: 'lax',
+    sameSite: IS_PRODUCTION ? 'none' : 'lax',
     path: '/api/auth',
     expires: expiresAt || undefined
   };
