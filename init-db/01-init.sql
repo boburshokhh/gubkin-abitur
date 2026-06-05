@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS applications (
   accommodation_needed BOOLEAN DEFAULT FALSE,
   olympiad_participant BOOLEAN DEFAULT FALSE,
   parent_phone TEXT,
+  address TEXT,
   academic_year INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM CURRENT_DATE),
   education_document_number TEXT,
   education_document_date DATE,

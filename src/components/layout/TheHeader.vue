@@ -27,30 +27,36 @@
 
       <el-space class="the-header__actions">
         <template v-if="isAuthenticated">
-          <el-dropdown trigger="click" @command="handleUserCommand">
-            <el-button text>
-              <el-avatar :size="28">{{ userInitials }}</el-avatar>
-              <span class="the-header__user-name">{{ userName }}</span>
-              <el-icon><ArrowDown /></el-icon>
-            </el-button>
+          <div class="the-header__profile">
+            <el-avatar :size="32">{{ userInitials }}</el-avatar>
+            <div class="the-header__profile-info">
+              <el-text class="the-header__profile-email" truncated>
+                {{ userEmail }}
+              </el-text>
+              <el-space :size="6" wrap>
+                <el-tag size="small" :type="roleTagType" effect="light">
+                  {{ roleLabel }}
+                </el-tag>
+                <el-tag size="small" :type="accountStatusType" effect="light">
+                  {{ accountStatusLabel }}
+                </el-tag>
+              </el-space>
+            </div>
+          </div>
 
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item
-                  v-if="hasStaffWorkspace"
-                  command="workspace"
-                >
-                  {{ workspaceLabel }}
-                </el-dropdown-item>
-                <el-dropdown-item command="profile">
-                  Личный кабинет
-                </el-dropdown-item>
-                <el-dropdown-item command="logout" divided>
-                  Выйти
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <el-tooltip
+            v-if="hasStaffWorkspace"
+            :content="workspaceLabel"
+            placement="bottom"
+          >
+            <el-button :icon="Suitcase" circle @click="goToWorkspace" />
+          </el-tooltip>
+          <el-tooltip content="Личный кабинет" placement="bottom">
+            <el-button :icon="User" circle @click="goToProfile" />
+          </el-tooltip>
+          <el-tooltip content="Выйти" placement="bottom">
+            <el-button :icon="SwitchButton" circle type="danger" plain @click="confirmLogout" />
+          </el-tooltip>
         </template>
 
         <template v-else>
@@ -98,6 +104,22 @@
 
       <el-space direction="vertical" fill class="the-header__drawer-actions">
         <template v-if="isAuthenticated">
+          <el-descriptions :column="1" size="small" border>
+            <el-descriptions-item label="Email">
+              {{ userEmail }}
+            </el-descriptions-item>
+            <el-descriptions-item label="Роль">
+              <el-tag size="small" :type="roleTagType" effect="light">
+                {{ roleLabel }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="Статус">
+              <el-tag size="small" :type="accountStatusType" effect="light">
+                {{ accountStatusLabel }}
+              </el-tag>
+            </el-descriptions-item>
+          </el-descriptions>
+
           <el-button
             v-if="hasStaffWorkspace"
             @click="goToWorkspace"
@@ -130,7 +152,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { ArrowDown, Menu } from '@element-plus/icons-vue'
+import { Menu, Suitcase, SwitchButton, User } from '@element-plus/icons-vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 
@@ -154,6 +176,27 @@ const hasStaffWorkspace = computed(() => authStore.isAdmin || authStore.isReview
 const workspacePath = computed(() => (authStore.isAdmin ? '/admin' : '/reviewer'))
 const workspaceLabel = computed(() => (
   authStore.isAdmin ? 'Панель администратора' : 'Панель сотрудника'
+))
+const userEmail = computed(() => authStore.user?.email || 'Email не указан')
+
+const roleLabel = computed(() => {
+  if (authStore.isAdmin) return 'Администратор'
+  if (authStore.isReviewer) return 'Сотрудник'
+  return 'Абитуриент'
+})
+
+const roleTagType = computed(() => {
+  if (authStore.isAdmin) return 'danger'
+  if (authStore.isReviewer) return 'warning'
+  return 'primary'
+})
+
+const accountStatusLabel = computed(() => (
+  authStore.isEmailConfirmed ? 'Подтвержден' : 'Не подтвержден'
+))
+
+const accountStatusType = computed(() => (
+  authStore.isEmailConfirmed ? 'success' : 'warning'
 ))
 
 const userName = computed(() => {
@@ -189,20 +232,6 @@ const goToProfile = () => {
 
 const goToWorkspace = () => {
   goTo(workspacePath.value)
-}
-
-const handleUserCommand = (command) => {
-  if (command === 'workspace') {
-    goToWorkspace()
-    return
-  }
-
-  if (command === 'profile') {
-    goToProfile()
-    return
-  }
-
-  if (command === 'logout') confirmLogout()
 }
 
 const logout = async () => {
@@ -276,8 +305,26 @@ const confirmLogout = async () => {
   justify-self: end;
 }
 
-.the-header__user-name {
-  margin: 0 6px;
+.the-header__profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 300px;
+  padding: 4px 8px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 8px;
+}
+
+.the-header__profile-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.the-header__profile-email {
+  max-width: 220px;
+  font-size: 13px;
+  line-height: 1.2;
 }
 
 .the-header__mobile-button {

@@ -92,9 +92,9 @@ function updateFilters(newFilters) {
   pagination.currentPage = 1;
 }
 
-// Подсчет новых заявок (статус "Подана")
+// Подсчет новых заявок (статус "Подано")
 const newApplicationsCount = computed(() => {
-  return applicationsList.value.filter(app => app.status?.name === 'Подана').length;
+  return applicationsList.value.filter(app => app.status?.name === 'Подано').length;
 });
 
 // Обработка изменения страницы

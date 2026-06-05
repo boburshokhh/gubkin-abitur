@@ -636,7 +636,7 @@ async function submitForm() {
       
       const failedUploads = uploadResults.filter(result => result.status === 'rejected');
       if (failedUploads.length > 0) {
-        toast.warning('Заявление создано, но некоторые файлы не удалось загрузить. Пожалуйста, добавьте их позже в личном кабинете.');
+        throw new Error('Заявление создано как черновик, но некоторые файлы не удалось загрузить. Пожалуйста, попробуйте отправить заявление после повторной загрузки документов.');
       }
     } else {
       submissionProgress.value = 85;
@@ -644,7 +644,13 @@ async function submitForm() {
     
     // Этап 5: Финализация (85% -> 100%)
     submissionProgress.value = 90;
-    submissionStatus.value = 'Финализация заявления...';
+    submissionStatus.value = 'Отправка заявления в приемную комиссию...';
+    
+    const submitResult = await appStore.submitApplication(applicationId);
+    if (!submitResult.success) {
+      throw new Error(submitResult.error || 'Не удалось отправить заявление на рассмотрение');
+    }
+    
     await new Promise(resolve => setTimeout(resolve, 500));
     
     submissionProgress.value = 100;

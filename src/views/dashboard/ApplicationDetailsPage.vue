@@ -452,7 +452,7 @@
               </div>
             </div>
             
-            <div v-if="application.status_id === 'rejected'" class="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+            <div v-if="[4, 'rejected'].includes(application.status_id)" class="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
               <div class="flex flex-col sm:flex-row">
                 <svg class="h-5 w-5 text-red-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -464,7 +464,7 @@
               </div>
             </div>
             
-            <div v-if="application.status_id === 'approved'" class="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
+            <div v-if="[3, 'approved'].includes(application.status_id)" class="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
               <div class="flex flex-col sm:flex-row">
                 <svg class="h-5 w-5 text-green-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -479,7 +479,7 @@
             <!-- Кнопки действий -->
             <div class="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-4">
               <button 
-                v-if="application.status_id === 'draft'"
+                v-if="[1, 'draft'].includes(application.status_id)"
                 @click="submitApplication"
                 class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 :disabled="isSubmitting"
@@ -945,7 +945,7 @@ async function loadApplicationHistory(applicationId) {
 
 // Отправка заявления на рассмотрение
 async function submitApplication() {
-  if (!application.value || application.value.status_id !== 'draft') return;
+  if (!application.value || ![1, 'draft'].includes(application.value.status_id)) return;
   
   isSubmitting.value = true;
   try {
@@ -1010,9 +1010,16 @@ function formatDate(dateString) {
 // Получение текста для статуса заявления
 function getStatusText(statusId) {
   const statusMap = {
-    10: 'Подана',
-    11: 'Принята',
-    12: 'Отклонена'
+    1: 'Черновик',
+    2: 'Подано',
+    3: 'Принято',
+    4: 'Отклонено',
+    5: 'Отозвано',
+    draft: 'Черновик',
+    submitted: 'Подано',
+    approved: 'Принято',
+    rejected: 'Отклонено',
+    additional_info: 'Требует доработки'
   };
   return statusMap[statusId] || 'Неизвестный статус';
 }
@@ -1020,9 +1027,16 @@ function getStatusText(statusId) {
 // Получение класса для отображения статуса
 function getStatusClass(statusId) {
   const classMap = {
-    10: 'bg-blue-100 text-blue-800',
-    11: 'bg-green-100 text-green-800',
-    12: 'bg-red-100 text-red-800'
+    1: 'bg-gray-100 text-gray-800',
+    2: 'bg-blue-100 text-blue-800',
+    3: 'bg-green-100 text-green-800',
+    4: 'bg-red-100 text-red-800',
+    5: 'bg-gray-100 text-gray-800',
+    draft: 'bg-gray-100 text-gray-800',
+    submitted: 'bg-blue-100 text-blue-800',
+    approved: 'bg-green-100 text-green-800',
+    rejected: 'bg-red-100 text-red-800',
+    additional_info: 'bg-yellow-100 text-yellow-800'
   };
   return classMap[statusId] || 'bg-gray-100 text-gray-800';
 }
@@ -1030,9 +1044,16 @@ function getStatusClass(statusId) {
 // Получение цвета для истории изменений
 function getHistoryStatusColor(statusId) {
   const colorMap = {
-    10: 'bg-blue-500',
-    11: 'bg-green-500',
-    12: 'bg-red-500'
+    1: 'bg-gray-500',
+    2: 'bg-blue-500',
+    3: 'bg-green-500',
+    4: 'bg-red-500',
+    5: 'bg-gray-500',
+    draft: 'bg-gray-500',
+    submitted: 'bg-blue-500',
+    approved: 'bg-green-500',
+    rejected: 'bg-red-500',
+    additional_info: 'bg-yellow-500'
   };
   return colorMap[statusId] || 'bg-gray-500';
 }

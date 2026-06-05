@@ -59,10 +59,12 @@ defineEmits(['view-application']);
 
 const getStatusType = (statusName) => {
   const types = {
-    'Подана': 'primary',
-    'Принята': 'success',
-    'Отклонена': 'danger',
+    'Черновик': 'info',
+    'Подано': 'primary',
+    'Принято': 'success',
+    'Отклонено': 'danger',
     'Требует доработки': 'warning',
+    'Отозвано': 'info',
   };
   return types[statusName] || 'info';
 };

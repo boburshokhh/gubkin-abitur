@@ -22,28 +22,28 @@
 
         <el-descriptions :column="descriptionColumns" border>
           <el-descriptions-item label="Ф.И.О.">
-            {{ getUserFullName(application?.users) }}
+            {{ getUserFullName(applicant) }}
           </el-descriptions-item>
           <el-descriptions-item label="Дата рождения">
-            {{ formatDate(application?.birth_date || application?.users?.birth_date) }}
+            {{ formatDate(application?.birth_date || applicant?.birth_date) }}
           </el-descriptions-item>
           <el-descriptions-item label="Регион">
-            {{ getRegionName() }}
+            {{ regionName }}
           </el-descriptions-item>
           <el-descriptions-item label="Адрес">
             {{ application?.address || 'Не указан' }}
           </el-descriptions-item>
           <el-descriptions-item label="Телефон">
-            {{ application?.phone || 'Не указан' }}
+            {{ application?.phone || applicant?.phone || 'Не указан' }}
           </el-descriptions-item>
           <el-descriptions-item label="Телефон родителя">
             {{ application?.parent_phone || 'Не указан' }}
           </el-descriptions-item>
           <el-descriptions-item label="Email">
-            {{ application?.email || 'Не указан' }}
+            {{ application?.email || applicant?.email || 'Не указан' }}
           </el-descriptions-item>
           <el-descriptions-item label="Пол">
-            {{ getGenderText(application?.gender || application?.users?.gender) }}
+            {{ getGenderText(application?.gender || applicant?.gender) }}
           </el-descriptions-item>
         </el-descriptions>
       </el-card>
@@ -84,10 +84,10 @@
       <el-card shadow="never">
         <template #header>Выбранные образовательные программы</template>
         <el-empty
-          v-if="!application?.application_choices?.length"
+          v-if="!applicationChoices.length"
           description="Образовательные программы не выбраны"
         />
-        <el-table v-else :data="application.application_choices" border stripe>
+        <el-table v-else :data="applicationChoices" border stripe>
           <el-table-column label="Приоритет" width="120">
             <template #default="{ row }">
               <el-tag type="primary" effect="light">{{ row.priority }}</el-tag>
@@ -287,6 +287,13 @@
     </div>
 
     <template #footer>
+      <el-button
+        :icon="Download"
+        :disabled="!application"
+        @click="downloadStudentData"
+      >
+        Скачать данные студента
+      </el-button>
       <el-button @click="close">Закрыть</el-button>
       <el-button
         type="primary"
@@ -366,6 +373,20 @@ const requiredFileRows = computed(() => [
     files: getFilesByCategory('education_scan')
   }
 ]);
+
+const applicant = computed(() => props.application?.user || props.application?.users || {});
+const applicationChoices = computed(() => (
+  props.application?.application_choices || props.application?.choices || []
+));
+
+const regionName = computed(() => {
+  const region = props.application?.region
+    || props.application?.regions
+    || props.application?.user?.region
+    || props.application?.users?.regions;
+
+  return region?.name || 'Не указан';
+});
 
 const extraDocumentRows = computed(() => {
   const documentsRows = (props.application?.documents || []).map(doc => ({
@@ -448,16 +469,7 @@ function getUserFullName(user) {
 
 // Получение названия региона
 function getRegionName() {
-  const userRegion = props.application?.users?.regions;
-  const appRegion = props.application?.regions;
-  
-  // Проверяем регион из связи пользователя
-  if (userRegion?.name) return userRegion.name;
-  
-  // Проверяем регион из связи заявки
-  if (appRegion?.name) return appRegion.name;
-  
-  return 'Не указан';
+  return regionName.value;
 }
 
 // Получение названия уровня образования
@@ -486,14 +498,56 @@ function getEducationDocumentText() {
 
 // Получение полного названия профиля с направлением
 function getProfileFullName(choice) {
-  if (!choice || !choice.profiles) return 'Профиль не найден';
-  
-  const profile = choice.profiles;
-  if (profile.directions) {
-    return `${profile.name} (${profile.directions.name || profile.directions.code})`;
-  } else {
-    return profile.name;
+  const profile = choice?.profiles || choice?.profile;
+  if (!profile) return 'Профиль не найден';
+
+  const direction = profile.directions || profile.direction;
+  if (direction) {
+    return `${profile.name} (${direction.name || direction.code})`;
   }
+
+  return profile.name;
+}
+
+function downloadStudentData() {
+  if (!props.application) return;
+
+  const lines = [
+    ['Заявка', props.application.id],
+    ['Ф.И.О.', getUserFullName(applicant.value)],
+    ['Email', props.application.email || applicant.value.email || 'Не указан'],
+    ['Телефон', props.application.phone || applicant.value.phone || 'Не указан'],
+    ['Телефон родителя', props.application.parent_phone || 'Не указан'],
+    ['Дата рождения', formatDate(props.application.birth_date || applicant.value.birth_date)],
+    ['Пол', getGenderText(props.application.gender || applicant.value.gender)],
+    ['Регион', regionName.value],
+    ['Адрес', props.application.address || 'Не указан'],
+    ['Паспорт', props.application.passport_series || 'Не указано'],
+    ['Дата выдачи паспорта', formatDate(props.application.passport_issue_date)],
+    ['Кем выдан паспорт', props.application.passport_issued_by || 'Не указано'],
+    ['Учебное заведение', props.application.education_institution || 'Не указано'],
+    ['Год окончания', props.application.education_graduation_year || 'Не указан'],
+    ['Документ об образовании', getEducationDocumentText()],
+    ['Форма обучения', getStudyFormText(props.application.study_form)],
+    ['Форма финансирования', getFundingFormText(props.application.funding_form)],
+    ['Статус', getStatusName(props.application.status_id)],
+    ['Дата подачи', formatDate(props.application.created_at)],
+    ['Выбранные программы', applicationChoices.value.map(choice => `${choice.priority}. ${getProfileFullName(choice)}`).join('; ') || 'Не выбраны']
+  ];
+
+  const content = lines
+    .map(([label, value]) => `${label}: ${value ?? 'Не указано'}`)
+    .join('\n');
+
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `student-${props.application.id || 'application'}.txt`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 // Форматирование даты
@@ -519,11 +573,11 @@ function getStatusType(statusId) {
   if (!status) return 'info';
   
   switch (status.name) {
-    case 'Подана':
+    case 'Подано':
       return 'primary';
-    case 'Принята':
+    case 'Принято':
       return 'success';
-    case 'Отклонена':
+    case 'Отклонено':
       return 'danger';
     case 'Требует доработки':
       return 'warning';

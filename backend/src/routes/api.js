@@ -639,6 +639,31 @@ router.post('/applications', requireAuth, async (req, res) => {
       throw new Error('Вы уже создали заявление на этот учебный год');
     }
 
+    // Сохраняем персональные данные анкеты в профиле пользователя,
+    // чтобы админ-панель получала актуальные ФИО, телефон и дату рождения.
+    await client.query(
+      `UPDATE users
+       SET first_name = COALESCE($1, first_name),
+           last_name = COALESCE($2, last_name),
+           middle_name = COALESCE($3, middle_name),
+           phone = COALESCE($4, phone),
+           birth_date = COALESCE($5, birth_date),
+           gender = COALESCE($6, gender),
+           region_id = COALESCE($7, region_id),
+           updated_at = NOW()
+       WHERE id = $8`,
+      [
+        app_data.first_name,
+        app_data.last_name,
+        app_data.middle_name,
+        app_data.phone,
+        app_data.birth_date,
+        app_data.gender,
+        app_data.region_id,
+        req.user.id
+      ]
+    );
+
     // Создаем заявление
     const insertAppResult = await client.query(
       `INSERT INTO applications (
@@ -646,8 +671,8 @@ router.post('/applications', requireAuth, async (req, res) => {
         education_level, education_institution, education_graduation_year,
         document_number, document_date, study_form, funding_form,
         accommodation_needed, olympiad_participant, parent_phone, academic_year,
-        education_document_number, education_document_date, region_id
-      ) VALUES ($1, 1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        education_document_number, education_document_date, region_id, address
+      ) VALUES ($1, 1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING id`,
       [
         req.user.id,
@@ -667,7 +692,8 @@ router.post('/applications', requireAuth, async (req, res) => {
         currentYear,
         app_data.education_document_number,
         app_data.education_document_date,
-        app_data.region_id
+        app_data.region_id,
+        app_data.address
       ]
     );
 
@@ -718,6 +744,29 @@ router.put('/applications/:id', requireAuth, async (req, res) => {
       throw new Error('Доступ запрещен');
     }
 
+    await client.query(
+      `UPDATE users
+       SET first_name = COALESCE($1, first_name),
+           last_name = COALESCE($2, last_name),
+           middle_name = COALESCE($3, middle_name),
+           phone = COALESCE($4, phone),
+           birth_date = COALESCE($5, birth_date),
+           gender = COALESCE($6, gender),
+           region_id = COALESCE($7, region_id),
+           updated_at = NOW()
+       WHERE id = $8`,
+      [
+        appData.first_name,
+        appData.last_name,
+        appData.middle_name,
+        appData.phone,
+        appData.birth_date,
+        appData.gender,
+        appData.region_id,
+        checkAccess.rows[0].user_id
+      ]
+    );
+
     // Обновляем поля заявления
     await client.query(
       `UPDATE applications 
@@ -737,8 +786,9 @@ router.put('/applications/:id', requireAuth, async (req, res) => {
            education_document_number = COALESCE($14, education_document_number),
            education_document_date = COALESCE($15, education_document_date),
            region_id = COALESCE($16, region_id),
+           address = COALESCE($17, address),
            updated_at = NOW()
-       WHERE id = $17`,
+       WHERE id = $18`,
       [
         appData.passport_series,
         appData.passport_issue_date,
@@ -756,6 +806,7 @@ router.put('/applications/:id', requireAuth, async (req, res) => {
         appData.education_document_number,
         appData.education_document_date,
         appData.region_id,
+        appData.address,
         req.params.id
       ]
     );
@@ -786,24 +837,36 @@ router.put('/applications/:id', requireAuth, async (req, res) => {
 
 // Отправить заявление на рассмотрение (черновик -> подан)
 router.post('/applications/:id/submit', requireAuth, async (req, res) => {
+  const client = await db.pool.connect();
   try {
-    const result = await db.query(
-      'UPDATE applications SET status_id = 2, updated_at = NOW() WHERE id = $1 AND user_id = $2 RETURNING *',
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `UPDATE applications
+       SET status_id = 2, updated_at = NOW()
+       WHERE id = $1 AND user_id = $2 AND status_id = 1
+       RETURNING *`,
       [req.params.id, req.user.id]
     );
+
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Заявление не найдено или принадлежит другому пользователю' });
+      throw new Error('Заявление не найдено, уже отправлено или принадлежит другому пользователю');
     }
 
     // Запись в историю
-    await db.query(
+    await client.query(
       'INSERT INTO application_history (application_id, status_id, comment, created_by) VALUES ($1, 2, $2, $3)',
       [req.params.id, 'Заявление отправлено на рассмотрение', req.user.id]
     );
 
+    await client.query('COMMIT');
     res.json({ data: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    await client.query('ROLLBACK');
+    console.error('Ошибка отправки заявления:', err);
+    res.status(400).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

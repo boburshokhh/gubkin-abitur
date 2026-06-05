@@ -370,10 +370,19 @@ BEGIN
     'accommodation_needed', a.accommodation_needed,
     'olympiad_participant', a.olympiad_participant,
     'parent_phone', a.parent_phone,
+    'address', a.address,
     'academic_year', a.academic_year,
     'education_document_number', a.education_document_number,
     'education_document_date', a.education_document_date,
     'region_id', a.region_id,
+    'region', CASE
+      WHEN r.id IS NULL THEN NULL
+      ELSE jsonb_build_object(
+        'id', r.id,
+        'name', r.name,
+        'code', r.code
+      )
+    END,
     'created_at', a.created_at,
     'updated_at', a.updated_at,
     'user', jsonb_build_object(
@@ -501,6 +510,7 @@ BEGIN
   FROM applications a
   JOIN users u ON u.id = a.user_id
   JOIN application_statuses as_status ON as_status.id = a.status_id
+  LEFT JOIN regions r ON r.id = COALESCE(a.region_id, u.region_id)
   WHERE a.id = app_id;
 
   RETURN v_result;
@@ -852,6 +862,7 @@ RETURNS TABLE (
   last_name TEXT,
   middle_name TEXT,
   phone TEXT,
+  address TEXT,
   birth_date DATE,
   gender TEXT,
   application_id UUID,
@@ -883,6 +894,7 @@ BEGIN
     u.last_name,
     u.middle_name,
     u.phone,
+    a.address,
     u.birth_date,
     u.gender,
     a.id AS application_id,
