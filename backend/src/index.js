@@ -13,6 +13,8 @@ const { FRONTEND_ORIGIN } = require('./config/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
+
 // Настройка CORS для работы с фронтендом
 app.use(cors({
   origin: FRONTEND_ORIGIN,
