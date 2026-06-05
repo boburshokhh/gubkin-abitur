@@ -221,21 +221,21 @@ router.post('/auth/reset-password', async (req, res) => {
     }
     
     const subject = 'Сброс пароля - Приемная кампания Губкинского университета';
-    const text = \`Ваш новый пароль: \${newPassword}\`;
-    const html = \`
+    const text = `Ваш новый пароль: ${newPassword}`;
+    const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
         <h2 style="color: #003366; text-align: center;">Губкинский университет</h2>
         <p style="font-size: 16px; color: #333;">Здравствуйте!</p>
         <p style="font-size: 16px; color: #333;">Ваш пароль был успешно сброшен.</p>
         <div style="text-align: center; margin: 30px 0;">
           <p style="font-size: 14px; color: #666; margin-bottom: 5px;">Ваш новый пароль:</p>
-          <span style="display: inline-block; padding: 15px 25px; font-size: 20px; font-weight: bold; background-color: #f4f4f4; color: #003366; border-radius: 5px;">\${newPassword}</span>
+          <span style="display: inline-block; padding: 15px 25px; font-size: 20px; font-weight: bold; background-color: #f4f4f4; color: #003366; border-radius: 5px;">${newPassword}</span>
         </div>
         <p style="font-size: 14px; color: #666;">Рекомендуем изменить его после входа в личный кабинет.</p>
         <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
         <p style="font-size: 12px; color: #999; text-align: center;">Это автоматическое письмо, пожалуйста, не отвечайте на него.</p>
       </div>
-    \`;
+    `;
 
     await sendEmail(email, subject, text, html);
     res.json({ success: true, message: 'Новый пароль отправлен на почту' });
