@@ -1,404 +1,575 @@
 <template>
-  <header class="fixed top-0 left-0 right-0 bg-white shadow-md z-50 border-b border-gray-200">
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-16">
-        <!-- Логотип университета -->
-        <div class="flex-shrink-0">
-          <router-link to="/" class="flex items-center">
-            <img class="h-10 sm:h-12 w-auto transition-transform duration-300 hover:scale-105" src="@/assets/photos/gubkin_logo.png" alt="Логотип Филиала РГУ нефти и газа (НИУ) имени И.М. Губкина в городе Ташкенте">
-          </router-link>
-        </div>
+  <header class="the-header">
+    <div class="the-header__inner">
+      <router-link to="/" class="the-header__brand" aria-label="На главную">
+        <img
+          class="the-header__logo"
+          src="@/assets/photos/gubkin_logo.png"
+          alt="Логотип Филиала РГУ нефти и газа (НИУ) имени И.М. Губкина в городе Ташкенте"
+        >
+      </router-link>
 
-        <!-- Навигация (Desktop) -->
-        <nav class="hidden md:flex space-x-6 lg:space-x-8 items-center">
-          <router-link 
-            v-for="link in navigationLinks" 
-            :key="link.to" 
-            :to="link.to" 
-            class="text-gray-600 hover:text-primary-700 hover:bg-primary-50 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 relative group"
-            :class="{ 'text-primary-700 font-semibold bg-primary-50': isActive(link.to) }"
-          >
-            {{ link.text }}
-            <span 
-              class="absolute bottom-0 left-0 w-full h-0.5 bg-primary-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"
-              :class="{ 'scale-x-100': isActive(link.to) }"
-            ></span>
-          </router-link>
-        </nav>
+      <el-menu
+        class="the-header__nav"
+        mode="horizontal"
+        :ellipsis="false"
+        :default-active="activeNavigationPath"
+        @select="handleNavigationSelect"
+      >
+        <el-menu-item
+          v-for="link in navigationLinks"
+          :key="link.to"
+          :index="link.to"
+        >
+          {{ link.text }}
+        </el-menu-item>
+      </el-menu>
 
-        <!-- Кнопки авторизации/пользователя (Desktop) -->
-        <div class="hidden md:flex items-center space-x-3">
-          <template v-if="isAuthenticated">
-             <!-- Меню пользователя для Админа/Сотрудника -->
-             <div v-if="authStore.isAdmin || authStore.isReviewer" class="relative user-menu-container">
-               <button 
-                 @click="showUserMenu = !showUserMenu"
-                 class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-700 hover:bg-primary-50 rounded-md transition-colors duration-200"
-               >
-                 <svg v-if="authStore.isAdmin" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                   <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                 </svg>
-                 <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                   <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4a1 1 0 00-1 1v1a1 1 0 002 0V5a1 1 0 00-1-1zm12 0a1 1 0 00-1 1v1a1 1 0 002 0V5a1 1 0 00-1-1zM4 9a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zm12 0a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zM4 14a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zm12 0a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zM10 8a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1z" clip-rule="evenodd" />
-                    <path d="M5 11a1 1 0 110 2h10a1 1 0 110-2H5z" />
-                 </svg>
-                 <span>{{ activeUserAreaText }}</span>
-                 <svg class="ml-1 h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                  </svg>
-               </button>
-               <!-- Выпадающее меню -->
-               <transition 
-                  enter-active-class="transition ease-out duration-100"
-                  enter-from-class="transform opacity-0 scale-95"
-                  enter-to-class="transform opacity-100 scale-100"
-                  leave-active-class="transition ease-in duration-75"
-                  leave-from-class="transform opacity-100 scale-100"
-                  leave-to-class="transform opacity-0 scale-95"
-               >
-                  <div 
-                     v-if="showUserMenu" 
-                     class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
-                  >
-                     <div class="py-2">
-                        <router-link 
-                           :to="authStore.isAdmin ? '/admin' : '/reviewer'" 
-                           class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full"
-                           @click="showUserMenu = false"
-                         >
-                           <svg v-if="authStore.isAdmin" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                              <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                           </svg>
-                            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                              <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4a1 1 0 00-1 1v1a1 1 0 002 0V5a1 1 0 00-1-1zm12 0a1 1 0 00-1 1v1a1 1 0 002 0V5a1 1 0 00-1-1zM4 9a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zm12 0a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zM4 14a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zm12 0a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zM10 8a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1z" clip-rule="evenodd" />
-                              <path d="M5 11a1 1 0 110 2h10a1 1 0 110-2H5z" />
-                            </svg>
-                           {{ authStore.isAdmin ? 'Панель администратора' : 'Панель сотрудника' }}
-                        </router-link>
-                        <router-link 
-                           to="/dashboard/profile" 
-                           class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 w-full"
-                           @click="showUserMenu = false"
-                         >
-                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                             <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-                           </svg>
-                           Личный кабинет
-                        </router-link>
-                     </div>
-                  </div>
-               </transition>
-             </div>
-             
-             <!-- Отдельная кнопка Личный кабинет для абитуриентов -->
-            <router-link 
-              v-else 
-              :to="userDashboardLink"
-              class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-700 hover:bg-primary-50 rounded-md transition-colors duration-200"
-              title="Перейти в личный кабинет"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-              </svg>
-              {{ activeUserAreaText }}
-            </router-link>
-            <button 
-              @click="showLogoutConfirm = true"
-              class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
-              title="Выйти из системы"
-            >
-               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd" />
-              </svg>
-              Выйти
+      <div class="the-header__actions">
+        <template v-if="isAuthenticated">
+          <el-dropdown trigger="click" @command="handleUserCommand">
+            <button class="the-header__profile-trigger" type="button">
+              <el-avatar :size="34" class="the-header__avatar">
+                {{ userInitials }}
+              </el-avatar>
+              <span class="the-header__profile-text">
+                <span class="the-header__profile-name">{{ userName }}</span>
+                <el-tag size="small" effect="light" :type="roleTagType">
+                  {{ roleLabel }}
+                </el-tag>
+              </span>
+              <el-icon class="the-header__profile-arrow">
+                <ArrowDown />
+              </el-icon>
             </button>
-          </template>
-          
-          <template v-else>
-            <router-link 
-              to="/auth" 
-              class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
-            >
-              Войти
-            </router-link>
-            <router-link 
-              v-if="isAdmissionOpen"
-              to="/register" 
-              class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
-            >
-              Подать документы
-            </router-link>
-            <span 
-              v-else
-              class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-500 bg-gray-100 cursor-not-allowed"
-            >
-              Прием закрыт
-            </span>
-          </template>
-        </div>
 
-        <!-- Мобильное меню (кнопка) -->
-        <div class="flex items-center md:hidden">
-          <button 
-            @click="showMobileMenu = !showMobileMenu"
-            class="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-primary-600 hover:bg-gray-100 focus:outline-none transition-colors duration-200"
-            aria-label="Меню"
-            :aria-expanded="showMobileMenu"
+            <template #dropdown>
+              <el-dropdown-menu class="the-header__dropdown">
+                <div class="the-header__dropdown-user">
+                  <el-avatar :size="42" class="the-header__avatar">
+                    {{ userInitials }}
+                  </el-avatar>
+                  <div class="the-header__dropdown-user-info">
+                    <strong>{{ userName }}</strong>
+                    <span>{{ userEmail }}</span>
+                  </div>
+                </div>
+
+                <el-dropdown-item
+                  v-if="hasStaffWorkspace"
+                  command="workspace"
+                >
+                  <el-icon><Suitcase /></el-icon>
+                  {{ workspaceLabel }}
+                </el-dropdown-item>
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon>
+                  Личный кабинет
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" divided>
+                  <el-icon><SwitchButton /></el-icon>
+                  Выйти
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+
+        <template v-else>
+          <el-button @click="goTo('/auth')">
+            Войти
+          </el-button>
+          <el-button
+            v-if="isAdmissionOpen"
+            type="primary"
+            @click="goTo('/register')"
           >
-            <svg v-if="!showMobileMenu" class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-            <svg v-else class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+            Подать документы
+          </el-button>
+          <el-button v-else disabled>
+            Прием закрыт
+          </el-button>
+        </template>
       </div>
+
+      <el-button
+        class="the-header__mobile-button"
+        :icon="Menu"
+        circle
+        aria-label="Открыть меню"
+        @click="showMobileMenu = true"
+      />
     </div>
 
-    <!-- Мобильное меню (развернутое) -->
-    <transition 
-      enter-active-class="transition ease-out duration-200"
-      enter-from-class="opacity-0 translate-y-1"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition ease-in duration-150"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 translate-y-1"
+    <el-drawer
+      v-model="showMobileMenu"
+      direction="rtl"
+      size="320px"
+      :with-header="false"
+      class="the-header__drawer"
     >
-      <div v-if="showMobileMenu" class="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg border-t border-gray-200">
-        <div class="py-2 space-y-1 px-2">
-        <router-link 
-            v-for="link in navigationLinks"
-            :key="link.to"
-            :to="link.to" 
-            class="block px-3 py-2 rounded-md text-base font-medium"
-            :class="[isActive(link.to) ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-100 hover:text-primary-600']"
+      <div class="the-header__drawer-content">
+        <div class="the-header__drawer-top">
+          <router-link
+            to="/"
+            class="the-header__drawer-brand"
             @click="showMobileMenu = false"
           >
-            {{ link.text }}
-        </router-link>
+            <img
+              class="the-header__drawer-logo"
+              src="@/assets/photos/gubkin_logo.png"
+              alt="Логотип Филиала РГУ нефти и газа (НИУ) имени И.М. Губкина в городе Ташкенте"
+            >
+          </router-link>
+          <el-button
+            :icon="Close"
+            circle
+            aria-label="Закрыть меню"
+            @click="showMobileMenu = false"
+          />
         </div>
-        <div class="pt-4 pb-3 border-t border-gray-200 px-5">
-          <template v-if="isAuthenticated">
-            <div class="flex items-center mb-3">
-               <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-              </svg>
-              <div>
-                <div class="text-base font-medium text-gray-800">{{ userName }}</div>
-                <div class="text-sm font-medium text-gray-500">{{ activeUserAreaText }}</div>
-              </div>
-            </div>
-            <div class="mt-3 space-y-2">
-               <!-- Кнопка перехода в панель админа/сотрудника (мобильная) -->
-              <button
-                 v-if="authStore.isAdmin || authStore.isReviewer"
-                 @click="goToAdminOrReviewerPanel(); showMobileMenu = false"
-                 class="w-full flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50"
-               >
-                 <svg v-if="authStore.isAdmin" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                   <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                 </svg>
-                 <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                   <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4a1 1 0 00-1 1v1a1 1 0 002 0V5a1 1 0 00-1-1zm12 0a1 1 0 00-1 1v1a1 1 0 002 0V5a1 1 0 00-1-1zM4 9a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zm12 0a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zM4 14a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zm12 0a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zM10 8a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1z" clip-rule="evenodd" />
-                    <path d="M5 11a1 1 0 110 2h10a1 1 0 110-2H5z" />
-                 </svg>
-                 {{ activeUserAreaText }}
-               </button>
 
-              <button 
-                @click="goToDashboard(); showMobileMenu = false"
-                class="w-full flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                   <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                </svg>
-                 Личный кабинет 
-              </button>
-            <button 
-                @click="showLogoutConfirm = true; showMobileMenu = false"
-                class="w-full flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-primary-600 hover:bg-primary-700"
-            >
-                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                   <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd" />
-                 </svg>
-                Выйти
-            </button>
+        <el-menu
+          class="the-header__drawer-menu"
+          :default-active="activeNavigationPath"
+          @select="handleNavigationSelect"
+        >
+          <el-menu-item
+            v-for="link in navigationLinks"
+            :key="link.to"
+            :index="link.to"
+          >
+            {{ link.text }}
+          </el-menu-item>
+        </el-menu>
+
+        <div v-if="isAuthenticated" class="the-header__mobile-account">
+          <div class="the-header__mobile-user">
+            <el-avatar :size="48" class="the-header__avatar">
+              {{ userInitials }}
+            </el-avatar>
+            <div>
+              <strong>{{ userName }}</strong>
+              <span>{{ userEmail }}</span>
+              <el-tag size="small" effect="light" :type="roleTagType">
+                {{ roleLabel }}
+              </el-tag>
             </div>
-          </template>
-          <template v-else>
-            <div class="space-y-2">
-              <button 
-                @click="router.push('/auth'); showMobileMenu = false"
-                class="w-full flex justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Войти
-              </button>
-              <button 
-                v-if="isAdmissionOpen"
-                @click="router.push('/register'); showMobileMenu = false"
-                class="w-full flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-primary-600 hover:bg-primary-700"
-            >
-              Подать документы
-              </button>
-              <span 
-                v-else
-                class="w-full flex justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-500 bg-gray-100 cursor-not-allowed"
-              >
-                Прием закрыт
-              </span>
-            </div>
-          </template>
+          </div>
+
+          <el-button
+            v-if="hasStaffWorkspace"
+            class="the-header__mobile-action"
+            @click="goToWorkspace"
+          >
+            <el-icon><Suitcase /></el-icon>
+            {{ workspaceLabel }}
+          </el-button>
+          <el-button class="the-header__mobile-action" @click="goToProfile">
+            <el-icon><User /></el-icon>
+            Личный кабинет
+          </el-button>
+          <el-button
+            class="the-header__mobile-action"
+            type="danger"
+            plain
+            @click="confirmLogout"
+          >
+            <el-icon><SwitchButton /></el-icon>
+            Выйти
+          </el-button>
+        </div>
+
+        <div v-else class="the-header__mobile-account">
+          <el-button class="the-header__mobile-action" @click="goTo('/auth')">
+            Войти
+          </el-button>
+          <el-button
+            v-if="isAdmissionOpen"
+            class="the-header__mobile-action"
+            type="primary"
+            @click="goTo('/register')"
+          >
+            Подать документы
+          </el-button>
+          <el-button v-else class="the-header__mobile-action" disabled>
+            Прием закрыт
+          </el-button>
         </div>
       </div>
-    </transition>
-
-    <!-- Модальное окно подтверждения выхода -->
-    <ConfirmModal
-      :is-visible="showLogoutConfirm"
-      title="Выход из системы"
-      message="Вы действительно хотите выйти из системы?"
-      confirm-text="Выйти"
-      cancel-text="Отмена"
-      @confirm="confirmLogout"
-      @cancel="cancelLogout"
-    />
-
+    </el-drawer>
   </header>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
-import { useToast } from 'vue-toastification';
-import ConfirmModal from '@/components/ui/ConfirmModal.vue';
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
+import {
+  ArrowDown,
+  Close,
+  Menu,
+  Suitcase,
+  SwitchButton,
+  User
+} from '@element-plus/icons-vue'
+import { useToast } from 'vue-toastification'
+import { useAuthStore } from '@/stores/auth'
 
-// Состояние UI
-const showMobileMenu = ref(false);
-const showLogoutConfirm = ref(false);
-const showUserMenu = ref(false);
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+const toast = useToast()
 
-// Навигация и авторизация
-const route = useRoute();
-const router = useRouter();
-const authStore = useAuthStore();
-const toast = useToast();
+const showMobileMenu = ref(false)
+const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true'
 
-// Проверка статуса приемной кампании
-const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
-
-// Ссылки навигации
 const navigationLinks = [
   { to: '/', text: 'Главная' },
-  { to: '/admission2025', text: 'Приём 2025' },
+  { to: '/admission2025', text: 'Прием 2025' },
   { to: '/faq', text: 'Вопросы и ответы' },
-  { to: '/statistics', text: 'Статистика' },
-];
+  { to: '/statistics', text: 'Статистика' }
+]
 
-// Вычисляемые свойства
-const isAuthenticated = computed(() => authStore.isAuthenticated);
-const userName = computed(() => authStore.user?.name || 'Пользователь');
+const isAuthenticated = computed(() => authStore.isAuthenticated)
+const hasStaffWorkspace = computed(() => authStore.isAdmin || authStore.isReviewer)
 
-// Текст для кнопки пользователя (учитывает текущий маршрут для админа/ревьюера)
-const activeUserAreaText = computed(() => {
-  if (!authStore.isAdmin && !authStore.isReviewer) {
-    return 'Личный кабинет'; // Для абитуриентов
+const userEmail = computed(() => authStore.user?.email || 'Email не указан')
+
+const userName = computed(() => {
+  const profileName = [
+    authStore.profile?.first_name,
+    authStore.profile?.last_name
+  ].filter(Boolean).join(' ')
+
+  if (profileName) return profileName
+  if (authStore.user?.user_metadata?.first_name) return authStore.user.user_metadata.first_name
+  if (authStore.user?.name) return authStore.user.name
+  if (authStore.user?.email) return authStore.user.email.split('@')[0]
+
+  return 'Пользователь'
+})
+
+const userInitials = computed(() => {
+  const parts = userName.value
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+
+  if (!parts.length) return 'П'
+
+  return parts.map(part => part[0]).join('').toUpperCase()
+})
+
+const roleLabel = computed(() => {
+  if (authStore.isAdmin) return 'Администратор'
+  if (authStore.isReviewer) return 'Сотрудник'
+  return 'Абитуриент'
+})
+
+const roleTagType = computed(() => {
+  if (authStore.isAdmin) return 'danger'
+  if (authStore.isReviewer) return 'warning'
+  return 'success'
+})
+
+const workspaceLabel = computed(() => (
+  authStore.isAdmin ? 'Панель администратора' : 'Панель сотрудника'
+))
+
+const workspacePath = computed(() => (authStore.isAdmin ? '/admin' : '/reviewer'))
+
+const activeNavigationPath = computed(() => {
+  const activeLink = navigationLinks
+    .filter(link => link.to !== '/')
+    .find(link => route.path.startsWith(link.to))
+
+  return activeLink?.to || (route.path === '/' ? '/' : '')
+})
+
+const goTo = (path) => {
+  showMobileMenu.value = false
+  if (route.path !== path) router.push(path)
+}
+
+const goToProfile = () => {
+  goTo('/dashboard/profile')
+}
+
+const goToWorkspace = () => {
+  goTo(workspacePath.value)
+}
+
+const handleNavigationSelect = (path) => {
+  goTo(path)
+}
+
+const handleUserCommand = (command) => {
+  if (command === 'workspace') {
+    goToWorkspace()
+    return
   }
-  
-  // Для админа/ревьюера проверяем текущий маршрут
-  if (route.path.startsWith('/admin')) {
-      return 'Панель администратора';
-  } 
-  if (route.path.startsWith('/reviewer')) {
-      return 'Панель сотрудника';
+
+  if (command === 'profile') {
+    goToProfile()
+    return
   }
-  if (route.path.startsWith('/dashboard/profile')) {
-      return 'Личный кабинет';
-  }
-  
-  // По умолчанию показываем название панели
-  return authStore.isAdmin ? 'Панель администратора' : 'Панель сотрудника';
-});
 
-const userDashboardLink = computed(() => {
-  // Ссылка на профиль остается единой
-  return '/dashboard/profile';
-});
-
-// Методы
-const isActive = (path) => {
-  // Для главной страницы точное совпадение, для остальных - startsWith
-  return path === '/' ? route.path === path : route.path.startsWith(path);
-};
-
-const goToDashboard = () => {
-  router.push(userDashboardLink.value);
-  showMobileMenu.value = false;
-};
-
-// Метод для перехода в панель админа/сотрудника из мобильного меню
-const goToAdminOrReviewerPanel = () => {
-  const path = authStore.isAdmin ? '/admin' : '/reviewer';
-  router.push(path);
-  showMobileMenu.value = false;
-};
+  if (command === 'logout') confirmLogout()
+}
 
 const logout = async () => {
   try {
-  await authStore.logout();
-  showMobileMenu.value = false;
-    showLogoutConfirm.value = false;
-  router.push('/');
-    toast.success('Вы успешно вышли из системы');
+    await authStore.logout()
+    showMobileMenu.value = false
+    router.push('/')
+    toast.success('Вы успешно вышли из системы')
   } catch (error) {
-    console.error('Ошибка при выходе:', error);
-    toast.error('Не удалось выйти из системы');
+    console.error('Ошибка при выходе:', error)
+    toast.error('Не удалось выйти из системы')
   }
-};
+}
 
-const confirmLogout = () => {
-  logout();
-};
+const confirmLogout = async () => {
+  showMobileMenu.value = false
 
-const cancelLogout = () => {
-  showLogoutConfirm.value = false;
-};
-
-// Закрыть меню при нажатии клавиши Escape
-const handleEscKey = (event) => {
-  if (event.key === 'Escape') {
-    showMobileMenu.value = false;
-    showLogoutConfirm.value = false; // Также закрываем модальное окно
-    showUserMenu.value = false; // Закрываем и меню пользователя
+  try {
+    await ElMessageBox.confirm(
+      'Вы действительно хотите выйти из системы?',
+      'Выход из системы',
+      {
+        confirmButtonText: 'Выйти',
+        cancelButtonText: 'Отмена',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+    await logout()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      console.error('Ошибка подтверждения выхода:', error)
+    }
   }
-};
-
-// Закрытие меню пользователя при клике вне его
-const handleOutsideClick = (event) => {
-  if (showUserMenu.value && !event.target.closest('.user-menu-container')) {
-    showUserMenu.value = false;
-  }
-  // Добавьте сюда логику для закрытия других меню, если они есть
-};
-
-onMounted(() => {
-  window.addEventListener('keydown', handleEscKey);
-  window.addEventListener('click', handleOutsideClick);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleEscKey);
-  window.removeEventListener('click', handleOutsideClick);
-});
+}
 </script>
 
 <style scoped>
-/* Стили для подчеркивания активной ссылки */
-.group:hover .group-hover\:scale-x-100 {
-  transform: scaleX(1);
+.the-header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 50;
+  border-bottom: 1px solid var(--el-border-color-light);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(12px);
+}
+
+.the-header__inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  width: min(1180px, calc(100% - 32px));
+  height: 72px;
+  margin: 0 auto;
+}
+
+.the-header__brand,
+.the-header__drawer-brand {
+  display: inline-flex;
+  align-items: center;
+}
+
+.the-header__logo {
+  width: auto;
+  height: 48px;
+  transition: transform 0.2s ease;
+}
+
+.the-header__logo:hover {
+  transform: scale(1.03);
+}
+
+.the-header__nav {
+  min-width: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.the-header__nav :deep(.el-menu-item) {
+  height: 72px;
+  color: var(--el-text-color-regular);
+  font-weight: 600;
+}
+
+.the-header__nav :deep(.el-menu-item.is-active) {
+  color: var(--el-color-primary);
+}
+
+.the-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.the-header__profile-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 280px;
+  padding: 6px 10px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 999px;
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.the-header__profile-trigger:hover {
+  border-color: var(--el-color-primary-light-5);
+  box-shadow: 0 6px 18px rgba(64, 158, 255, 0.14);
+}
+
+.the-header__avatar {
+  flex: 0 0 auto;
+  color: var(--el-color-white);
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--el-color-primary), #0f766e);
+}
+
+.the-header__profile-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+
+.the-header__profile-name {
+  overflow: hidden;
+  max-width: 150px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.the-header__profile-arrow {
+  color: var(--el-text-color-secondary);
+}
+
+.the-header__dropdown {
+  width: 280px;
+}
+
+.the-header__dropdown-user {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.the-header__dropdown-user-info {
+  display: grid;
+  min-width: 0;
+}
+
+.the-header__dropdown-user-info strong,
+.the-header__dropdown-user-info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.the-header__dropdown-user-info span {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.the-header__mobile-button {
+  display: none;
+}
+
+.the-header__drawer-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.the-header__drawer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.the-header__drawer-logo {
+  width: auto;
+  height: 42px;
+}
+
+.the-header__drawer-menu {
+  border-right: 0;
+}
+
+.the-header__mobile-account {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.the-header__mobile-user {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 16px;
+  background: var(--el-fill-color-lighter);
+}
+
+.the-header__mobile-user > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.the-header__mobile-user span {
+  overflow: hidden;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.the-header__mobile-action {
+  justify-content: flex-start;
+  width: 100%;
+  margin-left: 0;
+}
+
+@media (max-width: 900px) {
+  .the-header__inner {
+    grid-template-columns: auto auto;
+    justify-content: space-between;
+    height: 64px;
+  }
+
+  .the-header__logo {
+    height: 42px;
+  }
+
+  .the-header__nav,
+  .the-header__actions {
+    display: none;
+  }
+
+  .the-header__mobile-button {
+    display: inline-flex;
+  }
 }
 </style>
