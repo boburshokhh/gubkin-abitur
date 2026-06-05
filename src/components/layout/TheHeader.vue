@@ -33,7 +33,7 @@
               <el-text class="the-header__profile-email" truncated>
                 {{ userEmail }}
               </el-text>
-              <el-space :size="6" wrap>
+              <el-space class="the-header__profile-tags" :size="6">
                 <el-tag size="small" :type="roleTagType" effect="light">
                   {{ roleLabel }}
                 </el-tag>
@@ -272,23 +272,23 @@ const confirmLogout = async () => {
   right: 0;
   left: 0;
   z-index: 50;
+  height: 64px;
   padding: 0;
   border-bottom: 1px solid var(--el-border-color-light);
   background: var(--el-bg-color);
 }
 
 .the-header__inner {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
   width: min(1180px, calc(100% - 32px));
   height: 100%;
   margin: 0 auto;
 }
 
 .the-header__logo-link {
-  justify-self: start;
+  flex: 0 0 auto;
 }
 
 .the-header__logo {
@@ -297,12 +297,15 @@ const confirmLogout = async () => {
 }
 
 .the-header__menu {
-  justify-self: center;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
   border-bottom: 0;
 }
 
 .the-header__actions {
-  justify-self: end;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .the-header__profile {
@@ -327,20 +330,24 @@ const confirmLogout = async () => {
   line-height: 1.2;
 }
 
+.the-header__profile-tags {
+  flex-wrap: nowrap;
+}
+
+.the-header__profile-tags :deep(.el-space__item) {
+  flex-shrink: 0;
+}
+
 .the-header__mobile-button {
   display: none;
-  justify-self: end;
+  margin-left: auto;
 }
 
 .the-header__drawer-actions {
   width: 100%;
 }
 
-@media (max-width: 900px) {
-  .the-header__inner {
-    grid-template-columns: auto 1fr;
-  }
-
+@media (max-width: 1100px) {
   .the-header__menu,
   .the-header__actions {
     display: none;
