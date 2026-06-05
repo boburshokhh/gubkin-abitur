@@ -62,7 +62,7 @@ const handleError = (err) => {
   const responseData = err.response?.data || {}
   const message = responseData.error || responseData.message || err.message || 'Произошла неизвестная ошибка'
   const apiError = new Error(message)
-  apiError.code = responseData.code
+  apiError.code = responseData.code || responseData.error_code
   apiError.status = err.response?.status
   return { data: null, error: apiError }
 }

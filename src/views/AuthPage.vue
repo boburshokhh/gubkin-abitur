@@ -174,6 +174,35 @@ const toggleMode = () => {
   Object.keys(form).forEach(key => form[key] = '');
 };
 
+const openEmailVerificationPage = async (reason) => {
+  const email = form.email.trim();
+  if (!email) return;
+
+  authStore.emailToVerify = email;
+  router.push({
+    path: '/verify-email',
+    query: {
+      email,
+      reason
+    }
+  });
+
+  const result = await authStore.sendVerificationEmail(email);
+  if (!result.success) {
+    toast.error(result.error || 'Не удалось отправить письмо подтверждения.');
+    return;
+  }
+
+  toast.info('Мы отправили ссылку для подтверждения email.');
+};
+
+const isEmailNotVerifiedResult = (result) => {
+  const message = String(result?.error || '').toLowerCase();
+  return result?.code === 'email_not_verified'
+    || message.includes('не подтверж')
+    || message.includes('not verified');
+};
+
 const handleResendVerification = async () => {
   if (!form.email || isResendingVerification.value) return;
 
@@ -181,22 +210,7 @@ const handleResendVerification = async () => {
   error.value = '';
 
   try {
-    const result = await authStore.sendVerificationEmail(form.email);
-
-    if (!result.success) {
-      error.value = result.error || 'Не удалось отправить письмо подтверждения.';
-      toast.error(error.value);
-      return;
-    }
-
-    toast.success('Письмо для подтверждения отправлено.');
-    router.push({
-      path: '/verify-email',
-      query: {
-        email: form.email,
-        reason: 'resend_requested'
-      }
-    });
+    await openEmailVerificationPage('resend_requested');
   } finally {
     isResendingVerification.value = false;
   }
@@ -229,16 +243,8 @@ const handleSubmit = async () => {
         }
         toast.success('Вы успешно вошли в систему');
       } else {
-        if (result.code === 'email_not_verified') {
-          await authStore.sendVerificationEmail(form.email);
-          toast.info('Email ещё не подтверждён. Мы отправили новую ссылку для подтверждения.');
-          router.push({
-            path: '/verify-email',
-            query: {
-              email: form.email,
-              reason: 'email_not_verified'
-            }
-          });
+        if (isEmailNotVerifiedResult(result)) {
+          await openEmailVerificationPage('email_not_verified');
           return;
         }
 

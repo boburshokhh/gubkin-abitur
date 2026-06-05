@@ -17,6 +17,12 @@ export const useAuthStore = defineStore('auth', () => {
   const isEmailConfirmed = computed(() => user.value?.email_confirmed_at)
   const isPendingVerification = computed(() => user.value?.user_metadata?.status === 'pending_verification')
 
+  const isEmailNotVerifiedError = (err) => {
+    const message = String(err?.message || '').toLowerCase()
+    return err?.code === 'email_not_verified'
+      || (err?.status === 403 && (message.includes('не подтверж') || message.includes('not verified')))
+  }
+
   // Инициализация пользователя при загрузке приложения
   const initAuth = async () => {
     try {
@@ -205,12 +211,12 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (err) {
       console.error('Ошибка входа:', err)
       error.value = err.message || 'Не удалось войти'
-      if (err.code === 'email_not_verified') {
+      if (isEmailNotVerifiedError(err)) {
         emailToVerify.value = email
         return {
           success: false,
           error: error.value,
-          code: err.code,
+          code: 'email_not_verified',
           email
         }
       }
