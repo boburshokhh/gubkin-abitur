@@ -3,7 +3,7 @@ import axios from 'axios'
 // Инициализация Axios-клиента для работы с кастомным Express бэкендом
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
 let accessToken = null
-let isRefreshingSession = false
+let refreshSessionPromise = null
 
 export const apiClient = axios.create({
   baseURL: apiUrl,
@@ -37,6 +37,7 @@ apiClient.interceptors.response.use((response) => response, async (error) => {
     return Promise.reject(error)
   }
 
+  originalRequest.headers = originalRequest.headers || {}
   originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`
   return apiClient(originalRequest)
 })
@@ -90,21 +91,24 @@ export const auth = {
   },
   
   refreshSession: async () => {
-    if (isRefreshingSession) return { data: { session: null }, error: null }
+    if (refreshSessionPromise) return refreshSessionPromise
 
-    try {
-      isRefreshingSession = true
-      const response = await apiClient.post('/auth/refresh')
-      const { session, user } = response.data
-      if (session?.access_token) accessToken = session.access_token
-      if (session) session.user = user
-      return { data: { session }, error: null }
-    } catch (err) {
-      clearAuthStorage()
-      return { data: { session: null }, error: err.response?.data?.error ? new Error(err.response.data.error) : err }
-    } finally {
-      isRefreshingSession = false
-    }
+    refreshSessionPromise = (async () => {
+      try {
+        const response = await apiClient.post('/auth/refresh')
+        const { session, user } = response.data
+        if (session?.access_token) accessToken = session.access_token
+        if (session) session.user = user
+        return { data: { session }, error: null }
+      } catch (err) {
+        clearAuthStorage()
+        return { data: { session: null }, error: err.response?.data?.error ? new Error(err.response.data.error) : err }
+      } finally {
+        refreshSessionPromise = null
+      }
+    })()
+
+    return refreshSessionPromise
   },
   
   signUp: async ({ email, password, options }) => {
