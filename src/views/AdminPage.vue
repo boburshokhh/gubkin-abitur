@@ -1,22 +1,27 @@
 <template>
   <el-container class="admin-page">
-    <el-header class="admin-page__header">
-      <div class="admin-page__header-inner">
-        <el-page-header title="" content="Панель администратора" />
-
-        <el-space wrap>
-          <el-text>
-            {{ authStore.profile?.first_name }} {{ authStore.profile?.last_name }}
-          </el-text>
-          <el-tag :type="authStore.isReviewer ? 'warning' : 'primary'" effect="light">
-            {{ getRoleName() }}
-          </el-tag>
-        </el-space>
-      </div>
-    </el-header>
-
     <el-main class="admin-page__main">
       <el-card shadow="never" class="admin-page__card">
+        <template #header>
+          <div class="admin-page__card-header">
+            <div>
+              <h1 class="admin-page__title">Администрирование</h1>
+              <el-text type="info">
+                Управление заявками, программами и пользователями
+              </el-text>
+            </div>
+
+            <el-space wrap>
+              <el-text>
+                {{ adminName }}
+              </el-text>
+              <el-tag :type="authStore.isReviewer ? 'warning' : 'primary'" effect="light">
+                {{ getRoleName() }}
+              </el-tag>
+            </el-space>
+          </div>
+        </template>
+
         <el-tabs v-model="currentTab" class="admin-page__tabs">
           <el-tab-pane
             v-for="tab in tabs"
@@ -65,6 +70,18 @@ const tabs = computed(() => {
 
 const currentTab = ref('applications');
 
+const adminName = computed(() => {
+  const profileName = [
+    authStore.profile?.first_name,
+    authStore.profile?.last_name
+  ].filter(Boolean).join(' ');
+
+  if (profileName) return profileName;
+  if (authStore.user?.email) return authStore.user.email;
+
+  return 'Пользователь';
+});
+
 const getRoleName = () => {
   if (authStore.isReviewer) return 'Сотрудник приемной комиссии';
   if (authStore.isAdmin) return 'Администратор';
@@ -89,31 +106,28 @@ onMounted(async () => {
   background: var(--el-bg-color-page);
 }
 
-.admin-page__header {
-  height: auto;
-  padding: 16px 24px;
-  background: var(--el-bg-color);
-  border-bottom: 1px solid var(--el-border-color-light);
-}
-
-.admin-page__header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  max-width: 1280px;
-  margin: 0 auto;
-}
-
 .admin-page__main {
-  max-width: 1280px;
   width: 100%;
-  margin: 0 auto;
   padding: 24px;
 }
 
 .admin-page__card {
+  width: 100%;
   border-radius: 12px;
+}
+
+.admin-page__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-page__title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
 }
 
 .admin-page__tabs :deep(.el-tabs__header) {
@@ -121,7 +135,7 @@ onMounted(async () => {
 }
 
 @media (max-width: 640px) {
-  .admin-page__header-inner {
+  .admin-page__card-header {
     align-items: flex-start;
     flex-direction: column;
   }
