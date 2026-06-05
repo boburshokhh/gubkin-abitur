@@ -1,77 +1,79 @@
 <template>
   <el-header class="the-header">
-    <router-link to="/" class="the-header__logo-link" aria-label="На главную">
-      <img
-        class="the-header__logo"
-        src="@/assets/photos/gubkin_logo.png"
-        alt="Логотип Филиала РГУ нефти и газа (НИУ) имени И.М. Губкина в городе Ташкенте"
-      >
-    </router-link>
-
-    <el-menu
-      class="the-header__menu"
-      mode="horizontal"
-      :ellipsis="false"
-      :default-active="activeNavigationPath"
-      @select="goTo"
-    >
-      <el-menu-item
-        v-for="link in navigationLinks"
-        :key="link.to"
-        :index="link.to"
-      >
-        {{ link.text }}
-      </el-menu-item>
-    </el-menu>
-
-    <el-space class="the-header__actions">
-      <template v-if="isAuthenticated">
-        <el-dropdown trigger="click" @command="handleUserCommand">
-          <el-button text>
-            <el-avatar :size="28">{{ userInitials }}</el-avatar>
-            <span class="the-header__user-name">{{ userName }}</span>
-            <el-icon><ArrowDown /></el-icon>
-          </el-button>
-
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item
-                v-if="hasStaffWorkspace"
-                command="workspace"
-              >
-                {{ workspaceLabel }}
-              </el-dropdown-item>
-              <el-dropdown-item command="profile">
-                Личный кабинет
-              </el-dropdown-item>
-              <el-dropdown-item command="logout" divided>
-                Выйти
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </template>
-
-      <template v-else>
-        <el-button @click="goTo('/auth')">Войти</el-button>
-        <el-button
-          v-if="isAdmissionOpen"
-          type="primary"
-          @click="goTo('/register')"
+    <div class="the-header__inner">
+      <router-link to="/" class="the-header__logo-link" aria-label="На главную">
+        <img
+          class="the-header__logo"
+          src="@/assets/photos/gubkin_logo.png"
+          alt="Логотип Филиала РГУ нефти и газа (НИУ) имени И.М. Губкина в городе Ташкенте"
         >
-          Подать документы
-        </el-button>
-        <el-button v-else disabled>Прием закрыт</el-button>
-      </template>
-    </el-space>
+      </router-link>
 
-    <el-button
-      class="the-header__mobile-button"
-      :icon="Menu"
-      text
-      aria-label="Открыть меню"
-      @click="isMobileMenuOpen = true"
-    />
+      <el-menu
+        class="the-header__menu"
+        mode="horizontal"
+        :ellipsis="false"
+        :default-active="activeNavigationPath"
+        @select="goTo"
+      >
+        <el-menu-item
+          v-for="link in navigationLinks"
+          :key="link.to"
+          :index="link.to"
+        >
+          {{ link.text }}
+        </el-menu-item>
+      </el-menu>
+
+      <el-space class="the-header__actions">
+        <template v-if="isAuthenticated">
+          <el-dropdown trigger="click" @command="handleUserCommand">
+            <el-button text>
+              <el-avatar :size="28">{{ userInitials }}</el-avatar>
+              <span class="the-header__user-name">{{ userName }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </el-button>
+
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item
+                  v-if="hasStaffWorkspace"
+                  command="workspace"
+                >
+                  {{ workspaceLabel }}
+                </el-dropdown-item>
+                <el-dropdown-item command="profile">
+                  Личный кабинет
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" divided>
+                  Выйти
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+
+        <template v-else>
+          <el-button @click="goTo('/auth')">Войти</el-button>
+          <el-button
+            v-if="isAdmissionOpen"
+            type="primary"
+            @click="goTo('/register')"
+          >
+            Подать документы
+          </el-button>
+          <el-button v-else disabled>Прием закрыт</el-button>
+        </template>
+      </el-space>
+
+      <el-button
+        class="the-header__mobile-button"
+        :icon="Menu"
+        text
+        aria-label="Открыть меню"
+        @click="isMobileMenuOpen = true"
+      />
+    </div>
 
     <el-drawer
       v-model="isMobileMenuOpen"
@@ -241,11 +243,18 @@ const confirmLogout = async () => {
   right: 0;
   left: 0;
   z-index: 50;
+  padding: 0;
+  border-bottom: 1px solid var(--el-border-color-light);
+  background: var(--el-bg-color);
+}
+
+.the-header__inner {
   display: flex;
   align-items: center;
   gap: 24px;
-  border-bottom: 1px solid var(--el-border-color-light);
-  background: var(--el-bg-color);
+  width: min(1180px, calc(100% - 32px));
+  height: 100%;
+  margin: 0 auto;
 }
 
 .the-header__logo {
