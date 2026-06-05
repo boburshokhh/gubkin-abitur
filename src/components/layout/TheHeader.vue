@@ -27,28 +27,24 @@
 
       <el-space class="the-header__actions">
         <template v-if="isAuthenticated">
-          <div class="the-header__profile" aria-label="Профиль пользователя">
-            <el-avatar :size="32">{{ userInitials }}</el-avatar>
-            <div class="the-header__profile-info">
-              <el-text class="the-header__profile-name" truncated>
-                {{ userName }}
-              </el-text>
-              <el-tag size="small" :type="roleTagType" effect="light">
-                {{ roleLabel }}
-              </el-tag>
-            </div>
-          </div>
-
           <el-dropdown
             trigger="click"
             @command="handleUserCommand"
           >
-            <el-button class="the-header__profile-menu-button" plain>
-              Меню
-              <el-icon class="el-icon--right">
+            <button class="the-header__profile" type="button" aria-label="Открыть меню профиля">
+              <el-avatar :size="32">{{ userInitials }}</el-avatar>
+              <div class="the-header__profile-info">
+                <el-text class="the-header__profile-name" truncated>
+                  {{ userName }}
+                </el-text>
+                <el-tag size="small" :type="roleTagType" effect="light">
+                  {{ roleLabel }}
+                </el-tag>
+              </div>
+              <el-icon class="the-header__profile-arrow">
                 <ArrowDown />
               </el-icon>
-            </el-button>
+            </button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="profile">
@@ -334,6 +330,17 @@ const confirmLogout = async () => {
   padding: 4px 8px;
   border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.the-header__profile:hover,
+.the-header__profile:focus-visible {
+  border-color: var(--el-color-primary);
+  outline: none;
 }
 
 .the-header__profile-info {
@@ -349,8 +356,9 @@ const confirmLogout = async () => {
   font-weight: 600;
 }
 
-.the-header__profile-menu-button {
+.the-header__profile-arrow {
   flex-shrink: 0;
+  color: var(--el-text-color-secondary);
 }
 
 .the-header__mobile-button {
