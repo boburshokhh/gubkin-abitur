@@ -1,37 +1,53 @@
 <template>
-  <div class="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50">
-    <div class="flex items-center">
-      <svg class="h-8 w-8 text-gray-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-      </svg>
-      <div>
-        <h4 class="text-sm font-medium text-gray-900">{{ document.document_type?.name || 'Документ' }}</h4>
-        <p class="text-xs text-gray-500">{{ document.file_name }} ({{ formattedFileSize }})</p>
-      </div>
+  <el-card shadow="never" class="application-document-item">
+    <div class="application-document-item__content">
+      <el-space>
+        <el-icon size="28" color="var(--el-text-color-secondary)">
+          <Document />
+        </el-icon>
+        <div>
+          <el-text tag="h4" class="application-document-item__title">
+            {{ document.document_type?.name || 'Документ' }}
+          </el-text>
+          <el-text type="info" size="small">
+            {{ document.file_name }} ({{ formattedFileSize }})
+          </el-text>
+        </div>
+      </el-space>
+
+      <el-space wrap>
+        <el-button
+          type="info"
+          plain
+          size="small"
+          :icon="Download"
+          tag="a"
+          :href="documentUrl"
+          target="_blank"
+          download
+        >
+          Скачать
+        </el-button>
+        <el-button
+          type="primary"
+          plain
+          size="small"
+          :icon="View"
+          tag="a"
+          :href="documentUrl"
+          target="_blank"
+        >
+          Просмотреть
+        </el-button>
+      </el-space>
     </div>
-    <div class="flex items-center space-x-2">
-      <a 
-        :href="documentUrl" 
-        target="_blank" 
-        download
-        class="inline-flex items-center px-3 py-1 border border-gray-300 text-xs rounded-md text-gray-700 bg-white hover:bg-gray-50"
-      >
-        Скачать
-      </a>
-      <a 
-        :href="documentUrl" 
-        target="_blank" 
-        class="inline-flex items-center px-3 py-1 border border-gray-300 text-xs rounded-md text-gray-700 bg-white hover:bg-gray-50"
-      >
-        Просмотреть
-      </a>
-    </div>
-  </div>
+  </el-card>
 </template>
 
 <script setup>
 import { computed } from 'vue';
 import { appApi } from '@/api/app-api';
+import { Document, Download, View } from '@element-plus/icons-vue';
 
 const props = defineProps({
   document: {
@@ -80,4 +96,26 @@ const formattedFileSize = computed(() => {
   
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 });
-</script> 
+</script>
+
+<style scoped>
+.application-document-item__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.application-document-item__title {
+  display: block;
+  margin: 0;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .application-document-item__content {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>

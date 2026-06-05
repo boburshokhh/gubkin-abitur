@@ -33,7 +33,7 @@ apiClient.interceptors.response.use((response) => response, async (error) => {
   originalRequest._retry = true
   const { data, error: refreshError } = await auth.refreshSession()
   if (refreshError || !data?.session?.access_token) {
-    clearAuthStorage()
+    clearSessionTokens()
     return Promise.reject(error)
   }
 
@@ -42,14 +42,23 @@ apiClient.interceptors.response.use((response) => response, async (error) => {
   return apiClient(originalRequest)
 })
 
-// Утилитарная функция для очистки всех данных сессии из localStorage
-export const clearAuthStorage = () => {
+// Мягкая очистка — только токены сессии, НЕ трогает Pinia state (используется при сетевых ошибках)
+export const clearSessionTokens = () => {
   try {
     accessToken = null
     localStorage.removeItem('app-access-token')
-    localStorage.removeItem('app-user')
     localStorage.removeItem('app.auth.token')
     localStorage.removeItem('app.auth.lastRefresh')
+  } catch (error) {
+    console.error('Ошибка очистки токенов сессии:', error)
+  }
+}
+
+// Полная очистка — всё включая Pinia state (используется только при явном выходе)
+export const clearAuthStorage = () => {
+  try {
+    clearSessionTokens()
+    localStorage.removeItem('app-user')
     localStorage.removeItem('auth-store')
     console.log('localStorage успешно очищен от данных сессии')
   } catch (error) {
@@ -85,7 +94,11 @@ export const auth = {
       }
       return { data: { session }, error: null }
     } catch (err) {
-      clearAuthStorage()
+      // При подтверждённой ошибке авторизации (401/403) сбрасываем токены,
+      // при сетевых ошибках сохраняем persisted state Pinia
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        clearSessionTokens()
+      }
       return { data: { session: null }, error: err.response?.data?.error ? new Error(err.response.data.error) : null }
     }
   },
@@ -101,7 +114,11 @@ export const auth = {
         if (session) session.user = user
         return { data: { session }, error: null }
       } catch (err) {
-        clearAuthStorage()
+        // При подтверждённой ошибке авторизации (401/403) сбрасываем токены,
+        // при сетевых ошибках сохраняем persisted state Pinia
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          clearSessionTokens()
+        }
         return { data: { session: null }, error: err.response?.data?.error ? new Error(err.response.data.error) : err }
       } finally {
         refreshSessionPromise = null

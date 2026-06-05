@@ -1,38 +1,31 @@
 <template>
-  <article class="bg-white shadow rounded-lg overflow-hidden">
-    <!-- Заголовок -->
-    <header class="bg-primary-600 px-4 py-3 flex justify-between items-center">
-      <h2 class="text-lg font-medium text-white">
-        Заявление №{{ shortId }}
-      </h2>
-      <span :class="statusBadgeClass">
-        {{ application.status?.name || 'Неизвестный статус' }}
-      </span>
-    </header>
+  <el-card shadow="never" class="application-card">
+    <template #header>
+      <div class="application-card__header">
+        <el-text tag="h2" class="application-card__title">
+          Заявление №{{ shortId }}
+        </el-text>
+        <el-tag :type="statusTagType" effect="light">
+          {{ application.status?.name || 'Неизвестный статус' }}
+        </el-tag>
+      </div>
+    </template>
 
-    <!-- Содержимое -->
-    <section class="p-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <div>
-          <dt class="text-sm text-gray-500">Дата подачи</dt>
-          <dd class="text-gray-900">{{ formatDate(application.created_at) }}</dd>
-        </div>
-        <div>
-          <dt class="text-sm text-gray-500">Последнее обновление</dt>
-          <dd class="text-gray-900">{{ formatDate(application.updated_at) }}</dd>
-        </div>
-      </div>
-      
-      <div class="flex justify-end">
-        <router-link 
-          :to="`/dashboard/applications/${application.id}`" 
-          class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-        >
-          Подробнее
-        </router-link>
-      </div>
-    </section>
-  </article>
+    <el-descriptions :column="2" border class="application-card__descriptions">
+      <el-descriptions-item label="Дата подачи">
+        {{ formatDate(application.created_at) }}
+      </el-descriptions-item>
+      <el-descriptions-item label="Последнее обновление">
+        {{ formatDate(application.updated_at) }}
+      </el-descriptions-item>
+    </el-descriptions>
+
+    <div class="application-card__actions">
+      <router-link :to="`/dashboard/applications/${application.id}`">
+        <el-button type="primary">Подробнее</el-button>
+      </router-link>
+    </div>
+  </el-card>
 </template>
 
 <script setup>
@@ -48,14 +41,13 @@ const props = defineProps({
 // Computed
 const shortId = computed(() => props.application.id?.slice(-8) || 'N/A')
 
-const statusBadgeClass = computed(() => {
-  const base = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium'
-  const statusClasses = {
-    10: 'bg-blue-100 text-blue-800',
-    11: 'bg-green-100 text-green-800',
-    12: 'bg-red-100 text-red-800'
+const statusTagType = computed(() => {
+  const statusTypes = {
+    10: 'primary',
+    11: 'success',
+    12: 'danger'
   }
-  return `${base} ${statusClasses[props.application.status?.id] || 'bg-gray-100 text-gray-800'}`
+  return statusTypes[props.application.status?.id] || 'info'
 })
 
 // Утилиты
@@ -67,4 +59,36 @@ const formatDate = (dateString) => {
     year: 'numeric' 
   })
 }
-</script> 
+</script>
+
+<style scoped>
+.application-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.application-card__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.application-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.application-card__actions a {
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .application-card__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>

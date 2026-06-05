@@ -1,13 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
-import { clearAuthStorage } from '@/api/app-api'
 import HomePage from '@/views/HomePage.vue'
 import AuthPage from '@/views/AuthPage.vue'
 import VerifyEmailPage from '@/views/VerifyEmailPage.vue'
 import AuthCallbackPage from '@/views/AuthCallbackPage.vue'
 import NotFoundPage from '@/views/NotFoundPage.vue'
-import { watch } from 'vue'
 
 const routes = [
   {
@@ -190,93 +188,55 @@ const router = createRouter({
   }
 })
 
-// --- Восстанавливаем исходный beforeEach хук (или модифицированный без isRouteLoading) ---
 router.beforeEach(async (to, from, next) => {
-  // Устанавливаем заголовок страницы
-  document.title = to.meta.title || 'Приёмная кампания Губкинского университета';
-  
-  const authStore = useAuthStore();
-  const toast = useToast();
-  
-  // Ожидание инициализации аутентификации (если нужно)
+  document.title = to.meta.title || 'Приёмная кампания Губкинского университета'
+
+  const authStore = useAuthStore()
+  const toast = useToast()
+
+  // Ждём завершения initAuth() из main.js (только при первой загрузке)
   if (authStore.loading) {
-    console.log('Ожидание инициализации аутентификации...')
     await new Promise(resolve => {
-        const checkLoading = setInterval(() => {
-            if (!authStore.loading) {
-                clearInterval(checkLoading);
-                resolve();
-            }
-        }, 50);
-    });
-    console.log('Инициализация аутентификации завершена');
+      const check = setInterval(() => {
+        if (!authStore.loading) { clearInterval(check); resolve() }
+      }, 50)
+    })
   }
-  
-  // Перед проверкой доступа обновляем сессию, если пользователь уже авторизован
-  if (authStore.isAuthenticated) {
-    try {
-      const { success } = await authStore.refreshSession();
-      
-      if (!success || !authStore.isAuthenticated) {
-        console.log('Сессия недействительна, необходимо войти заново');
-        // Очищаем все данные API из localStorage
-        clearAuthStorage();
-        toast.error('Сессия истекла. Пожалуйста, войдите снова.');
-        
-        return next({
-          path: '/auth',
-          query: { redirect: to.fullPath }
-        });
-      }
-    } catch (err) {
-      console.error('Ошибка проверки сессии:', err);
-    }
-  }
-  
+
   // Проверка требований аутентификации
   if (to.matched.some(record => record.meta.requiresAuth)) {
     if (!authStore.isAuthenticated) {
-      console.log('Доступ запрещен: требуется авторизация');
-      toast.error('Необходимо войти в систему');
-      return next({
-        path: '/auth',
-        query: { redirect: to.fullPath }
-      });
-    }
-  }
-  
-  // Проверка прав администратора
-  if (to.matched.some(record => record.meta.requiresAdmin)) {
-    if (!authStore.isAdmin) {
-      toast.error('У вас нет прав администратора для доступа к этой странице');
-      return next('/');
-    }
-  }
-  
-  // Проверка прав сотрудника приемной комиссии
-  if (to.matched.some(record => record.meta.requiresReviewer)) {
-    if (!authStore.isReviewer) {
-      toast.error('У вас нет прав сотрудника для доступа к этой странице');
-      return next('/');
-    }
-  }
-  
-  // Если маршрут только для гостей, и пользователь авторизован
-  if (to.matched.some(record => record.meta.guestOnly)) {
-    if (authStore.isAuthenticated) {
-      // Перенаправляем на дашборд или соответствующую страницу по роли
-      if (authStore.isAdmin) {
-        return next('/admin');
-      } else if (authStore.isReviewer) {
-        return next('/reviewer');
-      } else {
-        return next('/dashboard');
-      }
+      toast.error('Необходимо войти в систему')
+      return next({ path: '/auth', query: { redirect: to.fullPath } })
     }
   }
 
-  // Если все проверки пройдены
-  next();
-});
+  // Проверка прав администратора
+  if (to.matched.some(record => record.meta.requiresAdmin)) {
+    if (!authStore.isAdmin) {
+      toast.error('У вас нет прав администратора для доступа к этой странице')
+      return next('/')
+    }
+  }
+
+  // Проверка прав сотрудника приемной комиссии
+  if (to.matched.some(record => record.meta.requiresReviewer)) {
+    if (!authStore.isReviewer) {
+      toast.error('У вас нет прав сотрудника для доступа к этой странице')
+      return next('/')
+    }
+  }
+
+  // Маршрут только для гостей — перенаправляем авторизованного пользователя
+  if (to.matched.some(record => record.meta.guestOnly)) {
+    if (authStore.isAuthenticated) {
+      if (authStore.isAdmin) return next('/admin')
+      if (authStore.isReviewer) return next('/reviewer')
+      return next('/dashboard')
+    }
+  }
+
+  next()
+})
 
 export default router 

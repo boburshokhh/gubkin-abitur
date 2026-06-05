@@ -25,61 +25,20 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
 import ConfirmModal from '@/components/ui/ConfirmModal.vue';
 import MainLayout from '@/components/layout/MainLayout.vue';
 
-const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const toast = useToast();
 const showLogoutConfirm = ref(false);
 
-// Инициализация аутентификации при загрузке приложения
-onMounted(async () => {
-  // Проверяем, есть ли признаки наличия сессии в localStorage, 
-  // но при этом пользователь не считается авторизованным
-  const hasLocalToken = localStorage.getItem('app.auth.token');
-  const isAuthenticated = !!authStore.user || authStore.isAuthenticated;
-  
-  console.log('App mounted', {
-    hasToken: !!hasLocalToken,
-    isAuthenticated,
-    isLoading: authStore.loading
-  });
-  
-  // Инициализируем состояние аутентификации
-  try {
-    await authStore.initAuth();
-    console.log('Auth initialized');
-    
-    // Проверяем состояние после инициализации
-    if (hasLocalToken && !authStore.isAuthenticated) {
-      console.warn('После инициализации токен есть, но пользователь не авторизован. Проверяем дополнительно...');
-      
-      // Если после инициализации по-прежнему есть несоответствие,
-      // пробуем еще раз обновить сессию напрямую
-      try {
-        const { success, authenticated } = await authStore.refreshSession();
-        if (success && authenticated) {
-          console.log('Сессия успешно восстановлена');
-          toast.success('Сессия восстановлена');
-        } else if (hasLocalToken) {
-          // Если не удалось восстановить сессию, но токен есть,
-          // возможно, токен стал недействительным или произошла ошибка
-          console.warn('Не удалось восстановить сессию, возможно, требуется повторный вход');
-        }
-      } catch (refreshError) {
-        console.error('Ошибка при обновлении сессии:', refreshError);
-      }
-    }
-  } catch (err) {
-    console.error('Ошибка инициализации аутентификации:', err);
-  }
-  
-  // Слушаем события изменения видимости страницы
+onMounted(() => {
+  // initAuth() уже вызван в main.js до монтирования приложения.
+  // Здесь только подписываемся на событие видимости страницы.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       refreshUserData();

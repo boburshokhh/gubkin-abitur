@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { appApi, auth as authApi, users as usersApi, clearAuthStorage } from '@/api/app-api'
+import { appApi, auth as authApi, users as usersApi, clearAuthStorage, clearSessionTokens } from '@/api/app-api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -26,45 +26,39 @@ export const useAuthStore = defineStore('auth', () => {
   // Инициализация пользователя при загрузке приложения
   const initAuth = async () => {
     try {
-      loading.value = true;
-      error.value = null;
-      
-      const { data: { session }, error: sessionError } = await authApi.getSession();
-      
-      if (sessionError) {
-        console.error('Ошибка получения сессии:', sessionError);
-        throw sessionError;
-      }
-      
+      loading.value = true
+      error.value = null
+
+      const { data: { session }, error: sessionError } = await authApi.getSession()
+
       if (session?.user) {
-        // Проверяем срок действия токена
-        if (isTokenExpired(session.access_token)) {
-          console.log('Токен истек, пытаемся обновить сессию...');
-          const refreshResult = await refreshSession();
-          
-          if (!refreshResult.success || !refreshResult.authenticated) {
-            throw new Error(refreshResult.error || 'Не удалось обновить сессию');
-          }
+        user.value = session.user
+        const profileData = await loadUserProfile(session.user)
+        await loadUserRole(profileData)
+      } else if (sessionError) {
+        // Определяем, является ли ошибка сетевой или ошибкой авторизации.
+        // При сетевой ошибке (нет status) сохраняем persisted user из Pinia,
+        // при ошибке авторизации (401/403) очищаем состояние.
+        const isAuthError = sessionError?.status === 401 || sessionError?.status === 403
+        if (isAuthError) {
+          user.value = null
+          profile.value = null
+          userRole.value = null
         } else {
-          user.value = session.user;
-          // Передаем пользователя из сессии, чтобы избежать дублирующего запроса
-          const profileData = await loadUserProfile(session.user);
-          // Передаем загруженный профиль, чтобы избежать дополнительного запроса к БД
-          await loadUserRole(profileData);
+          console.warn('Сетевая ошибка при инициализации сессии, сохраняем кэшированное состояние:', sessionError)
         }
       } else {
-          user.value = null;
-          profile.value = null;
-          userRole.value = null;
+        // Сессия отсутствует (рефреш токен истёк/не существует) — разлогиниваем
+        user.value = null
+        profile.value = null
+        userRole.value = null
       }
     } catch (err) {
-      console.error('Ошибка инициализации аутентификации:', err);
-      error.value = 'Не удалось загрузить данные пользователя';
-      user.value = null;
-      profile.value = null;
-      userRole.value = null;
-      } finally {
-      loading.value = false;
+      console.error('Ошибка инициализации аутентификации:', err)
+      // При неизвестной ошибке сохраняем кэшированный user, чтобы не выкидывать
+      // пользователя из-за временного сбоя (CORS, сеть, 5xx)
+    } finally {
+      loading.value = false
     }
   }
 
@@ -146,8 +140,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       console.log('Начало процесса регистрации');
       
-      const redirectUrl = new URL('auth/callback', 'https://gubkin-abiturient.netlify.app').toString();
-      console.log('URL для редиректа:', redirectUrl);
+      const redirectUrl = `${window.location.origin}/auth/callback`
       console.log('Данные пользователя при регистрации:', { email, firstName, lastName });
       
       const { data, error: signUpError } = await authApi.signUp({
@@ -462,95 +455,67 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Обновление сессии и данных пользователя
+  // Обновление сессии и данных пользователя.
+  // НЕ меняет loading — вызывается фоново (visibilitychange, debounce).
   const refreshSession = async () => {
     try {
-      loading.value = true;
-      error.value = null;
-      
-      // Получаем текущую сессию
-      const { data: { session: currentSession }, error: sessionError } = await authApi.getSession();
-      
+      const { data: { session: currentSession }, error: sessionError } = await authApi.getSession()
+
       if (sessionError) {
-        console.error('Ошибка получения сессии:', sessionError);
-        throw sessionError;
+        const isAuthError = sessionError?.status === 401 || sessionError?.status === 403
+        if (isAuthError) {
+          user.value = null
+          profile.value = null
+          userRole.value = null
+          clearSessionTokens()
+          return { success: false, authenticated: false, error: 'Сессия истекла. Пожалуйста, войдите заново.' }
+        }
+        // Сетевая ошибка — не разлогиниваем
+        return { success: false, authenticated: !!user.value, error: sessionError.message }
       }
-      
-      // Если сессия отсутствует или токен истек, пытаемся обновить
+
       if (!currentSession || isTokenExpired(currentSession?.access_token)) {
-        console.log('Сессия отсутствует или токен истек, пытаемся обновить...');
-        
-        // Пытаемся обновить токен
-        const { data: refreshData, error: refreshError } = await authApi.refreshSession();
-        
+        const { data: refreshData, error: refreshError } = await authApi.refreshSession()
+
         if (refreshError) {
-          console.error('Ошибка обновления токена:', refreshError);
-          // Очищаем состояние при ошибке обновления
-          user.value = null;
-          profile.value = null;
-          userRole.value = null;
-          // Очищаем все данные API из localStorage
-          clearAuthStorage();
-          
-          return { 
-            success: false, 
-            authenticated: false, 
-            error: 'Сессия истекла. Пожалуйста, войдите заново.' 
-          };
+          const isAuthError = refreshError?.status === 401 || refreshError?.status === 403
+          if (isAuthError) {
+            user.value = null
+            profile.value = null
+            userRole.value = null
+            clearSessionTokens()
+          }
+          return {
+            success: false,
+            authenticated: false,
+            error: 'Сессия истекла. Пожалуйста, войдите заново.'
+          }
         }
 
-        // Если успешно обновили токен, получаем новую сессию
-        const { data: { session: newSession }, error: newSessionError } = await authApi.getSession();
-        
+        const { data: { session: newSession }, error: newSessionError } = await authApi.getSession()
         if (newSessionError || !newSession) {
-          throw new Error('Не удалось получить новую сессию после обновления токена');
+          return { success: false, authenticated: false, error: 'Не удалось получить новую сессию после обновления токена' }
         }
 
-        // Обновляем пользователя с новой сессией
-        user.value = newSession.user;
-        // Передаем пользователя чтобы избежать дублирующего запроса
-        const profileData = await loadUserProfile(newSession.user);
-        // Передаем загруженный профиль, чтобы избежать дополнительного запроса к БД
-        await loadUserRole(profileData);
-        
-        return { 
-          success: true, 
-          authenticated: true,
-          role: userRole.value
-        };
-      }
-      
-      // Если сессия существует и токен валиден
-      if (currentSession?.user) {
-        user.value = currentSession.user;
-        // Передаем пользователя чтобы избежать дублирующего запроса
-        const profileData = await loadUserProfile(currentSession.user);
-        // Передаем загруженный профиль, чтобы избежать дополнительного запроса к БД
-        await loadUserRole(profileData);
-        
-        return { 
-          success: true, 
-          authenticated: true,
-          role: userRole.value
-        };
+        user.value = newSession.user
+        const profileData = await loadUserProfile(newSession.user)
+        await loadUserRole(profileData)
+        return { success: true, authenticated: true, role: userRole.value }
       }
 
-      return { 
-        success: true, 
-        authenticated: false 
-      };
-      
+      if (currentSession?.user) {
+        user.value = currentSession.user
+        const profileData = await loadUserProfile(currentSession.user)
+        await loadUserRole(profileData)
+        return { success: true, authenticated: true, role: userRole.value }
+      }
+
+      return { success: true, authenticated: false }
     } catch (err) {
-      console.error('Ошибка обновления сессии:', err);
-      return { 
-        success: false, 
-        error: 'Не удалось обновить сессию. Пожалуйста, войдите заново.',
-        authenticated: false
-      };
-    } finally {
-      loading.value = false;
+      console.error('Ошибка обновления сессии:', err)
+      return { success: false, error: 'Не удалось обновить сессию.', authenticated: !!user.value }
     }
-  };
+  }
 
   // Проверка истечения токена
   const isTokenExpired = (token) => {
