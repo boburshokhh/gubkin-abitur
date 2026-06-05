@@ -5,7 +5,7 @@
         Подтверждение Email
       </h2>
       <p class="mt-2 text-center text-sm text-gray-600">
-        На ваш email была отправлена ссылка для подтверждения
+        {{ pageDescription }}
       </p>
     </div>
 
@@ -69,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { BaseButton } from '@/components/ui';
@@ -83,6 +83,18 @@ const toast = useToast();
 const email = ref('');
 const error = ref('');
 const isResending = ref(false);
+
+const pageDescription = computed(() => {
+  if (route.query.reason === 'email_not_verified') {
+    return 'Ваш аккаунт найден, но email ещё не подтверждён. Мы отправили новую ссылку для подтверждения.';
+  }
+
+  if (route.query.reason === 'resend_requested') {
+    return 'Мы отправили ссылку для подтверждения на указанный email.';
+  }
+
+  return 'На ваш email была отправлена ссылка для подтверждения';
+});
 
 // При загрузке компонента проверяем наличие email в store или в query параметрах
 onMounted(() => {

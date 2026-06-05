@@ -59,8 +59,12 @@ export const clearAuthStorage = () => {
 // Вспомогательный обработчик ошибок
 const handleError = (err) => {
   console.error('API Error:', err)
-  const message = err.response?.data?.error || err.response?.data?.message || err.message || 'Произошла неизвестная ошибка'
-  return { data: null, error: new Error(message) }
+  const responseData = err.response?.data || {}
+  const message = responseData.error || responseData.message || err.message || 'Произошла неизвестная ошибка'
+  const apiError = new Error(message)
+  apiError.code = responseData.code
+  apiError.status = err.response?.status
+  return { data: null, error: apiError }
 }
 
 // 1. АУТЕНТИФИКАЦИЯ (Auth)

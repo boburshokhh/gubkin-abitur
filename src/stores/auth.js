@@ -205,7 +205,17 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (err) {
       console.error('Ошибка входа:', err)
       error.value = err.message || 'Не удалось войти'
-      return { success: false, error: error.value }
+      if (err.code === 'email_not_verified') {
+        emailToVerify.value = email
+        return {
+          success: false,
+          error: error.value,
+          code: err.code,
+          email
+        }
+      }
+
+      return { success: false, error: error.value, code: err.code }
     } finally {
       loading.value = false;
     }

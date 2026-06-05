@@ -102,6 +102,17 @@
               Забыли пароль?
             </router-link>
           </div>
+
+          <div v-if="isLogin" class="text-center">
+            <button
+              type="button"
+              class="text-sm font-medium text-primary-600 hover:text-primary-500 disabled:cursor-not-allowed disabled:text-gray-400"
+              :disabled="isLoading || isResendingVerification || !form.email"
+              @click="handleResendVerification"
+            >
+              {{ isResendingVerification ? 'Отправляем письмо...' : 'Не подтвердили email? Отправить ссылку' }}
+            </button>
+          </div>
         </form>
 
         <div class="mt-6">
@@ -147,6 +158,7 @@ const toast = useToast();
 const isLogin = ref(true);
 const isLoading = computed(() => authStore.loading);
 const error = ref('');
+const isResendingVerification = ref(false);
 
 const form = reactive({
   firstName: '',
@@ -160,6 +172,34 @@ const toggleMode = () => {
   error.value = '';
   // Очищаем форму при переключении
   Object.keys(form).forEach(key => form[key] = '');
+};
+
+const handleResendVerification = async () => {
+  if (!form.email || isResendingVerification.value) return;
+
+  isResendingVerification.value = true;
+  error.value = '';
+
+  try {
+    const result = await authStore.sendVerificationEmail(form.email);
+
+    if (!result.success) {
+      error.value = result.error || 'Не удалось отправить письмо подтверждения.';
+      toast.error(error.value);
+      return;
+    }
+
+    toast.success('Письмо для подтверждения отправлено.');
+    router.push({
+      path: '/verify-email',
+      query: {
+        email: form.email,
+        reason: 'resend_requested'
+      }
+    });
+  } finally {
+    isResendingVerification.value = false;
+  }
 };
 
 const handleSubmit = async () => {
@@ -189,6 +229,19 @@ const handleSubmit = async () => {
         }
         toast.success('Вы успешно вошли в систему');
       } else {
+        if (result.code === 'email_not_verified') {
+          await authStore.sendVerificationEmail(form.email);
+          toast.info('Email ещё не подтверждён. Мы отправили новую ссылку для подтверждения.');
+          router.push({
+            path: '/verify-email',
+            query: {
+              email: form.email,
+              reason: 'email_not_verified'
+            }
+          });
+          return;
+        }
+
         error.value = result.error || 'Произошла ошибка. Пожалуйста, попробуйте снова.';
         toast.error(error.value);
       }
