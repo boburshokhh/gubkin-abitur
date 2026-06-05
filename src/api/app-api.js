@@ -958,7 +958,7 @@ class ApiQueryBuilder {
 export const appApi = {
   auth: {
     signUp: async (params) => auth.signUp(params),
-    signInWithPassword: async (params) => auth.signIn(params),
+    signIn: async (params) => auth.signIn(params),
     signOut: async () => auth.signOut(),
     getSession: async () => auth.getSession(),
     refreshSession: async () => auth.refreshSession(),

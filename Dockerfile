@@ -9,10 +9,12 @@ RUN npm ci
 
 COPY . .
 
-# Переменная окружения для указания API эндпоинта во время сборки
-# Так как Nginx проксирует запросы /api на бэкенд, мы можем использовать /api относительно текущего домена
-ENV VITE_API_URL=/api
-ENV VITE_ADMISSION_OPEN=true
+ARG VITE_API_URL=/api
+ARG VITE_ADMISSION_OPEN=true
+
+# Переменные окружения Vite читаются во время сборки frontend.
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_ADMISSION_OPEN=$VITE_ADMISSION_OPEN
 
 RUN npm run build
 

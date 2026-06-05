@@ -179,6 +179,7 @@
                   id="current_password" 
                   v-model="passwordForm.current_password" 
                   type="password" 
+                  autocomplete="current-password"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 />
               </div>
@@ -191,6 +192,7 @@
                   id="new_password" 
                   v-model="passwordForm.new_password" 
                   type="password" 
+                  autocomplete="new-password"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 />
               </div>
@@ -201,6 +203,7 @@
                   id="confirm_password" 
                   v-model="passwordForm.confirm_password" 
                   type="password" 
+                  autocomplete="new-password"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 />
               </div>

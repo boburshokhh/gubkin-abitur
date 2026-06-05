@@ -42,7 +42,7 @@
 
           <div>
             <label for="password" class="block text-sm font-medium text-gray-700">Пароль</label>
-            <input id="password" v-model="form.password" type="password" required minlength="10" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm" />
+            <input id="password" v-model="form.password" type="password" required minlength="10" autocomplete="new-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm" />
             <p class="mt-1 text-xs text-gray-500">Минимум 10 символов, буквы и цифры.</p>
           </div>
 
