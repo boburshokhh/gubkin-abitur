@@ -1,71 +1,47 @@
 <template>
-  <div class="flex flex-col bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden h-full">
-    <!-- Шапка карточки с кодом и статусом -->
-    <div class="flex items-center justify-between bg-gray-50 px-4 py-3 border-b border-gray-200">
-      <div class="font-medium text-gray-900 text-lg">{{ direction.code }}</div>
-      <span class="px-3 py-1 text-xs rounded-full"
-        :class="direction.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">
-        {{ direction.is_active ? 'Активно' : 'Неактивно' }}
-      </span>
-    </div>
-    
-    <!-- Основной контент карточки -->
-    <div class="flex-grow p-5">
-      <h3 class="text-lg font-medium text-gray-900 mb-4">{{ direction.name }}</h3>
-      
-      <div class="grid grid-cols-2 gap-x-6 gap-y-3 mb-4">
-        <div>
-          <div class="text-gray-500 text-sm font-medium mb-1">Тип:</div>
-          <div class="text-base">{{ programTypeText }}</div>
-        </div>
-        <div>
-          <div class="text-gray-500 text-sm font-medium mb-1">Область:</div>
-          <div class="text-base">{{ fieldName }}</div>
-        </div>
+  <el-card shadow="never" class="direction-card">
+    <template #header>
+      <div class="direction-card__header">
+        <el-tag type="primary" effect="light">{{ direction.code }}</el-tag>
+        <el-tag :type="direction.is_active ? 'success' : 'info'" effect="light">
+          {{ direction.is_active ? 'Активно' : 'Неактивно' }}
+        </el-tag>
       </div>
-      
-      <div class="mb-3">
-        <div class="text-gray-500 text-sm font-medium mb-1">Предметы:</div>
-        <div class="text-base">
-          <span v-if="subjectsCount > 0">
-            {{ subjectsList }}
-          </span>
-          <span v-else class="text-gray-400 italic">Нет предметов</span>
-        </div>
-      </div>
+    </template>
+
+    <div class="direction-card__body">
+      <h3 class="direction-card__title">{{ direction.name }}</h3>
+
+      <el-descriptions :column="1" border>
+        <el-descriptions-item label="Тип">
+          {{ programTypeText }}
+        </el-descriptions-item>
+        <el-descriptions-item label="Область">
+          {{ fieldName }}
+        </el-descriptions-item>
+        <el-descriptions-item label="Предметы">
+          <el-text v-if="subjectsCount > 0">{{ subjectsList }}</el-text>
+          <el-text v-else type="info">Нет предметов</el-text>
+        </el-descriptions-item>
+      </el-descriptions>
     </div>
-    
-    <!-- Кнопки действий -->
-    <div class="mt-auto flex border-t border-gray-200">
-      <button 
-        @click="$emit('edit')" 
-        class="flex-1 py-3 text-primary-600 hover:bg-primary-50 transition-colors text-base"
-      >
-        <span class="flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-          </svg>
+
+    <template #footer>
+      <el-button-group class="direction-card__actions">
+        <el-button :icon="Edit" @click="$emit('edit')">
           Редактировать
-        </span>
-      </button>
-      <div class="w-px bg-gray-200"></div>
-      <button 
-        @click="$emit('delete')" 
-        class="flex-1 py-3 text-red-600 hover:bg-red-50 transition-colors text-base"
-      >
-        <span class="flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-          </svg>
+        </el-button>
+        <el-button type="danger" :icon="Delete" @click="$emit('delete')">
           Удалить
-        </span>
-      </button>
-    </div>
-  </div>
+        </el-button>
+      </el-button-group>
+    </template>
+  </el-card>
 </template>
 
 <script setup>
 import { computed } from 'vue';
+import { Delete, Edit } from '@element-plus/icons-vue';
 
 const props = defineProps({
   direction: {
@@ -98,3 +74,36 @@ const fieldName = computed(() => {
   return props.fieldMapping[fieldId] || fieldId;
 });
 </script> 
+
+<style scoped>
+.direction-card {
+  height: 100%;
+}
+
+.direction-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.direction-card__body {
+  display: grid;
+  gap: 16px;
+}
+
+.direction-card__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.direction-card__actions {
+  width: 100%;
+}
+
+.direction-card__actions :deep(.el-button) {
+  width: 50%;
+}
+</style>

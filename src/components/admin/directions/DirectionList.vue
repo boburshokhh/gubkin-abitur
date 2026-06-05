@@ -1,34 +1,25 @@
 <template>
-  <div class="bg-white shadow rounded-lg overflow-hidden">
-    <div v-if="loading" class="p-8 text-center">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600 mb-4"></div>
-      <p class="text-gray-500">Загрузка данных...</p>
+  <el-card shadow="never">
+    <el-skeleton v-if="loading" :rows="6" animated />
+
+    <el-empty v-else-if="items.length === 0" description="Направления не найдены" />
+
+    <div v-else class="direction-list">
+      <DirectionCard
+        v-for="item in items"
+        :key="item.id"
+        :direction="item"
+        :field-mapping="fieldMapping"
+        :subjects-count="getExamSubjectsCount(item)"
+        :subjects-list="getExamSubjectsList(item)"
+        @edit="$emit('edit', item)"
+        @delete="$emit('delete', item)"
+      />
     </div>
-    
-    <div v-else-if="items.length === 0" class="p-8 text-center">
-      <p class="text-gray-500">Направления не найдены</p>
-    </div>
-    
-    <!-- Адаптивные карточки для всех размеров экранов -->
-    <div v-else class="block">
-      <div class="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6 p-4">
-        <DirectionCard 
-          v-for="item in items" 
-          :key="item.id"
-          :direction="item"
-          :field-mapping="fieldMapping"
-          :subjects-count="getExamSubjectsCount(item)"
-          :subjects-list="getExamSubjectsList(item)"
-          @edit="$emit('edit', item)"
-          @delete="$emit('delete', item)"
-        />
-      </div>
-    </div>
-  </div>
+  </el-card>
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
 import DirectionCard from './DirectionCard.vue';
 
 const props = defineProps({
@@ -77,4 +68,18 @@ const getExamSubjectsList = (direction) => {
     .filter(name => name)
     .join(', ');
 };
-</script> 
+</script>
+
+<style scoped>
+.direction-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .direction-list {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

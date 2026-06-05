@@ -119,7 +119,7 @@
           />
         </el-form-item>
 
-        <div class="profiles-management__dialog-grid">
+        <div class="profiles-management__dialog-layout">
           <el-form-item label="Уровень образования" required>
             <el-select
               v-model="selectedLevelId"
@@ -495,7 +495,7 @@ function removeExam(index) {
   font-weight: 600;
 }
 
-.profiles-management__dialog-grid {
+.profiles-management__dialog-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(220px, 1fr));
   gap: 16px;
@@ -521,7 +521,7 @@ function removeExam(index) {
 
 @media (max-width: 768px) {
   .profiles-management__header,
-  .profiles-management__dialog-grid {
+  .profiles-management__dialog-layout {
     align-items: flex-start;
     grid-template-columns: 1fr;
   }

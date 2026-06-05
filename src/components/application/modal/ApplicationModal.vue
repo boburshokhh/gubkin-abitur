@@ -1,671 +1,293 @@
-<template>
+﻿<template>
   <el-dialog
     :model-value="show"
     :title="`Заявка №${application?.id?.substring(0, 8) || ''}`"
-    width="900px"
+    width="min(960px, 94vw)"
     class="application-modal"
     destroy-on-close
     @close="close"
   >
-    <div class="application-modal__body">
-          <!-- Индикатор загрузки -->
-          <div v-if="isUpdating && !application" class="flex justify-center items-center py-10">
-            <svg class="animate-spin h-10 w-10 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span class="ml-3 text-gray-600">Загрузка данных заявки...</span>
-          </div>
-          
-          <div v-else class="space-y-6">
-            
-            <!-- Личные данные -->
-            <div class="px-4 py-5 bg-gray-50 rounded-lg">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Личные данные</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                <div>
-                  <span class="text-sm text-gray-500">Ф.И.О.:</span>
-                  <p>{{ getUserFullName(application?.users) }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Дата рождения:</span>
-                  <p>{{ formatDate(application?.birth_date || application?.users?.birth_date) }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Регион:</span>
-                  <p>{{ getRegionName() }}</p>
-                </div>
-                <div class="md:col-span-2">
-                  <span class="text-sm text-gray-500">Полный адрес места проживания:</span>
-                  <p>{{ application?.address || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Контактный телефон:</span>
-                  <p>{{ application?.phone || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Телефон родителя:</span>
-                  <p>{{ application?.parent_phone || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Email:</span>
-                  <p>{{ application?.email || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Пол:</span>
-                  <p>{{ (application?.gender || application?.users?.gender) === 'male' ? 'Мужской' : (application?.gender || application?.users?.gender) === 'female' ? 'Женский' : 'Не указан' }}</p>
-                </div>
-                <div v-if="application?.accommodation_needed">
-                  <span class="text-sm text-gray-500">Нуждается в общежитии:</span>
-                  <p>Да</p>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Паспортные данные -->
-            <div class="px-4 py-5 bg-gray-50 rounded-lg">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Паспортные данные</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                <div>
-                  <span class="text-sm text-gray-500">Серия и номер:</span>
-                  <p>{{ application?.passport_series || 'Не указано' }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Дата выдачи:</span>
-                  <p>{{ formatDate(application?.passport_issue_date) }}</p>
-                </div>
-                <div class="md:col-span-2">
-                  <span class="text-sm text-gray-500">Кем выдан:</span>
-                  <p>{{ application?.passport_issued_by || 'Не указано' }}</p>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Образование -->
-            <div class="px-4 py-5 bg-gray-50 rounded-lg">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Образование</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                <div>
-                  <span class="text-sm text-gray-500">Уровень образования:</span>
-                  <p>{{ getEducationLevelName(application?.education_level) }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Учебное заведение:</span>
-                  <p>{{ application?.education_institution || 'Не указано' }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Год окончания:</span>
-                  <p>{{ application?.education_graduation_year || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Документ об образовании:</span>
-                  <p>{{ application?.education_document_number || application?.document_number || 'Не указан' }} {{ application?.education_document_date || application?.document_date ? `от ${formatDate(application.education_document_date || application.document_date)}` : '' }}</p>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Выбранные образовательные программы -->
-            <div class="px-4 py-5 bg-gray-50 rounded-lg">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Выбранные образовательные программы</h3>
-              
-              <div v-if="application?.application_choices && application.application_choices.length > 0" class="space-y-4">
-                <div v-for="(choice, index) in application.application_choices" :key="index" class="p-3 border rounded border-gray-200">
-                  <div class="font-medium">Приоритет {{ choice.priority }}</div>
-                  <div class="text-sm mt-1">
-                    <div class="flex gap-2">
-                      <span class="text-gray-500">Профиль:</span>
-                      <span>{{ getProfileFullName(choice) }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div v-else class="text-sm text-gray-500">
-                Образовательные программы не выбраны
-              </div>
-            </div>
+    <el-skeleton v-if="isUpdating && !application" :rows="8" animated />
 
-            <!-- Статус заявки -->
-            <div class="px-4 py-5 bg-gray-50 rounded-lg">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Информация о заявке</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                <div>
-                  <span class="text-sm text-gray-500">Статус:</span>
-                  <div class="mt-1">
-                    <span 
-                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                      :class="getStatusClass(application?.status_id)"
+    <div v-else class="application-modal__content">
+      <el-card shadow="never">
+        <template #header>
+          <div class="application-modal__card-header">
+            <span>Личные данные</span>
+            <el-tag v-if="application?.accommodation_needed" type="info" effect="light">
+              Нуждается в общежитии
+            </el-tag>
+          </div>
+        </template>
+
+        <el-descriptions :column="descriptionColumns" border>
+          <el-descriptions-item label="Ф.И.О.">
+            {{ getUserFullName(application?.users) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Дата рождения">
+            {{ formatDate(application?.birth_date || application?.users?.birth_date) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Регион">
+            {{ getRegionName() }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Адрес">
+            {{ application?.address || 'Не указан' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Телефон">
+            {{ application?.phone || 'Не указан' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Телефон родителя">
+            {{ application?.parent_phone || 'Не указан' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Email">
+            {{ application?.email || 'Не указан' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Пол">
+            {{ getGenderText(application?.gender || application?.users?.gender) }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </el-card>
+
+      <el-card shadow="never">
+        <template #header>Паспортные данные</template>
+        <el-descriptions :column="descriptionColumns" border>
+          <el-descriptions-item label="Серия и номер">
+            {{ application?.passport_series || 'Не указано' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Дата выдачи">
+            {{ formatDate(application?.passport_issue_date) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Кем выдан">
+            {{ application?.passport_issued_by || 'Не указано' }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </el-card>
+
+      <el-card shadow="never">
+        <template #header>Образование</template>
+        <el-descriptions :column="descriptionColumns" border>
+          <el-descriptions-item label="Уровень образования">
+            {{ getEducationLevelName(application?.education_level) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Учебное заведение">
+            {{ application?.education_institution || 'Не указано' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Год окончания">
+            {{ application?.education_graduation_year || 'Не указан' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Документ об образовании">
+            {{ getEducationDocumentText() }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </el-card>
+
+      <el-card shadow="never">
+        <template #header>Выбранные образовательные программы</template>
+        <el-empty
+          v-if="!application?.application_choices?.length"
+          description="Образовательные программы не выбраны"
+        />
+        <el-table v-else :data="application.application_choices" border stripe>
+          <el-table-column label="Приоритет" width="120">
+            <template #default="{ row }">
+              <el-tag type="primary" effect="light">{{ row.priority }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="Профиль">
+            <template #default="{ row }">
+              {{ getProfileFullName(row) }}
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
+
+      <el-card shadow="never">
+        <template #header>Информация о заявке</template>
+        <el-descriptions :column="descriptionColumns" border>
+          <el-descriptions-item label="Статус">
+            <el-tag :type="getStatusType(application?.status_id)" effect="light">
+              {{ getStatusName(application?.status_id) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="Дата подачи">
+            {{ formatDate(application?.created_at) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Форма обучения">
+            {{ getStudyFormText(application?.study_form) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="Форма финансирования">
+            {{ getFundingFormText(application?.funding_form) }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="application?.admin_comment" label="Комментарий администратора">
+            <el-alert :title="application.admin_comment" type="warning" show-icon :closable="false" />
+          </el-descriptions-item>
+        </el-descriptions>
+      </el-card>
+
+      <el-alert
+        v-if="application?.olympiad_participant"
+        title="Участвовал(а) в олимпиаде Университета Губкина"
+        description="Победители, призёры и участники 1-Губкинской предметной Олимпиады прилагают цветную копию диплома/сертификата."
+        type="success"
+        show-icon
+        :closable="false"
+      />
+
+      <el-card shadow="never">
+        <template #header>Загруженные документы и файлы</template>
+
+        <el-collapse model-value="required-files">
+          <el-collapse-item name="required-files" title="Обязательные документы">
+            <el-table :data="requiredFileRows" border stripe>
+              <el-table-column label="Документ" min-width="220">
+                <template #default="{ row }">
+                  <el-space direction="vertical" alignment="flex-start" :size="2">
+                    <el-text>{{ row.label }}</el-text>
+                    <el-text type="info" size="small">{{ row.description }}</el-text>
+                  </el-space>
+                </template>
+              </el-table-column>
+              <el-table-column label="Статус" width="150">
+                <template #default="{ row }">
+                  <el-tag :type="row.files.length ? 'success' : row.required ? 'danger' : 'info'" effect="light">
+                    {{ row.files.length ? 'Загружен' : row.required ? 'Отсутствует' : 'Не загружен' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="Файлы" min-width="280">
+                <template #default="{ row }">
+                  <el-empty v-if="!row.files.length" :description="row.emptyText" :image-size="48" />
+                  <el-space v-else wrap>
+                    <el-tag
+                      v-for="file in row.files"
+                      :key="file.id || file.file_path"
+                      :type="getFileTypeTagType(file.file_name)"
+                      effect="light"
                     >
-                      {{ getStatusName(application?.status_id) }}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Дата подачи:</span>
-                  <p>{{ formatDate(application?.created_at) }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Форма обучения:</span>
-                  <p>{{ getStudyFormText(application?.study_form) }}</p>
-                </div>
-                <div>
-                  <span class="text-sm text-gray-500">Форма финансирования:</span>
-                  <p>{{ getFundingFormText(application?.funding_form) }}</p>
-                </div>
-                <div v-if="application?.admin_comment" class="md:col-span-2">
-                  <span class="text-sm text-gray-500">Комментарий администратора:</span>
-                  <p class="mt-1 text-sm bg-yellow-50 p-2 rounded">{{ application.admin_comment }}</p>
-                </div>
-              </div>
-            </div>
+                      {{ getFileDisplayName(file) }}
+                    </el-tag>
+                  </el-space>
+                </template>
+              </el-table-column>
+              <el-table-column label="Действия" width="190" fixed="right">
+                <template #default="{ row }">
+                  <el-space v-if="row.files.length" wrap>
+                    <el-button
+                      v-for="file in row.files"
+                      :key="`view-${file.id || file.file_path}`"
+                      type="primary"
+                      link
+                      :icon="View"
+                      tag="a"
+                      :href="getApplicationFileUrl(file)"
+                      target="_blank"
+                    >
+                      Открыть
+                    </el-button>
+                  </el-space>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-collapse-item>
 
-            <!-- Участие в олимпиаде -->
-            <div v-if="application?.olympiad_participant" class="px-4 py-5 bg-gray-50 rounded-lg">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Участие в олимпиаде</h3>
-              <div class="text-sm">
-                <p class="text-green-700 font-medium">Участвовал(а) в олимпиаде Университета Губкина</p>
-                <p class="text-xs text-gray-500 mt-1">
-                  Победители, призёры и участники 1-Губкинской предметной Олимпиады прилагают цветную копию диплома/сертификата
-                </p>
-              </div>
-            </div>
-            
-            <!-- Загруженные документы -->
-            <div class="px-4 py-5 bg-gray-50 rounded-lg">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Загруженные документы и файлы</h3>
-              
-              <!-- Блок 1: Обязательные документы -->
-              <div class="mb-6">
-                <h4 class="text-md font-medium text-gray-700 mb-3 flex items-center">
-                  <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-semibold mr-2">ОБЯЗАТЕЛЬНЫЕ</span>
-                  Основные документы
-                </h4>
-                
-                <!-- Скан паспорта -->
-                <div class="mb-3">
-                  <h5 class="text-sm font-medium text-gray-600 mb-2">📄 Скан паспорта (первая страница)</h5>
-                  <div v-if="getFilesByCategory('passport_scan').length > 0" class="border rounded-md divide-y">
-                    <div v-for="(file, index) in getFilesByCategory('passport_scan')" :key="index" class="px-4 py-3 flex justify-between items-center bg-white">
-                      <div class="flex items-center space-x-2">
-                        <DocumentTextIcon class="h-5 w-5 text-blue-500" />
-                        <div>
-                          <span class="text-sm font-medium text-gray-700">{{ file.file_name || 'passport_scan.pdf' }}</span>
-                          <div class="text-xs text-gray-500 mt-1">
-                            {{ formatFileSize(file.file_size) }} • {{ formatDate(file.created_at) }}
-                            <div class="mt-0.5 text-xs text-gray-400">Категория: {{ getFileCategoryName(file.file_category) }}</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="flex space-x-2">
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 inline-flex items-center" 
-                          title="Просмотреть"
-                        >
-                          <EyeIcon class="h-4 w-4" />
-                        </a>
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          download
-                          class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 inline-flex items-center" 
-                          title="Скачать"
-                        >
-                          <ArrowDownTrayIcon class="h-4 w-4" />
-                        </a>
-                        <!-- Прямые ссылки для скачивания и просмотра -->
-                        <!-- <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          download
-                          class="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 inline-flex items-center" 
-                          title="Прямое скачивание"
-                        >
-                          <ArrowDownTrayIcon class="h-4 w-4" />
-                        </a>
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          class="text-xs px-2 py-1 rounded bg-purple-50 text-purple-600 hover:bg-purple-100 inline-flex items-center" 
-                          title="Прямое открытие"
-                        >
-                          <EyeIcon class="h-4 w-4" />
-                        </a> -->
-                      </div>
-                    </div>
-                  </div>
-                  <div v-else class="text-xs text-red-500 italic">❌ Скан паспорта не загружен</div>
-                </div>
+          <el-collapse-item name="extra-documents" title="Дополнительные документы">
+            <el-empty v-if="extraDocumentRows.length === 0" description="Дополнительные документы не загружены" />
+            <el-table v-else :data="extraDocumentRows" border stripe>
+              <el-table-column prop="name" label="Файл" min-width="240" />
+              <el-table-column label="Тип" width="180">
+                <template #default="{ row }">
+                  <el-tag :type="getFileTypeTagType(row.fileName)" effect="light">
+                    {{ row.typeLabel }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="Дата" width="150">
+                <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+              </el-table-column>
+              <el-table-column label="Размер" width="120">
+                <template #default="{ row }">{{ formatFileSize(row.size) }}</template>
+              </el-table-column>
+              <el-table-column label="Действия" width="190" fixed="right">
+                <template #default="{ row }">
+                  <el-button type="primary" link :icon="View" tag="a" :href="row.url" target="_blank">
+                    Открыть
+                  </el-button>
+                  <el-button type="info" link :icon="Download" tag="a" :href="row.url" target="_blank" download>
+                    Скачать
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-collapse-item>
 
-                <!-- Нотариально заверенный перевод паспорта -->
-                <div class="mb-3">
-                  <h5 class="text-sm font-medium text-gray-600 mb-2">📑 Нотариально заверенный перевод паспорта</h5>
-                  <div v-if="getFilesByCategory('passport_translation').length > 0" class="border rounded-md divide-y">
-                    <div v-for="(file, index) in getFilesByCategory('passport_translation')" :key="index" class="px-4 py-3 flex justify-between items-center bg-white">
-                      <div class="flex items-center space-x-2">
-                        <DocumentTextIcon class="h-5 w-5 text-indigo-500" />
-                        <div>
-                          <span class="text-sm font-medium text-gray-700">{{ file.file_name || 'passport_translation.pdf' }}</span>
-                          <div class="text-xs text-gray-500 mt-1">
-                            {{ formatFileSize(file.file_size) }} • {{ formatDate(file.created_at) }}
-                            <div class="mt-0.5 text-xs text-gray-400">Категория: {{ getFileCategoryName(file.file_category) }}</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="flex space-x-2">
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 inline-flex items-center" 
-                          title="Просмотреть"
-                        >
-                          <EyeIcon class="h-4 w-4" />
-                        </a>
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          download
-                          class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 inline-flex items-center" 
-                          title="Скачать"
-                        >
-                          <ArrowDownTrayIcon class="h-4 w-4" />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-else class="text-xs text-gray-500 italic">ℹ️ Нотариально заверенный перевод не загружен (необязательно)</div>
-                </div>
+          <el-collapse-item name="checklist" title="Проверка комплектности">
+            <el-space wrap>
+              <el-tag
+                v-for="item in requiredFileRows"
+                :key="item.category"
+                :type="item.files.length ? 'success' : item.required ? 'danger' : 'info'"
+                effect="light"
+              >
+                {{ item.label }}: {{ item.files.length ? 'загружен' : item.required ? 'отсутствует' : 'не загружен' }}
+              </el-tag>
+            </el-space>
+          </el-collapse-item>
+        </el-collapse>
+      </el-card>
 
-                <!-- Фотография 3x4 -->
-                <div class="mb-3">
-                  <h5 class="text-sm font-medium text-gray-600 mb-2">📷 Фотография 3x4 см</h5>
-                  <div v-if="getFilesByCategory('photo').length > 0" class="border rounded-md divide-y">
-                    <div v-for="(file, index) in getFilesByCategory('photo')" :key="index" class="px-4 py-3 flex justify-between items-center bg-white">
-                      <div class="flex items-center space-x-2">
-                        <PhotoIcon class="h-5 w-5 text-green-500" />
-                        <div>
-                          <span class="text-sm font-medium text-gray-700">{{ file.file_name || 'photo.jpg' }}</span>
-                          <div class="text-xs text-gray-500 mt-1">
-                            {{ formatFileSize(file.file_size) }} • {{ formatDate(file.created_at) }}
-                            <div class="mt-0.5 text-xs text-gray-400">Категория: {{ getFileCategoryName(file.file_category) }}</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="flex space-x-2">
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 inline-flex items-center" 
-                          title="Просмотреть"
-                        >
-                          <EyeIcon class="h-4 w-4" />
-                        </a>
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          download
-                          class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 inline-flex items-center" 
-                          title="Скачать"
-                        >
-                          <ArrowDownTrayIcon class="h-4 w-4" />
-                        </a>
-                        <!-- Прямые ссылки для скачивания и просмотра -->
-                        <!-- <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          download
-                          class="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 inline-flex items-center" 
-                          title="Прямое скачивание"
-                        >
-                          <ArrowDownTrayIcon class="h-4 w-4" />
-                        </a>
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          class="text-xs px-2 py-1 rounded bg-purple-50 text-purple-600 hover:bg-purple-100 inline-flex items-center" 
-                          title="Прямое открытие"
-                        >
-                          <EyeIcon class="h-4 w-4" />
-                        </a> -->
-                      </div>
-                    </div>
-                  </div>
-                  <div v-else class="text-xs text-red-500 italic">❌ Фотография не загружена</div>
-                </div>
-
-                <!-- Скан документа об образовании -->
-                <div class="mb-3">
-                  <h5 class="text-sm font-medium text-gray-600 mb-2">🎓 Скан документа об образовании</h5>
-                  <div v-if="getFilesByCategory('education_scan').length > 0" class="border rounded-md divide-y">
-                    <div v-for="(file, index) in getFilesByCategory('education_scan')" :key="index" class="px-4 py-3 flex justify-between items-center bg-white">
-                      <div class="flex items-center space-x-2">
-                        <DocumentTextIcon class="h-5 w-5 text-purple-500" />
-                        <div>
-                          <span class="text-sm font-medium text-gray-700">{{ file.file_name || 'education_document.pdf' }}</span>
-                          <div class="text-xs text-gray-500 mt-1">
-                            {{ formatFileSize(file.file_size) }} • {{ formatDate(file.created_at) }}
-                            <div class="mt-0.5 text-xs text-gray-400">Категория: {{ getFileCategoryName(file.file_category) }}</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="flex space-x-2">
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 inline-flex items-center" 
-                          title="Просмотреть"
-                        >
-                          <EyeIcon class="h-4 w-4" />
-                        </a>
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          download
-                          class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 inline-flex items-center" 
-                          title="Скачать"
-                        >
-                          <ArrowDownTrayIcon class="h-4 w-4" />
-                        </a>
-                        <!-- Прямые ссылки для скачивания и просмотра -->
-                        <!-- <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          download
-                          class="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 inline-flex items-center" 
-                          title="Прямое скачивание"
-                        >
-                          <ArrowDownTrayIcon class="h-4 w-4" />
-                        </a>
-                        <a 
-                          :href="getApplicationFileUrl(file)" 
-                          target="_blank" 
-                          class="text-xs px-2 py-1 rounded bg-purple-50 text-purple-600 hover:bg-purple-100 inline-flex items-center" 
-                          title="Прямое открытие"
-                        >
-                          <EyeIcon class="h-4 w-4" />
-                        </a> -->
-                      </div>
-                    </div>
-                  </div>
-                  <div v-else class="text-xs text-red-500 italic">❌ Скан документа об образовании не загружен</div>
-                </div>
-              </div>
-
-              <!-- Блок 2: Дополнительные документы (из таблицы documents) -->
-              <div v-if="application?.documents && application.documents.length > 0" class="mb-4">
-                <h4 class="text-md font-medium text-gray-700 mb-3 flex items-center">
-                  <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-semibold mr-2">ДОПОЛНИТЕЛЬНЫЕ</span>
-                  Официальные документы
-                </h4>
-                <div class="border rounded-md divide-y">
-                  <div v-for="(doc, index) in application.documents" :key="index" class="px-4 py-3 flex justify-between items-center bg-blue-50">
-                    <div class="flex items-center space-x-2">
-                      <DocumentTextIcon class="h-5 w-5 text-blue-600" />
-                      <div>
-                        <span class="text-sm font-medium text-gray-700">{{ doc.document_types?.description || doc.document_types?.name || `Документ ${index + 1}` }}</span>
-                        <div class="text-xs text-gray-500 mt-1">
-                          {{ doc.file_name || 'Без названия' }} • {{ formatFileSize(doc.file_size) }}
-                          <div class="mt-0.5 text-xs text-gray-400">ID: {{ doc.id.substring(0, 8) }} • Загружен: {{ formatDate(doc.created_at) }}</div>
-                          <div class="mt-0.5 text-xs" :class="{'text-green-600': doc.status === 'approved', 'text-yellow-600': doc.status === 'pending', 'text-red-600': doc.status === 'rejected'}">
-                            Статус: {{ getDocumentStatus(doc.status) }}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="flex space-x-2">
-                      <a 
-                        :href="getDocumentUrl(doc)" 
-                        target="_blank" 
-                        class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 inline-flex items-center" 
-                        title="Просмотреть"
-                      >
-                        <EyeIcon class="h-4 w-4" />
-                      </a>
-                      <a 
-                        :href="getDocumentUrl(doc)" 
-                        target="_blank" 
-                        download
-                        class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 inline-flex items-center" 
-                        title="Скачать"
-                      >
-                        <ArrowDownTrayIcon class="h-4 w-4" />
-                      </a>
-                      <!-- Прямые ссылки для скачивания и просмотра -->
-                      <!-- <a 
-                        :href="getDocumentUrl(doc)" 
-                        target="_blank" 
-                        download
-                        class="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 inline-flex items-center" 
-                        title="Прямое скачивание"
-                      >
-                        <ArrowDownTrayIcon class="h-4 w-4" />
-                      </a>
-                      <a 
-                        :href="getDocumentUrl(doc)" 
-                        target="_blank" 
-                        class="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700 hover:bg-purple-200 inline-flex items-center" 
-                        title="Прямое открытие"
-                      >
-                        <EyeIcon class="h-4 w-4" />
-                      </a> -->
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Блок 3: Другие файлы -->
-              <div v-if="getFilesByCategory('general').length > 0" class="mb-4">
-                <h4 class="text-md font-medium text-gray-700 mb-3 flex items-center">
-                  <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-semibold mr-2">ПРОЧИЕ</span>
-                  Дополнительные файлы
-                </h4>
-                <div class="border rounded-md divide-y">
-                  <div v-for="(file, index) in getFilesByCategory('general')" :key="index" class="px-4 py-3 flex justify-between items-center">
-                    <div class="flex items-center space-x-2">
-                      <PhotoIcon v-if="file.is_image" class="h-5 w-5 text-gray-500" />
-                      <DocumentTextIcon v-else class="h-5 w-5 text-gray-500" />
-                      <div>
-                        <span class="text-sm font-medium text-gray-700">{{ file.file_name || 'Файл' }}</span>
-                        <div class="text-xs text-gray-500 mt-1">
-                          {{ formatFileSize(file.file_size) }} • {{ formatDate(file.created_at) }}
-                          <div class="mt-0.5 text-xs text-gray-400">Тип: {{ file.is_image ? 'Изображение' : 'Документ' }}</div>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="flex space-x-2">
-                      <a 
-                        :href="getApplicationFileUrl(file)" 
-                        target="_blank" 
-                        class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 inline-flex items-center" 
-                        title="Просмотреть"
-                      >
-                        <EyeIcon class="h-4 w-4" />
-                      </a>
-                      <a 
-                        :href="getApplicationFileUrl(file)" 
-                        target="_blank" 
-                        download
-                        class="text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 inline-flex items-center" 
-                        title="Скачать"
-                      >
-                        <ArrowDownTrayIcon class="h-4 w-4" />
-                      </a>
-                      <!-- Прямые ссылки для скачивания и просмотра -->
-                      <!-- <a 
-                        :href="getApplicationFileUrl(file)" 
-                        target="_blank" 
-                        download
-                        class="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 inline-flex items-center" 
-                        title="Прямое скачивание"
-                      >
-                        <ArrowDownTrayIcon class="h-4 w-4" />
-                      </a>
-                      <a 
-                        :href="getApplicationFileUrl(file)" 
-                        target="_blank" 
-                        class="text-xs px-2 py-1 rounded bg-purple-50 text-purple-600 hover:bg-purple-100 inline-flex items-center" 
-                        title="Прямое открытие"
-                      >
-                        <EyeIcon class="h-4 w-4" />
-                      </a> -->
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Блок 4: Сертификаты олимпиад -->
-              <div v-if="application?.olympiad_certificates && application.olympiad_certificates.length > 0" class="mb-4">
-                <h4 class="text-md font-medium text-gray-700 mb-3 flex items-center">
-                  <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-semibold mr-2">ОЛИМПИАДЫ</span>
-                  Сертификаты олимпиад
-                </h4>
-                <div class="border rounded-md divide-y">
-                  <div v-for="(cert, index) in application.olympiad_certificates" :key="index" class="px-4 py-3 flex justify-between items-center bg-yellow-50">
-                    <div class="flex items-center space-x-2">
-                      <AcademicCapIcon class="h-5 w-5 text-yellow-600" />
-                      <div>
-                        <span class="text-sm font-medium text-gray-700">{{ cert.file_name || cert.name || 'Сертификат олимпиады' }}</span>
-                        <div class="text-xs text-gray-500 mt-1">
-                          {{ cert.year ? `Год: ${cert.year}` : '' }} • {{ formatDate(cert.created_at) }}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="flex space-x-2">
-                      <a 
-                        :href="getOlympiadCertificateUrl(cert)" 
-                        target="_blank" 
-                        class="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200 inline-flex items-center" 
-                        title="Просмотреть"
-                      >
-                        <EyeIcon class="h-4 w-4" />
-                      </a>
-                      <a 
-                        :href="getOlympiadCertificateUrl(cert)" 
-                        target="_blank" 
-                        download
-                        class="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 inline-flex items-center" 
-                        title="Скачать"
-                      >
-                        <ArrowDownTrayIcon class="h-4 w-4" />
-                      </a>
-                     <!-- <a 
-                        :href="getOlympiadCertificateUrl(cert)" 
-                        target="_blank" 
-                        class="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700 hover:bg-purple-200 inline-flex items-center" 
-                        title="Прямое открытие"
-                      >
-                        <EyeIcon class="h-4 w-4" />
-                      </a> -->
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Сводка по обязательным документам -->
-              <div class="mt-4 p-3 bg-white border-l-4 border-gray-300 rounded">
-                <h5 class="text-sm font-medium text-gray-700 mb-2">📊 Статус обязательных документов:</h5>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                  <div class="flex items-center space-x-1">
-                    <span class="w-2 h-2 rounded-full" :class="getFilesByCategory('passport_scan').length > 0 ? 'bg-green-500' : 'bg-red-500'"></span>
-                    <span>Скан паспорта: {{ getFilesByCategory('passport_scan').length > 0 ? '✅ Загружен' : '❌ Отсутствует' }}</span>
-                  </div>
-                  <div class="flex items-center space-x-1">
-                    <span class="w-2 h-2 rounded-full" :class="getFilesByCategory('photo').length > 0 ? 'bg-green-500' : 'bg-red-500'"></span>
-                    <span>Фотография: {{ getFilesByCategory('photo').length > 0 ? '✅ Загружена' : '❌ Отсутствует' }}</span>
-                  </div>
-                  <div class="flex items-center space-x-1">
-                    <span class="w-2 h-2 rounded-full" :class="getFilesByCategory('education_scan').length > 0 ? 'bg-green-500' : 'bg-red-500'"></span>
-                    <span>Документ об образовании: {{ getFilesByCategory('education_scan').length > 0 ? '✅ Загружен' : '❌ Отсутствует' }}</span>
-                  </div>
-                </div>
-                <!-- Дополнительные документы -->
-                <div class="mt-2 pt-2 border-t border-gray-200">
-                  <h6 class="text-xs font-medium text-gray-600 mb-1">📋 Дополнительные документы:</h6>
-                  <div class="flex items-center space-x-1">
-                    <span class="w-2 h-2 rounded-full" :class="getFilesByCategory('passport_translation').length > 0 ? 'bg-blue-500' : 'bg-gray-300'"></span>
-                    <span class="text-xs">Нотариально заверенный перевод: {{ getFilesByCategory('passport_translation').length > 0 ? '✅ Загружен' : 'ℹ️ Не загружен (необязательно)' }}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Сообщение если нет документов -->
-              <div v-if="(!application?.documents || application.documents.length === 0) && 
-                         (!application?.application_files || application.application_files.length === 0) && 
-                         (!application?.olympiad_certificates || application.olympiad_certificates.length === 0)" 
-                   class="text-sm text-gray-500 italic text-center py-4">
-                ❌ Нет загруженных документов и файлов
-              </div>
-            </div>
-            
-            <!-- История изменений статуса -->
-            <div v-if="application?.application_history && application.application_history.length > 0" class="px-4 py-5 bg-gray-50 rounded-lg">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">История изменений статуса</h3>
-              <div class="space-y-3">
-                <div v-for="(historyItem, index) in application.application_history" :key="index" class="bg-white p-4 rounded-md border border-gray-200">
-                  <div class="flex justify-between items-start">
-                    <div class="flex-1">
-                      <div class="flex items-center space-x-2 mb-2">
-                        <span 
-                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                          :class="getStatusClass(historyItem.status_id)"
-                        >
-                          {{ historyItem.status?.name || 'Неизвестный статус' }}
-                        </span>
-                        <span class="text-xs text-gray-500">
-                          {{ formatDate(historyItem.created_at) }}
-                        </span>
-                      </div>
-                      <div v-if="historyItem.comment" class="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                        {{ historyItem.comment }}
-                      </div>
-                      <div v-else class="text-xs text-gray-400 italic">
-                        Без комментария
-                      </div>
-                    </div>
-                    <div v-if="historyItem.created_by_user" class="text-xs text-gray-500 ml-4">
-                      {{ historyItem.created_by_user.first_name }} {{ historyItem.created_by_user.last_name }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Управление статусом (только для администраторов) -->
-            <el-card shadow="never" class="application-modal__status-card">
-              <template #header>
-                <h3 class="application-modal__section-title">Обновление статуса</h3>
-              </template>
-
-              <el-form label-position="top">
-                <el-form-item label="Изменить статус">
-                  <el-select v-model="newStatus" class="application-modal__field">
-                    <el-option
-                      v-for="status in statuses"
-                      :key="status.id"
-                      :label="status.name"
-                      :value="status.id"
-                    />
-                  </el-select>
-                </el-form-item>
-
-                <el-form-item label="Комментарий">
-                  <el-input
-                    v-model="comment"
-                    type="textarea"
-                    :rows="3"
-                    placeholder="Добавьте комментарий к изменению статуса..."
-                  />
-                </el-form-item>
-              </el-form>
+      <el-card v-if="application?.application_history?.length" shadow="never">
+        <template #header>История изменений статуса</template>
+        <el-timeline>
+          <el-timeline-item
+            v-for="historyItem in application.application_history"
+            :key="historyItem.id || historyItem.created_at"
+            :timestamp="formatDate(historyItem.created_at)"
+            placement="top"
+          >
+            <el-card shadow="never">
+              <el-space direction="vertical" alignment="flex-start">
+                <el-tag type="info" effect="light">
+                  {{ historyItem.old_status?.name || 'Новый' }} → {{ historyItem.new_status?.name || 'Неизвестно' }}
+                </el-tag>
+                <el-text v-if="historyItem.comment">{{ historyItem.comment }}</el-text>
+                <el-text v-else type="info">Без комментария</el-text>
+                <el-text v-if="historyItem.created_by_user" type="info" size="small">
+                  {{ historyItem.created_by_user.first_name }} {{ historyItem.created_by_user.last_name }}
+                </el-text>
+              </el-space>
             </el-card>
-          </div>
-        </div>
+          </el-timeline-item>
+        </el-timeline>
+      </el-card>
+
+      <el-card shadow="never">
+        <template #header>Обновление статуса</template>
+        <el-form label-position="top">
+          <el-form-item label="Изменить статус">
+            <el-select v-model="newStatus" class="application-modal__field">
+              <el-option
+                v-for="status in statuses"
+                :key="status.id"
+                :label="status.name"
+                :value="status.id"
+              />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="Комментарий">
+            <el-input
+              v-model="comment"
+              type="textarea"
+              :rows="3"
+              placeholder="Добавьте комментарий к изменению статуса..."
+            />
+          </el-form-item>
+        </el-form>
+      </el-card>
+    </div>
 
     <template #footer>
-      <el-button @click="close">
-        Закрыть
-      </el-button>
+      <el-button @click="close">Закрыть</el-button>
       <el-button
         type="primary"
         :loading="isUpdating"
@@ -676,21 +298,12 @@
       </el-button>
     </template>
   </el-dialog>
-
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue';
-import { appApi, documents, applicationFiles, olympiadCertificates, applications } from '@/api/app-api';
-import { useToast } from 'vue-toastification';
-import { 
-  DocumentTextIcon, 
-  EyeIcon, 
-  ArrowDownTrayIcon, 
-  XCircleIcon, 
-  PhotoIcon, 
-  AcademicCapIcon 
-} from '@heroicons/vue/24/outline';
+import { appApi } from '@/api/app-api';
+import { Download, View } from '@element-plus/icons-vue';
 
 const props = defineProps({
   show: {
@@ -712,11 +325,81 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close', 'update-status']);
-const toast = useToast();
 
 // Локальное состояние
 const newStatus = ref(props.application?.status_id || null);
 const comment = ref(props.application?.admin_comment || '');
+
+const descriptionColumns = computed(() => (window.innerWidth < 768 ? 1 : 2));
+
+const requiredFileRows = computed(() => [
+  {
+    category: 'passport_scan',
+    label: 'Скан паспорта',
+    description: 'Первая страница паспорта',
+    required: true,
+    emptyText: 'Скан паспорта не загружен',
+    files: getFilesByCategory('passport_scan')
+  },
+  {
+    category: 'passport_translation',
+    label: 'Нотариально заверенный перевод паспорта',
+    description: 'Необязательный документ',
+    required: false,
+    emptyText: 'Перевод не загружен',
+    files: getFilesByCategory('passport_translation')
+  },
+  {
+    category: 'photo',
+    label: 'Фотография 3x4',
+    description: 'Фотография абитуриента',
+    required: true,
+    emptyText: 'Фотография не загружена',
+    files: getFilesByCategory('photo')
+  },
+  {
+    category: 'education_scan',
+    label: 'Документ об образовании',
+    description: 'Скан документа об образовании',
+    required: true,
+    emptyText: 'Документ об образовании не загружен',
+    files: getFilesByCategory('education_scan')
+  }
+]);
+
+const extraDocumentRows = computed(() => {
+  const documentsRows = (props.application?.documents || []).map(doc => ({
+    id: doc.id,
+    name: doc.file_name || doc.document_types?.name || 'Документ',
+    fileName: doc.file_name,
+    typeLabel: doc.document_types?.name || getDocumentStatus(doc.status),
+    createdAt: doc.created_at,
+    size: doc.file_size,
+    url: getDocumentUrl(doc)
+  }));
+
+  const generalFilesRows = getFilesByCategory('general').map(file => ({
+    id: file.id,
+    name: file.file_name || 'Общий файл',
+    fileName: file.file_name,
+    typeLabel: getFileCategoryName(file.file_category || 'general'),
+    createdAt: file.created_at,
+    size: file.file_size,
+    url: getApplicationFileUrl(file)
+  }));
+
+  const certificateRows = (props.application?.olympiad_certificates || []).map(cert => ({
+    id: cert.id,
+    name: cert.file_name || cert.name || 'Сертификат олимпиады',
+    fileName: cert.file_name,
+    typeLabel: 'Сертификат олимпиады',
+    createdAt: cert.created_at,
+    size: cert.file_size,
+    url: getOlympiadCertificateUrl(cert)
+  }));
+
+  return [...documentsRows, ...generalFilesRows, ...certificateRows];
+});
 
 // Удалены неиспользуемые переменные для модального окна просмотра документов
 
@@ -788,6 +471,19 @@ function getEducationLevelName(level) {
   return levels[level] || 'Не указан';
 }
 
+function getGenderText(gender) {
+  if (gender === 'male') return 'Мужской';
+  if (gender === 'female') return 'Женский';
+  return 'Не указан';
+}
+
+function getEducationDocumentText() {
+  const number = props.application?.education_document_number || props.application?.document_number || 'Не указан';
+  const date = props.application?.education_document_date || props.application?.document_date;
+  if (!date) return number;
+  return `${number} от ${formatDate(date)}`;
+}
+
 // Получение полного названия профиля с направлением
 function getProfileFullName(choice) {
   if (!choice || !choice.profiles) return 'Профиль не найден';
@@ -818,21 +514,21 @@ function getStatusName(statusId) {
   return status ? status.name : 'Неизвестный статус';
 }
 
-// Получение класса для отображения статуса
-function getStatusClass(statusId) {
+function getStatusType(statusId) {
   const status = props.statuses.find(s => s.id === statusId);
-  
-  if (!status) return 'bg-gray-100 text-gray-800';
+  if (!status) return 'info';
   
   switch (status.name) {
     case 'Подана':
-      return 'bg-blue-100 text-blue-800';
+      return 'primary';
     case 'Принята':
-      return 'bg-green-100 text-green-800';
+      return 'success';
     case 'Отклонена':
-      return 'bg-red-100 text-red-800';
+      return 'danger';
+    case 'Требует доработки':
+      return 'warning';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'info';
   }
 }
 
@@ -874,122 +570,6 @@ function formatFileSize(bytes) {
   
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
-
-// Функция viewDocument удалена - теперь используются прямые ссылки
-
-// Функция viewApplicationFile удалена - теперь используются прямые ссылки
-
-// Функция viewOlympiadCertificate удалена - теперь используются прямые ссылки
-
-// Закрытие модального окна просмотра документа
-function closeDocumentModal() {
-  showDocumentModal.value = false;
-  selectedDocument.value = null;
-  documentUrl.value = '';
-}
-
-// Скачивание документа
-async function downloadDocument(documentItem) {
-  try {
-    const { data, error } = await documents.getSignedUrl(documentItem.id, { download: true });
-    
-    if (error) {
-      console.error('Ошибка при получении URL для скачивания:', error);
-      toast.error(`Ошибка: ${error.message || 'Не удалось получить доступ к документу'}`);
-      return;
-    }
-    
-    if (!data || !data.signedUrl) {
-      console.error('URL для скачивания отсутствует в ответе');
-      toast.error('Не удалось получить URL для скачивания документа');
-      return;
-    }
-    
-    const downloadLink = document.createElement('a');
-    downloadLink.href = data.signedUrl;
-    downloadLink.download = documentItem.file_name || `document-${Date.now()}.pdf`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-  } catch (err) {
-    console.error('Ошибка при скачивании документа:', err);
-    toast.error(`Ошибка при скачивании: ${err.message || 'Неизвестная ошибка'}`);
-  }
-}
-
-// Скачивание файла заявления
-async function downloadApplicationFile(fileItem) {
-  try {
-    const { data, error } = await applicationFiles.getSignedUrl(fileItem.id, { download: true });
-    
-    if (error) {
-      console.error('Ошибка при получении URL для скачивания файла:', error);
-      toast.error(`Ошибка: ${error.message || 'Не удалось получить доступ к файлу'}`);
-      return;
-    }
-    
-    if (!data || !data.signedUrl) {
-      console.error('URL для скачивания файла отсутствует в ответе');
-      toast.error('Не удалось получить URL для скачивания файла');
-      return;
-    }
-    
-    const downloadLink = document.createElement('a');
-    downloadLink.href = data.signedUrl;
-    downloadLink.download = fileItem.file_name || `file-${Date.now()}`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-  } catch (err) {
-    console.error('Ошибка при скачивании файла:', err);
-    toast.error(`Ошибка при скачивании: ${err.message || 'Неизвестная ошибка'}`);
-  }
-}
-
-// Скачивание текущего просматриваемого документа
-function downloadCurrentDocument() {
-  if (selectedDocument.value) {
-    if (selectedDocument.value.document_types) {
-      // Это обычный документ
-      downloadDocument(selectedDocument.value);
-    } else if (selectedDocument.value.file_category || selectedDocument.value.application_id) {
-      // Это файл заявления
-      downloadApplicationFile(selectedDocument.value);
-    } else if (selectedDocument.value.name && selectedDocument.value.year) {
-      // Это сертификат олимпиады
-      downloadOlympiadCertificate(selectedDocument.value);
-    }
-  }
-}
-
-// Скачивание сертификата олимпиады
-async function downloadOlympiadCertificate(cert) {
-  try {
-    const { data, error } = await olympiadCertificates.getSignedUrl(cert.id, { download: true });
-    
-    if (error) {
-      console.error('Ошибка при получении URL для скачивания сертификата:', error);
-      toast.error(`Ошибка: ${error.message || 'Не удалось получить доступ к сертификату'}`);
-      return;
-    }
-    
-    if (!data || !data.signedUrl) {
-      console.error('URL для скачивания сертификата отсутствует в ответе');
-      toast.error('Не удалось получить URL для скачивания сертификата');
-      return;
-    }
-    
-    const downloadLink = document.createElement('a');
-    downloadLink.href = data.signedUrl;
-    downloadLink.download = data.fileName || cert.file_name || `olympiad-certificate-${Date.now()}.pdf`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-  } catch (err) {
-    console.error('Ошибка при скачивании сертификата:', err);
-    toast.error(`Ошибка при скачивании: ${err.message || 'Неизвестная ошибка'}`);
-  }
 }
 
 // Получение файлов по категории
@@ -1116,13 +696,6 @@ function getFileExtension(filename) {
   return lastDotIndex !== -1 ? filename.substring(lastDotIndex + 1).toUpperCase() : '';
 }
 
-// Получение имени файла без расширения
-function getFileName(filename) {
-  if (!filename) return '';
-  const lastDotIndex = filename.lastIndexOf('.');
-  return lastDotIndex !== -1 ? filename.substring(0, lastDotIndex) : filename;
-}
-
 // Получение отображаемого имени файла
 function getFileDisplayName(file) {
   // Определяем тип файла по категории
@@ -1140,64 +713,44 @@ function getFileDisplayName(file) {
   return file.file_name || 'Файл';
 }
 
-// Цвета иконок для файлов (аналогично ApplicationDetailsPage.vue)
-function getFileIconColor(filename) {
+function getFileTypeTagType(filename) {
   const type = getFileType(filename);
-  
-  const colorMap = {
-    'pdf': 'text-red-500',
-    'image': 'text-blue-500',
-    'doc': 'text-indigo-500',
-    'sheet': 'text-green-500',
-    'archive': 'text-amber-500',
-    'other': 'text-gray-500'
+  const typeMap = {
+    pdf: 'danger',
+    image: 'primary',
+    doc: 'info',
+    sheet: 'success',
+    archive: 'warning',
+    other: 'info'
   };
   
-  return colorMap[type] || 'text-gray-500';
-}
-
-function getFileIconBgColor(filename) {
-  const type = getFileType(filename);
-  
-  const bgColorMap = {
-    'pdf': 'bg-red-500',
-    'image': 'bg-blue-500',
-    'doc': 'bg-indigo-500',
-    'sheet': 'bg-green-500',
-    'archive': 'bg-amber-500',
-    'other': 'bg-gray-500'
-  };
-  
-  return bgColorMap[type] || 'bg-gray-500';
-}
-
-function getFileExtensionClass(filename) {
-  const type = getFileType(filename);
-  
-  const classMap = {
-    'pdf': 'bg-red-100 text-red-800',
-    'image': 'bg-blue-100 text-blue-800',
-    'doc': 'bg-indigo-100 text-indigo-800',
-    'sheet': 'bg-green-100 text-green-800',
-    'archive': 'bg-amber-100 text-amber-800',
-    'other': 'bg-gray-100 text-gray-800'
-  };
-  
-  return classMap[type] || 'bg-gray-100 text-gray-800';
+  return typeMap[type] || 'info';
 }
 </script>
 
 <style scoped>
-/* Стили остаются прежними */
-.fixed {
-  position: fixed;
+.application-modal__content {
+  display: grid;
+  gap: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
-.z-\[100\] {
-  z-index: 100 !important;
+.application-modal__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.z-\[200\] {
-  z-index: 200 !important;
+.application-modal__field {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .application-modal__content {
+    max-height: 65vh;
+  }
 }
 </style> 

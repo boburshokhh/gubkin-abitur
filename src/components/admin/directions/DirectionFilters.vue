@@ -1,71 +1,66 @@
 <template>
-  <div class="bg-white shadow rounded-lg p-4 mb-6">
-    <h2 class="text-xl font-bold mb-2 text-gray-900">{{ title }}</h2>
-    <p class="text-gray-600 mb-4">{{ description }}</p>
-    
-    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
-      <slot name="actions">
-        <BaseButton @click="$emit('add')" variant="primary" class="w-full sm:w-auto">
-          <span class="flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
-            </svg>
-          Добавить направление
-          </span>
-        </BaseButton>
-      </slot>
-      
-      <p class="text-sm text-gray-500 mt-2 sm:mt-0">
-        Всего направлений: {{ totalCount }}
-      </p>
-    </div>
-    
-    <!-- Фильтры и поиск -->
-    <div class="flex flex-wrap gap-4 mb-4">
-      <div class="w-full sm:w-auto">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Тип программы</label>
-        <select 
-          :value="modelValue.programType" 
-          @change="updateFilter('programType', $event.target.value)"
-          class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-        >
-          <option value="">Все</option>
-          <option value="bachelor">Бакалавриат</option>
-          <option value="specialist">Специалитет</option>
-        </select>
+  <el-card shadow="never" class="direction-filters">
+    <template #header>
+      <div class="direction-filters__header">
+        <div>
+          <h2 class="direction-filters__title">{{ title }}</h2>
+          <el-text type="info">{{ description }}</el-text>
+        </div>
+
+        <el-space wrap>
+          <el-tag type="info" effect="light">Всего направлений: {{ totalCount }}</el-tag>
+          <slot name="actions">
+            <el-button type="primary" :icon="Plus" @click="$emit('add')">
+              Добавить направление
+            </el-button>
+          </slot>
+        </el-space>
       </div>
-      
-      <div class="w-full sm:w-auto">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Область</label>
-        <select 
-          :value="modelValue.field" 
-          @change="updateFilter('field', $event.target.value)"
-          class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+    </template>
+
+    <el-form label-position="top" class="direction-filters__form">
+      <el-form-item label="Тип программы">
+        <el-select
+          :model-value="modelValue.programType"
+          clearable
+          placeholder="Все"
+          @update:model-value="updateFilter('programType', $event || '')"
         >
-          <option value="">Все</option>
-          <option v-for="field in fields" :key="field.value" :value="field.value">
-            {{ field.label }}
-          </option>
-        </select>
-      </div>
-      
-      <div class="w-full sm:w-auto flex-grow sm:max-w-sm">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Поиск</label>
-        <input 
-          :value="modelValue.search" 
-          @input="updateFilter('search', $event.target.value)"
-          type="text" 
-          class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+          <el-option label="Бакалавриат" value="bachelor" />
+          <el-option label="Специалитет" value="specialist" />
+        </el-select>
+      </el-form-item>
+
+      <el-form-item label="Область">
+        <el-select
+          :model-value="modelValue.field"
+          clearable
+          placeholder="Все"
+          @update:model-value="updateFilter('field', $event || '')"
+        >
+          <el-option
+            v-for="field in fields"
+            :key="field.value"
+            :label="field.label"
+            :value="field.value"
+          />
+        </el-select>
+      </el-form-item>
+
+      <el-form-item label="Поиск">
+        <el-input
+          :model-value="modelValue.search"
           placeholder="Поиск по названию или коду"
+          clearable
+          @update:model-value="updateFilter('search', $event)"
         />
-      </div>
-    </div>
-  </div>
+      </el-form-item>
+    </el-form>
+  </el-card>
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
-import BaseButton from '@/components/ui/BaseButton.vue';
+import { Plus } from '@element-plus/icons-vue';
 
 const props = defineProps({
   modelValue: {
@@ -102,4 +97,41 @@ const updateFilter = (key, value) => {
     [key]: value
   });
 };
-</script> 
+</script>
+
+<style scoped>
+.direction-filters__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.direction-filters__title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.direction-filters__form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.direction-filters__form :deep(.el-select) {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .direction-filters__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .direction-filters__form {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
