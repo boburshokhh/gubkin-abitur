@@ -242,6 +242,11 @@ const form = ref({
 
 // Загрузка всех необходимых данных при монтировании
 onMounted(async () => {
+  if (!isAdmissionOpen) {
+    isFormLoading.value = false;
+    return;
+  }
+
   isFormLoading.value = true;
   await Promise.all([
     appStore.loadEducationData(),

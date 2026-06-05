@@ -62,6 +62,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgrespassword@db:5432/abitur}
       PORT: ${PORT:-3000}
       NODE_ENV: ${NODE_ENV:-production}
+      ADMISSION_OPEN: ${VITE_ADMISSION_OPEN:-false}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8085}
       JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret-before-production}
       TOKEN_PEPPER: ${TOKEN_PEPPER:-change-this-token-pepper-before-production}
@@ -104,7 +105,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
-        VITE_ADMISSION_OPEN: ${VITE_ADMISSION_OPEN:-true}
+        VITE_ADMISSION_OPEN: ${VITE_ADMISSION_OPEN:-false}
         APP_VERSION: ${APP_VERSION:-local}
         GIT_SHA: ${GIT_SHA:-unknown}
         BUILD_DATE: ${BUILD_DATE:-unknown}

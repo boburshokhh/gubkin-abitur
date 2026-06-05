@@ -87,6 +87,11 @@
             {{ error }}
           </div>
 
+          <div v-if="isLogin && !isAdmissionOpen" class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+            Регистрация новых аккаунтов закрыта, так как прием на 2026 год сейчас не ведется.
+            Если у вас уже есть аккаунт, войдите для просмотра ранее поданных заявлений.
+          </div>
+
           <div>
             <BaseButton
               type="submit"
@@ -115,7 +120,7 @@
           </div>
         </form>
 
-        <div class="mt-6">
+        <div v-if="isAdmissionOpen || !isLogin" class="mt-6">
           <div class="relative">
             <div class="absolute inset-0 flex items-center">
               <div class="w-full border-t border-gray-300" />
@@ -159,6 +164,7 @@ const isLogin = ref(true);
 const isLoading = computed(() => authStore.loading);
 const error = ref('');
 const isResendingVerification = ref(false);
+const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
 
 const form = reactive({
   firstName: '',
@@ -168,6 +174,11 @@ const form = reactive({
 });
 
 const toggleMode = () => {
+  if (isLogin.value && !isAdmissionOpen) {
+    error.value = 'Регистрация новых аккаунтов закрыта: прием на 2026 год сейчас не ведется.';
+    return;
+  }
+
   isLogin.value = !isLogin.value;
   error.value = '';
   // Очищаем форму при переключении
@@ -252,6 +263,12 @@ const handleSubmit = async () => {
         toast.error(error.value);
       }
     } else {
+      if (!isAdmissionOpen) {
+        error.value = 'Регистрация новых аккаунтов закрыта: прием на 2026 год сейчас не ведется.';
+        toast.error(error.value);
+        return;
+      }
+
       // Регистрация
       result = await authStore.register({
         email: form.email,

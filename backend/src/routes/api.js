@@ -9,6 +9,24 @@ const { JWT_SECRET, requireAuth, requireAdmin, requireAdminOrReviewer } = requir
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const admissionClosedMessage = 'Прием документов на 2026 учебный год закрыт. Подача новых заявлений временно недоступна.';
+
+function isAdmissionOpen() {
+  return process.env.ADMISSION_OPEN === 'true' || process.env.VITE_ADMISSION_OPEN === 'true';
+}
+
+function requireAdmissionOpen(req, res, next) {
+  if (isAdmissionOpen()) return next();
+
+  return res.status(403).json({ error: admissionClosedMessage });
+}
+
+function requireAdmissionOpenForApplicant(req, res, next) {
+  const isStaff = req.user?.role_id === 2 || req.user?.role_id === 3;
+  if (isStaff || isAdmissionOpen()) return next();
+
+  return res.status(403).json({ error: admissionClosedMessage });
+}
 
 function buildRegion(row, prefix) {
   if (!row?.[`${prefix}_region_id`]) return null;
@@ -62,7 +80,7 @@ function normalizeApplicationDetails(details, profileRow = {}) {
 // ==========================================
 
 // Регистрация
-router.post('/auth/signup', async (req, res) => {
+router.post('/auth/signup', requireAdmissionOpen, async (req, res) => {
   const { email, password, options } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email и пароль обязательны' });
@@ -690,7 +708,7 @@ router.get('/applications/:id', requireAuth, async (req, res) => {
 });
 
 // Создать заявление
-router.post('/applications', requireAuth, async (req, res) => {
+router.post('/applications', requireAuth, requireAdmissionOpenForApplicant, async (req, res) => {
   const { app_data } = req.body;
   if (!app_data) {
     return res.status(400).json({ error: 'Не переданы данные заявления' });
@@ -799,7 +817,7 @@ router.post('/applications', requireAuth, async (req, res) => {
 });
 
 // Обновить заявление
-router.put('/applications/:id', requireAuth, async (req, res) => {
+router.put('/applications/:id', requireAuth, requireAdmissionOpenForApplicant, async (req, res) => {
   const { choices, ...appData } = req.body;
   const client = await db.pool.connect();
   try {
@@ -908,7 +926,7 @@ router.put('/applications/:id', requireAuth, async (req, res) => {
 });
 
 // Отправить заявление на рассмотрение (черновик -> подан)
-router.post('/applications/:id/submit', requireAuth, async (req, res) => {
+router.post('/applications/:id/submit', requireAuth, requireAdmissionOpenForApplicant, async (req, res) => {
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');

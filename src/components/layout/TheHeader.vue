@@ -76,7 +76,7 @@
           >
             Подать документы
           </el-button>
-          <el-button v-else disabled>Прием закрыт</el-button>
+          <el-button v-else disabled>Прием 2026 закрыт</el-button>
         </template>
       </el-space>
 
@@ -149,7 +149,7 @@
           >
             Подать документы
           </el-button>
-          <el-button v-else disabled>Прием закрыт</el-button>
+          <el-button v-else disabled>Прием 2026 закрыт</el-button>
         </template>
       </el-space>
     </el-drawer>

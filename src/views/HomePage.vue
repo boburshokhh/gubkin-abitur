@@ -28,7 +28,7 @@
               variant="outline" 
               class="font-semibold text-gray-500 border-gray-300 cursor-not-allowed"
             >
-              Прием документов закрыт
+              Прием документов на 2026 год закрыт
             </BaseButton>
             <BaseButton tag="router-link" to="/admission2025" size="lg" variant="primary" class="border border-white">
               Вся информация о приеме

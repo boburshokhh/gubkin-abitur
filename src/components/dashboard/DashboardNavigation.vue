@@ -26,7 +26,7 @@
         Подать новое заявление
       </el-button>
       <el-button v-else disabled>
-        Прием закрыт
+        Прием 2026 закрыт
       </el-button>
     </el-space>
   </el-card>
