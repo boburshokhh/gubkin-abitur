@@ -1,41 +1,5 @@
 <template>
   <main class="admission-page">
-    <section class="admission-hero">
-      <div class="admission-container">
-        <el-row :gutter="40" align="middle">
-          <el-col :xs="24" :lg="14">
-            <el-tag class="hero-tag" effect="plain" size="large" round>{{ heroData.tag || 'Прием 2026/2027' }}</el-tag>
-            <h1>{{ heroData.title || 'Поступление в филиал Губкина в Ташкенте' }}</h1>
-            <p class="hero-description">{{ heroData.description || '' }}</p>
-            <div class="hero-actions">
-              <el-button type="primary" size="large" round @click="scrollToSection('documents')">
-                Подготовить документы
-              </el-button>
-              <el-button size="large" round @click="scrollToSection('directions')">
-                Смотреть направления
-              </el-button>
-            </div>
-          </el-col>
-          <el-col :xs="24" :lg="10">
-            <el-card class="hero-card" shadow="never">
-              <el-statistic
-                :title="heroData.quota_title || 'Общая квота'"
-                :value="heroData.quota || 330"
-                :suffix="heroData.quota_suffix || 'мест'"
-              />
-              <el-divider />
-              <div class="hero-card-grid">
-                <div v-for="item in (heroData.items || [])" :key="item.label">
-                  <span>{{ item.label }}</span>
-                  <strong>{{ item.value }}</strong>
-                </div>
-              </div>
-            </el-card>
-          </el-col>
-        </el-row>
-      </div>
-    </section>
-
     <el-affix :offset="64" class="admission-affix">
       <section class="admission-nav">
         <div class="admission-container">
@@ -107,7 +71,6 @@ function getSectionContent(anchor) {
   return section?.content || {}
 }
 
-const heroData = computed(() => getSectionContent('hero'))
 const admissionInfoData = computed(() => getSectionContent('admission-info'))
 const directionsData = computed(() => getSectionContent('directions'))
 const documentsData = computed(() => getSectionContent('documents'))

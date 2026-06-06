@@ -209,23 +209,6 @@ ON CONFLICT (page_id, anchor) DO NOTHING;
 -- ==========================================
 
 INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order) VALUES
-(2, 'hero', 'hero', 'Главный баннер', '{
-  "tag": "Прием 2026/2027",
-  "title": "Поступление в филиал Губкина в Ташкенте",
-  "description": "Вся ключевая информация для абитуриентов: сроки приема, направления подготовки, пакет документов, экзамены, льготы олимпиад и контакты приемной комиссии.",
-  "quota": 330,
-  "quota_suffix": "мест",
-  "quota_title": "Общая квота",
-  "items": [
-    {"label": "Прием документов", "value": "16 июня - 01 июля"},
-    {"label": "Формат", "value": "online / offline"},
-    {"label": "Конкурсные группы", "value": "до 3"},
-    {"label": "Обучение", "value": "очное"}
-  ]
-}'::jsonb, 5)
-ON CONFLICT (page_id, anchor) DO NOTHING;
-
-INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order) VALUES
 (2, 'admission_info', 'admission-info', 'Общая информация', '{
   "kicker": "Общая информация",
   "title": "О филиале Губкина в Ташкенте",
