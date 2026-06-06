@@ -148,12 +148,16 @@ export const useFeedbackStore = defineStore('feedback', () => {
     })
     if (error) throw error
 
+    const isNewConversation = !activeConversationId.value
+    if (isNewConversation) {
+      activeConversationId.value = data.conversation_id
+      joinConversation(data.conversation_id)
+    }
+
     const exists = messages.value.some((m) => m.id === data.id)
     if (!exists) messages.value.push(data)
 
-    if (!activeConversationId.value) {
-      activeConversationId.value = data.conversation_id
-      joinConversation(data.conversation_id)
+    if (isNewConversation) {
       await loadConversations()
     } else {
       updateConversationLastMessage(activeConversationId.value)

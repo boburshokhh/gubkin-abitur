@@ -12,126 +12,134 @@
       />
     </el-badge>
 
-    <el-dialog
-      v-model="feedbackStore.isOpen"
-      title="Обратная связь"
-      width="380px"
-      append-to-body
-      class="feedback-widget__dialog"
-      :close-on-click-modal="false"
-      @opened="handleOpened"
-    >
-      <template #header>
-        <div class="feedback-widget__header">
-          <el-avatar :icon="Service" />
-          <div>
-            <div class="feedback-widget__title">Обратная связь</div>
-            <el-text size="small" type="info">Приёмная комиссия</el-text>
+    <transition name="feedback-popover">
+      <el-card
+        v-if="feedbackStore.isOpen"
+        shadow="always"
+        class="feedback-widget__panel"
+        body-class="feedback-widget__panel-body"
+      >
+        <template #header>
+          <div class="feedback-widget__header">
+            <div class="feedback-widget__header-user">
+              <el-avatar :icon="Service" />
+              <div>
+                <div class="feedback-widget__title">Обратная связь</div>
+                <el-text size="small" type="info">Приёмная комиссия онлайн</el-text>
+              </div>
+            </div>
+            <el-button :icon="Close" text circle aria-label="Закрыть чат" @click="feedbackStore.closeWidget" />
           </div>
-        </div>
-      </template>
+        </template>
 
-      <el-scrollbar ref="scrollbarRef" height="340px" class="feedback-widget__messages">
-        <div ref="messagesRef" class="feedback-widget__messages-inner">
-          <div v-if="feedbackStore.loadingMessages" class="feedback-widget__center">
-            <el-icon class="is-loading"><Loading /></el-icon>
-            <el-text type="info">Загрузка...</el-text>
-          </div>
-
-          <el-empty
-            v-else-if="feedbackStore.messages.length === 0"
-            description="Напишите нам, и мы ответим как можно скорее"
-          />
-
-          <div
-            v-for="message in feedbackStore.messages"
-            v-else
-            :key="message.id"
-            class="feedback-widget__message"
-            :class="{ 'feedback-widget__message--own': message.sender_id === authStore.user?.id }"
-          >
-            <el-card shadow="never" class="feedback-widget__bubble">
-              <p v-if="message.text" class="feedback-widget__text">{{ message.text }}</p>
-
-              <div v-if="message.image_url" class="feedback-widget__image">
-                <el-image
-                  v-if="imageUrls[message.id]"
-                  :src="imageUrls[message.id]"
-                  :preview-src-list="[imageUrls[message.id]]"
-                  fit="cover"
-                  lazy
-                />
-                <el-button v-else size="small" text @click="loadImage(message)">
-                  Загрузить изображение
-                </el-button>
+        <div class="feedback-widget__body">
+          <el-scrollbar ref="scrollbarRef" height="460px" class="feedback-widget__messages">
+            <div ref="messagesRef" class="feedback-widget__messages-inner">
+              <div v-if="feedbackStore.loadingMessages" class="feedback-widget__center">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <el-text type="info">Загрузка...</el-text>
               </div>
 
-              <div class="feedback-widget__meta">
-                <el-text size="small" type="info">
-                  {{ formatTime(message.created_at) }}
-                </el-text>
-                <span
-                  v-if="isOwnMessage(message)"
-                  class="feedback-widget__read-status"
-                  :class="{ 'feedback-widget__read-status--read': message.is_read }"
-                  :title="message.is_read ? 'Прочитано' : 'Отправлено'"
-                >
-                  <el-icon><Check /></el-icon>
-                  <el-icon v-if="message.is_read"><Check /></el-icon>
-                </span>
+              <el-empty
+                v-else-if="feedbackStore.messages.length === 0"
+                description="Напишите нам, и мы ответим как можно скорее"
+              />
+
+              <div
+                v-for="message in feedbackStore.messages"
+                v-else
+                :key="message.id"
+                class="feedback-widget__message"
+                :class="{ 'feedback-widget__message--own': message.sender_id === authStore.user?.id }"
+              >
+                <div class="feedback-widget__bubble">
+                  <p v-if="message.text" class="feedback-widget__text">{{ message.text }}</p>
+
+                  <Lightgallery
+                    v-if="message.image_url"
+                    class="feedback-widget__image-gallery"
+                    :settings="{ speed: 400, download: false }"
+                  >
+                    <a
+                      v-if="imageUrls[message.id]"
+                      :href="imageUrls[message.id]"
+                      class="feedback-widget__image-link"
+                    >
+                      <img :src="imageUrls[message.id]" alt="Прикрепленное изображение">
+                    </a>
+                    <el-button v-else size="small" text @click="loadImage(message)">
+                      Загрузить изображение
+                    </el-button>
+                  </Lightgallery>
+
+                  <div class="feedback-widget__meta">
+                    <el-text size="small" type="info">
+                      {{ formatTime(message.created_at) }}
+                    </el-text>
+                    <span
+                      v-if="isOwnMessage(message)"
+                      class="feedback-widget__read-status"
+                      :class="{ 'feedback-widget__read-status--read': message.is_read }"
+                      :title="message.is_read ? 'Прочитано' : 'Отправлено'"
+                    >
+                      <el-icon><Check /></el-icon>
+                      <el-icon v-if="message.is_read"><Check /></el-icon>
+                    </span>
+                  </div>
+                </div>
               </div>
-            </el-card>
+            </div>
+          </el-scrollbar>
+
+          <div v-if="imagePreview" class="feedback-widget__preview">
+            <el-image :src="imagePreview" fit="cover" />
+            <el-button size="small" type="danger" text @click="removeImage">Удалить</el-button>
+          </div>
+
+          <div class="feedback-widget__footer">
+            <el-upload
+              :auto-upload="false"
+              :show-file-list="false"
+              accept="image/*"
+              :on-change="onFileChange"
+            >
+              <el-button :icon="Paperclip" circle />
+            </el-upload>
+
+            <el-input
+              ref="inputRef"
+              v-model="inputText"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 4 }"
+              resize="none"
+              placeholder="Введите сообщение..."
+              @keydown.enter.exact.prevent="send"
+            />
+
+            <el-button
+              type="primary"
+              :icon="Promotion"
+              circle
+              :loading="sending"
+              :disabled="!inputText.trim() && !selectedFile"
+              @click="send"
+            />
           </div>
         </div>
-      </el-scrollbar>
-
-      <div v-if="imagePreview" class="feedback-widget__preview">
-        <el-image :src="imagePreview" fit="cover" />
-        <el-button size="small" type="danger" text @click="removeImage">Удалить</el-button>
-      </div>
-
-      <template #footer>
-        <div class="feedback-widget__footer">
-          <el-upload
-            :auto-upload="false"
-            :show-file-list="false"
-            accept="image/*"
-            :on-change="onFileChange"
-          >
-            <el-button :icon="Paperclip" circle />
-          </el-upload>
-
-          <el-input
-            ref="inputRef"
-            v-model="inputText"
-            type="textarea"
-            :autosize="{ minRows: 1, maxRows: 4 }"
-            resize="none"
-            placeholder="Введите сообщение..."
-            @keydown.enter.exact.prevent="send"
-          />
-
-          <el-button
-            type="primary"
-            :icon="Promotion"
-            circle
-            :loading="sending"
-            :disabled="!inputText.trim() && !selectedFile"
-            @click="send"
-          />
-        </div>
-      </template>
-    </el-dialog>
+      </el-card>
+    </transition>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import Lightgallery from 'lightgallery/vue'
 import { ChatDotRound, Check, Close, Loading, Paperclip, Promotion, Service } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { feedback as feedbackApi, getAccessToken } from '@/api/app-api'
 import { useAuthStore } from '@/stores/auth'
 import { useFeedbackStore } from '@/stores/feedback'
+import 'lightgallery/css/lightgallery.css'
 
 const authStore = useAuthStore()
 const feedbackStore = useFeedbackStore()
@@ -152,13 +160,10 @@ const shouldShowWidget = computed(() => authStore.isAuthenticated && authStore.i
 
 async function handleToggle() {
   feedbackStore.toggleWidget()
-  if (feedbackStore.isOpen) await loadData()
-}
-
-async function handleOpened() {
-  await nextTick()
-  scrollToBottom()
-  inputRef.value?.focus?.()
+  if (feedbackStore.isOpen) {
+    await loadData()
+    inputRef.value?.focus?.()
+  }
 }
 
 async function loadData() {
@@ -168,6 +173,7 @@ async function loadData() {
   } else {
     feedbackStore.messages.length = 0
   }
+  await preloadMessageImages()
   await nextTick()
   scrollToBottom()
 }
@@ -216,6 +222,7 @@ async function send() {
 
 async function loadImage(message) {
   if (!feedbackStore.activeConversationId) return
+  if (imageUrls.value[message.id]) return
 
   try {
     const { data, error } = await feedbackApi.getImageUrl(
@@ -238,6 +245,14 @@ function isOwnMessage(message) {
   return message.sender_id === authStore.user?.id
 }
 
+async function preloadMessageImages() {
+  const imageMessages = feedbackStore.messages.filter((message) => {
+    return message.image_url && !imageUrls.value[message.id]
+  })
+
+  await Promise.all(imageMessages.map((message) => loadImage(message)))
+}
+
 async function initializeSocket() {
   if (socketInitialized.value || !authStore.isAuthenticated) return
 
@@ -258,6 +273,7 @@ async function initializeSocket() {
 }
 
 watch(() => feedbackStore.messages.length, async () => {
+  await preloadMessageImages()
   await nextTick()
   scrollToBottom()
 })
@@ -303,7 +319,45 @@ onBeforeUnmount(() => {
   box-shadow: var(--el-box-shadow-dark);
 }
 
+.feedback-widget__panel {
+  position: absolute;
+  right: 0;
+  bottom: 76px;
+  width: min(460px, calc(100vw - 32px));
+  overflow: visible;
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.22);
+}
+
+.feedback-widget__panel::after {
+  position: absolute;
+  right: 24px;
+  bottom: -10px;
+  width: 20px;
+  height: 20px;
+  background: var(--el-bg-color);
+  box-shadow: 6px 6px 12px rgba(15, 23, 42, 0.08);
+  content: '';
+  transform: rotate(45deg);
+}
+
+.feedback-widget__panel :deep(.el-card__header) {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.feedback-widget__panel :deep(.feedback-widget__panel-body) {
+  padding: 0;
+}
+
 .feedback-widget__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.feedback-widget__header-user {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -314,18 +368,25 @@ onBeforeUnmount(() => {
   color: var(--el-text-color-primary);
 }
 
+.feedback-widget__body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
 .feedback-widget__messages {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 12px;
-  background: var(--el-fill-color-lighter);
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 18px 18px, rgba(64, 158, 255, 0.08) 0 2px, transparent 2px 24px),
+    linear-gradient(180deg, #eef6ff 0%, #f7fbff 100%);
 }
 
 .feedback-widget__messages-inner {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 320px;
-  padding: 12px;
+  gap: 8px;
+  min-height: 440px;
+  padding: 16px;
 }
 
 .feedback-widget__center {
@@ -346,13 +407,17 @@ onBeforeUnmount(() => {
 }
 
 .feedback-widget__bubble {
-  max-width: 82%;
-  border-radius: 14px;
+  position: relative;
+  max-width: 78%;
+  padding: 9px 12px 6px;
+  border-radius: 16px 16px 16px 4px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 .feedback-widget__message--own .feedback-widget__bubble {
-  background: var(--el-color-primary-light-9);
-  border-color: var(--el-color-primary-light-7);
+  border-radius: 16px 16px 4px 16px;
+  background: #dff1ff;
 }
 
 .feedback-widget__text {
@@ -361,14 +426,25 @@ onBeforeUnmount(() => {
   word-break: break-word;
 }
 
-.feedback-widget__image {
+.feedback-widget__image-gallery {
+  display: block;
   margin-top: 8px;
 }
 
-.feedback-widget__image :deep(.el-image) {
-  width: 180px;
-  height: 140px;
+.feedback-widget__image-link {
+  display: block;
+  overflow: hidden;
+  width: 240px;
+  max-width: 100%;
+  height: 170px;
   border-radius: 8px;
+}
+
+.feedback-widget__image-link img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .feedback-widget__meta {
@@ -413,12 +489,31 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: flex-end;
   gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color);
+}
+
+.feedback-popover-enter-active,
+.feedback-popover-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.feedback-popover-enter-from,
+.feedback-popover-leave-to {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
 }
 
 @media (max-width: 480px) {
   .feedback-widget {
     right: 16px;
     bottom: 16px;
+  }
+
+  .feedback-widget__panel {
+    bottom: 72px;
+    width: calc(100vw - 32px);
   }
 }
 </style>

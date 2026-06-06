@@ -143,18 +143,22 @@
 
                     <p v-if="message.text" class="feedback-inbox__text">{{ message.text }}</p>
 
-                    <div v-if="message.image_url" class="feedback-inbox__image">
-                      <el-image
+                    <Lightgallery
+                      v-if="message.image_url"
+                      class="feedback-inbox__image-gallery"
+                      :settings="{ speed: 400, download: false }"
+                    >
+                      <a
                         v-if="imageUrls[message.id]"
-                        :src="imageUrls[message.id]"
-                        :preview-src-list="[imageUrls[message.id]]"
-                        fit="cover"
-                        lazy
-                      />
+                        :href="imageUrls[message.id]"
+                        class="feedback-inbox__image-link"
+                      >
+                        <img :src="imageUrls[message.id]" alt="Прикрепленное изображение">
+                      </a>
                       <el-button v-else size="small" text @click="loadImage(message)">
                         Показать изображение
                       </el-button>
-                    </div>
+                    </Lightgallery>
 
                     <div class="feedback-inbox__meta">
                       <el-text size="small" type="info">
@@ -229,10 +233,12 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import Lightgallery from 'lightgallery/vue'
 import { ElMessage } from 'element-plus'
 import { Check, Loading, Paperclip, Promotion, Refresh } from '@element-plus/icons-vue'
 import { feedback as feedbackApi, getAccessToken } from '@/api/app-api'
 import { useFeedbackStore } from '@/stores/feedback'
+import 'lightgallery/css/lightgallery.css'
 
 const feedbackStore = useFeedbackStore()
 
@@ -258,6 +264,7 @@ async function reload() {
 
 async function selectConversation(conversationId) {
   await feedbackStore.selectConversation(conversationId)
+  await preloadMessageImages()
   await nextTick()
   scrollToBottom()
   inputRef.value?.focus?.()
@@ -325,6 +332,7 @@ async function send() {
 
 async function loadImage(message) {
   if (!feedbackStore.activeConversationId) return
+  if (imageUrls.value[message.id]) return
 
   try {
     const { data, error } = await feedbackApi.getImageUrl(
@@ -375,6 +383,14 @@ function isStaffMessage(message) {
   return Number(message.sender_role_id) !== 1
 }
 
+async function preloadMessageImages() {
+  const imageMessages = feedbackStore.messages.filter((message) => {
+    return message.image_url && !imageUrls.value[message.id]
+  })
+
+  await Promise.all(imageMessages.map((message) => loadImage(message)))
+}
+
 function initSocket() {
   if (socketInitialized.value) return
 
@@ -386,6 +402,7 @@ function initSocket() {
 }
 
 watch(() => feedbackStore.messages.length, async () => {
+  await preloadMessageImages()
   await nextTick()
   scrollToBottom()
 })
@@ -512,14 +529,25 @@ onBeforeUnmount(() => {
   word-break: break-word;
 }
 
-.feedback-inbox__image {
+.feedback-inbox__image-gallery {
+  display: block;
   margin-top: 8px;
 }
 
-.feedback-inbox__image :deep(.el-image) {
-  width: 200px;
-  height: 150px;
+.feedback-inbox__image-link {
+  display: block;
+  overflow: hidden;
+  width: 220px;
+  max-width: 100%;
+  height: 160px;
   border-radius: 8px;
+}
+
+.feedback-inbox__image-link img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .feedback-inbox__meta {
