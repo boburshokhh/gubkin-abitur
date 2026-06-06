@@ -17,6 +17,7 @@ export const useFeedbackStore = defineStore('feedback', () => {
   const loadingMessages = ref(false)
   const loadingConversations = ref(false)
   const socketConnected = ref(false)
+  const isSocketInitialized = ref(false)
 
   const unreadNotifications = computed(() =>
     notifications.value.filter((n) => !n.is_read).length
@@ -36,7 +37,10 @@ export const useFeedbackStore = defineStore('feedback', () => {
   // Socket
   // -------------------------------------------------------
   function initSocket(token) {
+    if (isSocketInitialized.value) return
+
     const socket = connectFeedbackSocket(token)
+    isSocketInitialized.value = true
 
     socket.on('connect', () => {
       socketConnected.value = true
@@ -90,6 +94,7 @@ export const useFeedbackStore = defineStore('feedback', () => {
   function destroySocket() {
     disconnectFeedbackSocket()
     socketConnected.value = false
+    isSocketInitialized.value = false
   }
 
   function updateConversationLastMessage(conversationId) {
