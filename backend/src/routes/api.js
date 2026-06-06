@@ -860,15 +860,20 @@ router.post('/applications', requireAuth, async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Проверяем, нет ли уже созданного заявления у пользователя в этом учебном году
+    // Повторная подача разрешена, если прошлые заявления за год были отклонены.
     const currentYear = new Date().getFullYear();
     const checkApp = await client.query(
-      'SELECT id FROM applications WHERE user_id = $1 AND academic_year = $2',
+      `SELECT id, status_id
+       FROM applications
+       WHERE user_id = $1
+         AND academic_year = $2
+         AND status_id <> 4
+       LIMIT 1`,
       [req.user.id, currentYear]
     );
 
     if (checkApp.rows.length > 0) {
-      throw new Error('Вы уже создали заявление на этот учебный год');
+      throw new Error('Вы уже создали активное заявление на этот учебный год');
     }
 
     // Сохраняем персональные данные анкеты в профиле пользователя,
