@@ -156,6 +156,68 @@ async function getApplicationHistory(applicationId) {
   return result.rows;
 }
 
+async function getApplicationStaffComments(applicationId) {
+  const result = await db.query(
+    `SELECT
+       c.id,
+       c.application_id,
+       c.comment,
+       c.created_by,
+       c.created_at,
+       c.updated_at,
+       CASE
+         WHEN u.id IS NULL THEN NULL
+         ELSE jsonb_build_object(
+           'id', u.id,
+           'first_name', u.first_name,
+           'last_name', u.last_name,
+           'middle_name', u.middle_name,
+           'email', u.email
+         )
+       END AS created_by_user
+     FROM application_staff_comments c
+     LEFT JOIN users u ON u.id = c.created_by
+     WHERE c.application_id = $1
+     ORDER BY c.created_at DESC, c.id DESC`,
+    [applicationId]
+  );
+
+  return result.rows;
+}
+
+async function getApplicationTimeline(applicationId) {
+  const statusHistory = await getApplicationHistory(applicationId);
+  const staffComments = await getApplicationStaffComments(applicationId);
+  const documentEvents = await db.query(
+    `SELECT
+       id,
+       application_id,
+       'document_uploaded' AS event_type,
+       file_name AS title,
+       file_category AS subtitle,
+       created_at
+     FROM application_files
+     WHERE application_id = $1
+     UNION ALL
+     SELECT
+       id,
+       application_id,
+       'education_document_uploaded' AS event_type,
+       file_name AS title,
+       status AS subtitle,
+       created_at
+     FROM documents
+     WHERE application_id = $1`,
+    [applicationId]
+  );
+
+  return [
+    ...statusHistory.map(item => ({ ...item, event_type: 'status_changed' })),
+    ...staffComments.map(item => ({ ...item, event_type: 'staff_comment' })),
+    ...documentEvents.rows
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
 // ==========================================
 // 1. АУТЕНТИФИКАЦИЯ (Auth)
 // ==========================================
@@ -1001,6 +1063,11 @@ router.get('/applications/:id', requireAuth, async (req, res) => {
 
     details.application_history = await getApplicationHistory(req.params.id);
 
+    if (isStaffUser(req.user)) {
+      details.staff_comments = await getApplicationStaffComments(req.params.id);
+      details.activity_timeline = await getApplicationTimeline(req.params.id);
+    }
+
     res.json({ data: details });
   } catch (err) {
     console.error('Ошибка получения деталей заявления:', err);
@@ -1299,6 +1366,38 @@ router.get('/applications/:id/history', requireAuth, async (req, res) => {
 
     const history = await getApplicationHistory(req.params.id);
     res.json({ data: history });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Добавить внутренний комментарий сотрудника
+router.post('/applications/:id/comments', requireAdminOrReviewer, async (req, res) => {
+  const { comment } = req.body;
+  const trimmedComment = typeof comment === 'string' ? comment.trim() : '';
+
+  if (!trimmedComment) {
+    return res.status(400).json({ error: 'Комментарий не может быть пустым' });
+  }
+
+  try {
+    const access = await db.query(
+      'SELECT id FROM applications WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (!access.rows.length) {
+      return res.status(404).json({ error: 'Заявление не найдено' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO application_staff_comments (application_id, comment, created_by)
+       VALUES ($1, $2, $3)
+       RETURNING id, application_id, comment, created_by, created_at, updated_at`,
+      [req.params.id, trimmedComment, req.user.id]
+    );
+
+    res.status(201).json({ data: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

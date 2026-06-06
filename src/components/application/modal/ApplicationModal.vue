@@ -296,24 +296,91 @@
         </el-collapse>
       </el-card>
 
-      <el-card v-if="application?.application_history?.length" shadow="never">
-        <template #header>История изменений статуса</template>
+      <el-card v-if="documentSuggestions.length" shadow="never">
+        <template #header>Автоматические подсказки</template>
+        <el-alert
+          v-for="suggestion in documentSuggestions"
+          :key="suggestion.category"
+          type="warning"
+          show-icon
+          :closable="false"
+          class="application-modal__suggestion"
+        >
+          <template #title>{{ suggestion.title }}</template>
+          <template #default>{{ suggestion.description }}</template>
+        </el-alert>
+      </el-card>
+
+      <el-card shadow="never">
+        <template #header>Комментарии сотрудников</template>
+        <el-form label-position="top">
+          <el-form-item label="Новый внутренний комментарий">
+            <el-input
+              v-model="staffComment"
+              type="textarea"
+              :rows="3"
+              placeholder="Добавьте заметку для коллег. Абитуриент её не увидит."
+            />
+          </el-form-item>
+          <el-space wrap>
+            <el-button
+              type="primary"
+              :disabled="!staffComment.trim()"
+              :loading="isUpdating"
+              @click="addStaffComment"
+            >
+              Добавить комментарий
+            </el-button>
+            <el-button
+              v-for="template in staffCommentTemplates"
+              :key="template"
+              @click="staffComment = template"
+            >
+              {{ template }}
+            </el-button>
+          </el-space>
+        </el-form>
+
+        <el-divider v-if="staffComments.length" />
+
+        <el-timeline v-if="staffComments.length">
+          <el-timeline-item
+            v-for="item in staffComments"
+            :key="item.id"
+            :timestamp="formatDateTime(item.created_at)"
+            placement="top"
+          >
+            <el-space direction="vertical" alignment="flex-start">
+              <el-text>{{ item.comment }}</el-text>
+              <el-text v-if="item.created_by_user" type="info" size="small">
+                {{ getUserFullName(item.created_by_user) }}
+              </el-text>
+            </el-space>
+          </el-timeline-item>
+        </el-timeline>
+        <el-empty v-else description="Внутренних комментариев пока нет" />
+      </el-card>
+
+      <el-card v-if="activityTimeline.length" shadow="never">
+        <template #header>Расширенная история</template>
         <el-timeline>
           <el-timeline-item
-            v-for="historyItem in application.application_history"
-            :key="historyItem.id || historyItem.created_at"
-            :timestamp="formatDate(historyItem.created_at)"
+            v-for="historyItem in activityTimeline"
+            :key="`${historyItem.event_type}-${historyItem.id || historyItem.created_at}`"
+            :timestamp="formatDateTime(historyItem.created_at)"
             placement="top"
           >
             <el-card shadow="never">
               <el-space direction="vertical" alignment="flex-start">
-                <el-tag type="info" effect="light">
-                  {{ historyItem.old_status?.name || 'Новый' }} → {{ historyItem.new_status?.name || 'Неизвестно' }}
+                <el-tag :type="getTimelineTagType(historyItem.event_type)" effect="light">
+                  {{ getTimelineTitle(historyItem) }}
                 </el-tag>
-                <el-text v-if="historyItem.comment">{{ historyItem.comment }}</el-text>
-                <el-text v-else type="info">Без комментария</el-text>
+                <el-text v-if="getTimelineDescription(historyItem)">
+                  {{ getTimelineDescription(historyItem) }}
+                </el-text>
+                <el-text v-else type="info">Без дополнительных деталей</el-text>
                 <el-text v-if="historyItem.created_by_user" type="info" size="small">
-                  {{ historyItem.created_by_user.first_name }} {{ historyItem.created_by_user.last_name }}
+                  {{ getUserFullName(historyItem.created_by_user) }}
                 </el-text>
               </el-space>
             </el-card>
@@ -409,11 +476,17 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['close', 'update-status']);
+const emit = defineEmits(['close', 'update-status', 'add-staff-comment']);
 
 // Локальное состояние
 const newStatus = ref(props.application?.status_id || null);
 const comment = ref(props.application?.admin_comment || '');
+const staffComment = ref('');
+const staffCommentTemplates = [
+  'Проверить качество сканов документов',
+  'Связаться с абитуриентом по телефону',
+  'Ожидаем исправленные документы'
+];
 
 const descriptionColumns = computed(() => (window.innerWidth < 768 ? 1 : 2));
 
@@ -471,6 +544,22 @@ const documentsStatusText = computed(() => (
     ? `Не хватает ${missingRequiredFiles.value.length} из ${requiredFilesTotal.value}`
     : 'Комплект документов загружен'
 ));
+const documentSuggestions = computed(() => missingRequiredFiles.value.map(item => ({
+  category: item.category,
+  title: `Запросить документ: ${item.label}`,
+  description: `В заявке отсутствует обязательный файл "${item.label}". Рекомендуется перевести заявку в статус "Требует доработки" и указать это в комментарии.`
+})));
+const staffComments = computed(() => props.application?.staff_comments || []);
+const activityTimeline = computed(() => {
+  if (props.application?.activity_timeline?.length) {
+    return props.application.activity_timeline;
+  }
+
+  return (props.application?.application_history || []).map(item => ({
+    ...item,
+    event_type: 'status_changed'
+  }));
+});
 
 const regionName = computed(() => {
   const region = props.application?.region
@@ -545,6 +634,17 @@ function updateStatus() {
     statusId: newStatus.value,
     comment: comment.value 
   });
+}
+
+function addStaffComment() {
+  const trimmedComment = staffComment.value.trim();
+  if (!trimmedComment || !props.application?.id) return;
+
+  emit('add-staff-comment', {
+    applicationId: props.application.id,
+    comment: trimmedComment
+  });
+  staffComment.value = '';
 }
 
 // Получение полного имени пользователя
@@ -653,6 +753,45 @@ function formatDate(dateString) {
     month: '2-digit', 
     year: 'numeric' 
   });
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) return 'Не указана';
+
+  const date = new Date(dateString);
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function getTimelineTagType(eventType) {
+  const typeMap = {
+    status_changed: 'primary',
+    staff_comment: 'warning',
+    document_uploaded: 'success',
+    education_document_uploaded: 'success'
+  };
+  return typeMap[eventType] || 'info';
+}
+
+function getTimelineTitle(item) {
+  if (item.event_type === 'staff_comment') return 'Комментарий сотрудника';
+  if (item.event_type === 'document_uploaded') return 'Загружен файл заявления';
+  if (item.event_type === 'education_document_uploaded') return 'Загружен документ об образовании';
+
+  return `${item.old_status?.name || 'Новый'} → ${item.new_status?.name || 'Неизвестно'}`;
+}
+
+function getTimelineDescription(item) {
+  if (item.event_type === 'document_uploaded' || item.event_type === 'education_document_uploaded') {
+    return [item.title, getFileCategoryName(item.subtitle)].filter(Boolean).join(' · ');
+  }
+
+  return item.comment || '';
 }
 
 // Получение имени статуса по ID
@@ -947,6 +1086,10 @@ function getFileTypeTagType(filename) {
 
 .application-modal__documents-alert {
   margin-bottom: 16px;
+}
+
+.application-modal__suggestion + .application-modal__suggestion {
+  margin-top: 12px;
 }
 
 .application-modal__actions-card {

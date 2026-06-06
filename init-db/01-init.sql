@@ -130,6 +130,16 @@ CREATE TABLE IF NOT EXISTS application_history (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Таблица: внутренние комментарии сотрудников по заявкам
+CREATE TABLE IF NOT EXISTS application_staff_comments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  comment TEXT NOT NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Таблица: document_types
 CREATE TABLE IF NOT EXISTS document_types (
   id SERIAL PRIMARY KEY,

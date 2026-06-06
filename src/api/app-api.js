@@ -418,6 +418,15 @@ export const applications = {
     }
   },
 
+  async addStaffComment(applicationId, comment) {
+    try {
+      const response = await apiClient.post(`/applications/${applicationId}/comments`, { comment })
+      return { data: response.data.data, error: null }
+    } catch (err) {
+      return handleError(err)
+    }
+  },
+
   async updateStatus(applicationId, statusId, comment = '') {
     try {
       const response = await apiClient.put(`/applications/${applicationId}/status`, { statusId, comment })

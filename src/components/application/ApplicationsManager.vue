@@ -40,6 +40,7 @@
       :is-updating="isUpdating"
       @close="closeModal"
       @update-status="handleStatusUpdate"
+      @add-staff-comment="handleStaffCommentAdd"
     />
   </div>
 </template>
@@ -219,6 +220,26 @@ async function handleStatusUpdate({ applicationId, statusId, comment }) {
   } catch (error) {
       console.error('Ошибка при обновлении статуса:', error);
     toast.error('Не удалось обновить статус заявки');
+  } finally {
+    isUpdating.value = false;
+  }
+}
+
+async function handleStaffCommentAdd({ applicationId, comment }) {
+  isUpdating.value = true;
+
+  try {
+    const { error } = await applicationsApi.addStaffComment(applicationId, comment);
+    if (error) throw error;
+
+    const { data: fullApplication, error: loadError } = await applicationsApi.getById(applicationId);
+    if (loadError) throw loadError;
+
+    selectedApplication.value = fullApplication;
+    toast.success('Комментарий сотрудника добавлен');
+  } catch (error) {
+    console.error('Ошибка при добавлении комментария:', error);
+    toast.error('Не удалось добавить комментарий');
   } finally {
     isUpdating.value = false;
   }
