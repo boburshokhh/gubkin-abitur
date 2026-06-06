@@ -87,8 +87,8 @@
             {{ error }}
           </div>
 
-          <div v-if="isLogin && !isAdmissionOpen" class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
-            Регистрация новых аккаунтов закрыта, так как прием на 2026 год сейчас не ведется.
+          <div v-if="isLogin && !isRegistrationOpen" class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+            Регистрация новых аккаунтов сейчас закрыта.
             Если у вас уже есть аккаунт, войдите для просмотра ранее поданных заявлений.
           </div>
 
@@ -120,7 +120,7 @@
           </div>
         </form>
 
-        <div v-if="isAdmissionOpen || !isLogin" class="mt-6">
+        <div v-if="isRegistrationOpen || !isLogin" class="mt-6">
           <div class="relative">
             <div class="absolute inset-0 flex items-center">
               <div class="w-full border-t border-gray-300" />
@@ -155,7 +155,7 @@ import { useAuthStore } from '@/stores/auth';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseLoader from '@/components/ui/BaseLoader.vue';
 import { useToast } from 'vue-toastification';
-import { useAdmissionStatus } from '@/composables/useAdmissionStatus';
+import { useRegistrationStatus } from '@/composables/useRegistrationStatus';
 
 const router = useRouter();
 const route = useRoute();
@@ -165,7 +165,7 @@ const isLogin = ref(true);
 const isLoading = computed(() => authStore.loading);
 const error = ref('');
 const isResendingVerification = ref(false);
-const { isAdmissionOpen } = useAdmissionStatus();
+const { isRegistrationOpen } = useRegistrationStatus();
 
 const form = reactive({
   firstName: '',
@@ -175,8 +175,8 @@ const form = reactive({
 });
 
 const toggleMode = () => {
-  if (isLogin.value && !isAdmissionOpen.value) {
-    error.value = 'Регистрация новых аккаунтов закрыта: прием на 2026 год сейчас не ведется.';
+  if (isLogin.value && !isRegistrationOpen.value) {
+    error.value = 'Регистрация новых аккаунтов сейчас закрыта.';
     return;
   }
 
@@ -264,8 +264,8 @@ const handleSubmit = async () => {
         toast.error(error.value);
       }
     } else {
-      if (!isAdmissionOpen.value) {
-        error.value = 'Регистрация новых аккаунтов закрыта: прием на 2026 год сейчас не ведется.';
+      if (!isRegistrationOpen.value) {
+        error.value = 'Регистрация новых аккаунтов сейчас закрыта.';
         toast.error(error.value);
         return;
       }

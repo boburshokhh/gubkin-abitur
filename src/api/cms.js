@@ -27,6 +27,11 @@ export async function fetchAdmissionStatus() {
   return res.data.data
 }
 
+export async function fetchRegistrationStatus() {
+  const res = await apiClient.get('/cms/registration-status')
+  return res.data.data
+}
+
 // ---- Admin: pages/sections ----
 
 export async function adminListPages() {

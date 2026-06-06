@@ -518,7 +518,8 @@ INSERT INTO site_settings (category, key, value, label, sort_order) VALUES
   ('social', 'website_url', 'https://gubkin.uz', 'Официальный сайт', 3),
   ('general', 'site_name', 'Филиал РГУ нефти и газа им. И.М. Губкина в г. Ташкенте', 'Название сайта', 1),
   ('general', 'admission_year', '2026', 'Год приемной кампании', 2),
-  ('general', 'admission_open', 'false', 'Прием документов открыт', 3)
+  ('general', 'admission_open', 'false', 'Прием документов открыт', 3),
+  ('general', 'registration_open', 'false', 'Регистрация новых пользователей открыта', 4)
 ON CONFLICT (category, key) DO NOTHING;
 
 INSERT INTO site_contacts (type, label, value, href, sort_order, is_published) VALUES

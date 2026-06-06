@@ -55,6 +55,25 @@ async function isAdmissionOpen() {
   }
 }
 
+async function isRegistrationOpen() {
+  const envFallback = process.env.REGISTRATION_OPEN
+    ? process.env.REGISTRATION_OPEN === 'true'
+    : process.env.ADMISSION_OPEN === 'true';
+
+  try {
+    const result = await db.query(
+      `SELECT value FROM site_settings WHERE category = 'general' AND key = 'registration_open' LIMIT 1`
+    );
+
+    if (!result.rows.length) return envFallback;
+
+    return result.rows[0].value === 'true';
+  } catch (err) {
+    console.error('Ошибка проверки статуса регистрации:', err);
+    return envFallback;
+  }
+}
+
 async function ensureAdmissionOpenForApplicant(req, res) {
   const isStaff = req.user?.role_id === 2 || req.user?.role_id === 3;
   if (isStaff) return true;
@@ -79,8 +98,8 @@ router.post('/auth/signup', async (req, res) => {
   }
 
   try {
-    if (!(await isAdmissionOpen())) {
-      return res.status(403).json({ error: 'Регистрация закрыта: прием документов сейчас не ведется' });
+    if (!(await isRegistrationOpen())) {
+      return res.status(403).json({ error: 'Регистрация новых пользователей сейчас закрыта' });
     }
 
     // Проверяем, существует ли пользователь
@@ -1594,6 +1613,14 @@ router.get('/cms/contacts', async (req, res) => {
 router.get('/cms/admission-status', async (_req, res) => {
   try {
     res.json({ data: { is_open: await isAdmissionOpen() } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cms/registration-status', async (_req, res) => {
+  try {
+    res.json({ data: { is_open: await isRegistrationOpen() } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -10,18 +10,18 @@
     <template v-else>
       <el-card shadow="never" class="settings-card settings-card--highlight">
         <template #header>
-          <h4>Управление подачей документов</h4>
+          <h4>Управление доступом</h4>
         </template>
         <el-form label-position="left" label-width="260px">
           <el-form-item
-            v-for="setting in admissionSettings"
+            v-for="setting in accessSettings"
             :key="setting.id"
             :label="setting.label || setting.key"
           >
             <el-switch
               :model-value="setting.value === 'true'"
-              active-text="Прием открыт"
-              inactive-text="Прием закрыт"
+              :active-text="setting.key === 'registration_open' ? 'Регистрация открыта' : 'Подача открыта'"
+              :inactive-text="setting.key === 'registration_open' ? 'Регистрация закрыта' : 'Подача закрыта'"
               @change="(value) => setting.value = String(value)"
             />
           </el-form-item>
@@ -30,7 +30,7 @@
           type="info"
           :closable="false"
           show-icon
-          title="Этот переключатель управляет кнопками подачи на сайте и backend-доступом к созданию/отправке заявлений."
+          title="Эти переключатели управляют регистрацией новых аккаунтов, кнопками подачи на сайте и backend-доступом к созданию/отправке заявлений."
         />
       </el-card>
 
@@ -87,8 +87,12 @@ const isSaving = ref(false)
 
 const contactSettings = computed(() => allSettings.value.filter(s => s.category === 'contact'))
 const socialSettings = computed(() => allSettings.value.filter(s => s.category === 'social'))
-const admissionSettings = computed(() => allSettings.value.filter(s => s.category === 'general' && s.key === 'admission_open'))
-const generalSettings = computed(() => allSettings.value.filter(s => s.category === 'general' && s.key !== 'admission_open'))
+const accessSettings = computed(() => allSettings.value.filter(s => (
+  s.category === 'general' && ['admission_open', 'registration_open'].includes(s.key)
+)))
+const generalSettings = computed(() => allSettings.value.filter(s => (
+  s.category === 'general' && !['admission_open', 'registration_open'].includes(s.key)
+)))
 
 async function fetchSettings() {
   isLoading.value = true
