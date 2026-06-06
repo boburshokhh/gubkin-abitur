@@ -351,6 +351,11 @@ function removeImage() {
   imagePreview.value = null
 }
 
+function revokeLoadedImages() {
+  Object.values(imageUrls.value).forEach((url) => URL.revokeObjectURL(url))
+  imageUrls.value = {}
+}
+
 async function send() {
   if (sending.value) return
 
@@ -464,6 +469,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   removeImage()
+  revokeLoadedImages()
   socketInitialized.value = false
 })
 </script>
