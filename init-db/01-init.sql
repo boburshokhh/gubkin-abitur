@@ -298,12 +298,19 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL DEFAULT 'feedback_message',
   message TEXT NOT NULL,
   is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  application_id UUID REFERENCES applications(id) ON DELETE CASCADE,
   conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
   message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+  meta JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'feedback_message';
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS application_id UUID REFERENCES applications(id) ON DELETE CASCADE;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_users_status ON users (status);
@@ -330,6 +337,8 @@ CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_is_read ON messages (is_read) WHERE is_read = FALSE;
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications (user_id, is_read) WHERE is_read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications (type);
+CREATE INDEX IF NOT EXISTS idx_notifications_application_id ON notifications (application_id);
 
 -- Наполнение справочников базовыми данными
 

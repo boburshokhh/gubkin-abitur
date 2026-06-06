@@ -14,8 +14,13 @@
       </div>
     </template>
 
-    <el-row :gutter="16" class="feedback-inbox__layout">
-      <el-col :xs="24" :md="8" class="feedback-inbox__conversations">
+    <el-row :gutter="12" class="feedback-inbox__layout">
+      <el-col
+        :xs="24"
+        :md="8"
+        class="feedback-inbox__conversations"
+        :class="{ 'feedback-inbox__conversations--hidden-mobile': isMobileDialogOpen }"
+      >
         <el-card shadow="never" class="feedback-inbox__panel">
           <template #header>
             <div class="feedback-inbox__panel-header">
@@ -24,7 +29,7 @@
             </div>
           </template>
 
-          <el-scrollbar height="520px">
+          <el-scrollbar class="feedback-inbox__conversation-scroll">
             <div v-if="feedbackStore.loadingConversations" class="feedback-inbox__center">
               <el-icon class="is-loading"><Loading /></el-icon>
               <el-text type="info">Загрузка...</el-text>
@@ -79,16 +84,31 @@
         </el-card>
       </el-col>
 
-      <el-col :xs="24" :md="16" class="feedback-inbox__dialog">
+      <el-col
+        :xs="24"
+        :md="16"
+        class="feedback-inbox__dialog"
+        :class="{ 'feedback-inbox__dialog--open-mobile': isMobileDialogOpen }"
+      >
         <el-card shadow="never" class="feedback-inbox__panel">
           <template #header>
             <div v-if="feedbackStore.activeConversation" class="feedback-inbox__dialog-header">
-              <div>
+              <div class="feedback-inbox__dialog-user">
+                <el-button
+                  class="feedback-inbox__back"
+                  :icon="ArrowLeft"
+                  text
+                  circle
+                  aria-label="Назад к списку обращений"
+                  @click="isMobileDialogOpen = false"
+                />
+                <div>
                 <el-text tag="strong">{{ getStudentName(feedbackStore.activeConversation) }}</el-text>
                 <br>
                 <el-text size="small" type="info">
                   {{ feedbackStore.activeConversation.student_email || 'Без email' }}
                 </el-text>
+                </div>
               </div>
 
               <el-space wrap>
@@ -118,7 +138,7 @@
           </div>
 
           <template v-else>
-            <el-scrollbar ref="scrollbarRef" height="400px" class="feedback-inbox__messages">
+            <el-scrollbar ref="scrollbarRef" class="feedback-inbox__messages">
               <div ref="messagesRef" class="feedback-inbox__messages-inner">
                 <div v-if="feedbackStore.loadingMessages" class="feedback-inbox__center">
                   <el-icon class="is-loading"><Loading /></el-icon>
@@ -235,7 +255,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Lightgallery from 'lightgallery/vue'
 import { ElMessage } from 'element-plus'
-import { Check, Loading, Paperclip, Promotion, Refresh } from '@element-plus/icons-vue'
+import { ArrowLeft, Check, Loading, Paperclip, Promotion, Refresh } from '@element-plus/icons-vue'
 import { feedback as feedbackApi, getAccessToken } from '@/api/app-api'
 import { useFeedbackStore } from '@/stores/feedback'
 import 'lightgallery/css/lightgallery.css'
@@ -251,6 +271,7 @@ const imagePreview = ref(null)
 const imageUrls = ref({})
 const sending = ref(false)
 const socketInitialized = ref(false)
+const isMobileDialogOpen = ref(false)
 
 const totalUnread = computed(() =>
   feedbackStore.conversations.reduce((count, conversation) => {
@@ -264,6 +285,7 @@ async function reload() {
 
 async function selectConversation(conversationId) {
   await feedbackStore.selectConversation(conversationId)
+  isMobileDialogOpen.value = true
   await preloadMessageImages()
   await nextTick()
   scrollToBottom()
@@ -423,6 +445,10 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+.feedback-inbox :deep(.el-card__body) {
+  padding: 12px;
+}
+
 .feedback-inbox__header,
 .feedback-inbox__panel-header,
 .feedback-inbox__dialog-header,
@@ -442,11 +468,21 @@ onBeforeUnmount(() => {
 }
 
 .feedback-inbox__layout {
-  min-height: 600px;
+  min-height: min(680px, calc(100vh - 230px));
 }
 
 .feedback-inbox__panel {
+  overflow: hidden;
   height: 100%;
+  border-radius: 14px;
+}
+
+.feedback-inbox__panel :deep(.el-card__header) {
+  padding: 10px 12px;
+}
+
+.feedback-inbox__conversation-scroll {
+  height: min(610px, calc(100vh - 300px));
 }
 
 .feedback-inbox__menu {
@@ -455,8 +491,10 @@ onBeforeUnmount(() => {
 
 .feedback-inbox__menu :deep(.el-menu-item) {
   height: auto;
-  min-height: 68px;
-  padding: 10px 12px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  margin-bottom: 4px;
   white-space: normal;
 }
 
@@ -465,7 +503,7 @@ onBeforeUnmount(() => {
   align-items: center;
   width: 100%;
   min-width: 0;
-  gap: 10px;
+  gap: 8px;
 }
 
 .feedback-inbox__conversation-main {
@@ -481,26 +519,42 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.feedback-inbox__dialog-user {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.feedback-inbox__back {
+  display: none;
+  flex: 0 0 auto;
+}
+
 .feedback-inbox__center,
 .feedback-inbox__empty-dialog {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 360px;
+  min-height: min(520px, calc(100vh - 330px));
   gap: 8px;
 }
 
 .feedback-inbox__messages {
+  height: min(520px, calc(100vh - 390px));
+  min-height: 360px;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 12px;
-  background: var(--el-fill-color-lighter);
+  background:
+    radial-gradient(circle at 18px 18px, rgba(64, 158, 255, 0.07) 0 2px, transparent 2px 24px),
+    linear-gradient(180deg, #eef6ff 0%, #f8fbff 100%);
 }
 
 .feedback-inbox__messages-inner {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 380px;
+  gap: 8px;
+  min-height: 100%;
   padding: 12px;
 }
 
@@ -514,13 +568,20 @@ onBeforeUnmount(() => {
 }
 
 .feedback-inbox__bubble {
-  max-width: 78%;
-  border-radius: 14px;
+  max-width: min(72%, 560px);
+  border: 0;
+  border-radius: 16px 16px 16px 4px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.feedback-inbox__bubble :deep(.el-card__body) {
+  padding: 8px 10px 6px;
 }
 
 .feedback-inbox__message--staff .feedback-inbox__bubble {
-  background: var(--el-color-primary-light-9);
-  border-color: var(--el-color-primary-light-7);
+  border-radius: 16px 16px 4px 16px;
+  background: #dff1ff;
 }
 
 .feedback-inbox__text {
@@ -537,9 +598,9 @@ onBeforeUnmount(() => {
 .feedback-inbox__image-link {
   display: block;
   overflow: hidden;
-  width: 220px;
+  width: 210px;
   max-width: 100%;
-  height: 160px;
+  height: 148px;
   border-radius: 8px;
 }
 
@@ -579,6 +640,13 @@ onBeforeUnmount(() => {
   margin-top: 12px;
 }
 
+.feedback-inbox__composer {
+  position: sticky;
+  bottom: 0;
+  padding-top: 2px;
+  background: var(--el-bg-color);
+}
+
 .feedback-inbox__preview {
   display: flex;
   align-items: center;
@@ -599,12 +667,61 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  .feedback-inbox :deep(.el-card__body) {
+    padding: 8px;
+  }
+
+  .feedback-inbox__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .feedback-inbox__conversations--hidden-mobile {
+    display: none;
+  }
+
   .feedback-inbox__dialog {
-    margin-top: 16px;
+    display: none;
+    margin-top: 0;
+  }
+
+  .feedback-inbox__dialog--open-mobile {
+    display: block;
+  }
+
+  .feedback-inbox__back {
+    display: inline-flex;
   }
 
   .feedback-inbox__layout {
     min-height: auto;
+  }
+
+  .feedback-inbox__conversation-scroll,
+  .feedback-inbox__messages {
+    height: calc(100vh - 260px);
+    min-height: 360px;
+  }
+
+  .feedback-inbox__bubble {
+    max-width: 86%;
+  }
+}
+
+@media (max-width: 480px) {
+  .feedback-inbox__conversation-scroll,
+  .feedback-inbox__messages {
+    height: calc(100vh - 235px);
+    min-height: 320px;
+  }
+
+  .feedback-inbox__bubble {
+    max-width: 92%;
+  }
+
+  .feedback-inbox__image-link {
+    width: 190px;
+    height: 132px;
   }
 }
 </style>

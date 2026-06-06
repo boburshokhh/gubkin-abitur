@@ -18,6 +18,7 @@ export const useFeedbackStore = defineStore('feedback', () => {
   const loadingConversations = ref(false)
   const socketConnected = ref(false)
   const isSocketInitialized = ref(false)
+  const latestRealtimeNotification = ref(null)
 
   const unreadNotifications = computed(() =>
     notifications.value.filter((n) => !n.is_read).length
@@ -63,13 +64,16 @@ export const useFeedbackStore = defineStore('feedback', () => {
 
     socket.on('server:new_conversation_message', ({ conversation, message }) => {
       const idx = conversations.value.findIndex((c) => c.id === conversation.id)
+      const shouldIncrementUnread = conversation.id !== activeConversationId.value
       if (idx === -1) {
-        conversations.value.unshift({ ...conversation, unread_count: 1 })
+        conversations.value.unshift({ ...conversation, unread_count: shouldIncrementUnread ? 1 : 0 })
       } else {
         conversations.value[idx] = {
           ...conversations.value[idx],
           last_message_at: conversation.last_message_at,
-          unread_count: Number(conversations.value[idx].unread_count || 0) + 1
+          unread_count: shouldIncrementUnread
+            ? Number(conversations.value[idx].unread_count || 0) + 1
+            : Number(conversations.value[idx].unread_count || 0)
         }
         conversations.value.sort((a, b) =>
           new Date(b.last_message_at) - new Date(a.last_message_at)
@@ -87,7 +91,25 @@ export const useFeedbackStore = defineStore('feedback', () => {
 
     socket.on('server:new_notification', (notification) => {
       const exists = notifications.value.some((n) => n.id === notification.id)
-      if (!exists) notifications.value.unshift(notification)
+      if (!exists) {
+        notifications.value.unshift(notification)
+        latestRealtimeNotification.value = notification
+      }
+    })
+
+    socket.on('server:conversation_status', (conversation) => {
+      const idx = conversations.value.findIndex((c) => c.id === conversation.id)
+      if (idx !== -1) {
+        conversations.value[idx] = {
+          ...conversations.value[idx],
+          ...conversation
+        }
+      }
+
+      if (activeConversationId.value === conversation.id) {
+        const active = conversations.value.find((c) => c.id === conversation.id)
+        if (active) active.status = conversation.status
+      }
     })
   }
 
@@ -210,6 +232,7 @@ export const useFeedbackStore = defineStore('feedback', () => {
     loadingMessages,
     loadingConversations,
     socketConnected,
+    latestRealtimeNotification,
     unreadNotifications,
     unreadMessages,
     initSocket,

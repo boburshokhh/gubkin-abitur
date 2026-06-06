@@ -73,11 +73,27 @@
                   :key="notification.id"
                   class="the-header__notification-item"
                   :class="{ 'the-header__notification-item--unread': !notification.is_read }"
-                  @click="markNotificationRead(notification.id)"
+                  @click="openNotification(notification)"
                 >
-                  <el-text>{{ notification.message }}</el-text>
+                  <div class="the-header__notification-top">
+                    <el-tag size="small" :type="getNotificationTagType(notification)" effect="light">
+                      {{ getNotificationTypeLabel(notification) }}
+                    </el-tag>
+                    <el-text size="small" type="info">
+                      {{ formatNotificationTime(notification.created_at) }}
+                    </el-text>
+                  </div>
+                  <el-text class="the-header__notification-message">{{ notification.message }}</el-text>
+                  <el-text
+                    v-if="getNotificationComment(notification)"
+                    size="small"
+                    type="info"
+                    class="the-header__notification-comment"
+                  >
+                    {{ getNotificationComment(notification) }}
+                  </el-text>
                   <el-text size="small" type="info">
-                    {{ formatNotificationTime(notification.created_at) }}
+                    {{ getNotificationActionLabel(notification) }}
                   </el-text>
                 </div>
               </el-scrollbar>
@@ -227,11 +243,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { ArrowDown, Bell, Menu } from '@element-plus/icons-vue'
 import { useToast } from 'vue-toastification'
+import { getAccessToken } from '@/api/app-api'
 import { useAuthStore } from '@/stores/auth'
 import { useFeedbackStore } from '@/stores/feedback'
 import { useAdmissionStatus } from '@/composables/useAdmissionStatus'
@@ -243,6 +260,7 @@ const feedbackStore = useFeedbackStore()
 const toast = useToast()
 
 const isMobileMenuOpen = ref(false)
+const isNotificationSoundReady = ref(false)
 const { isAdmissionOpen } = useAdmissionStatus()
 
 const navigationLinks = [
@@ -253,9 +271,7 @@ const navigationLinks = [
 ]
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
-const headerNotifications = computed(() =>
-  feedbackStore.notifications.filter((notification) => !notification.conversation_id)
-)
+const headerNotifications = computed(() => feedbackStore.notifications)
 const headerUnreadNotifications = computed(() =>
   headerNotifications.value.filter((notification) => !notification.is_read).length
 )
@@ -327,13 +343,61 @@ const handleUserCommand = (command) => {
   if (command === 'logout') confirmLogout()
 }
 
-const markNotificationRead = async (id) => {
-  await feedbackStore.markNotificationRead(id)
+const markHeaderNotificationsRead = async () => {
+  await feedbackStore.markAllNotificationsRead()
 }
 
-const markHeaderNotificationsRead = async () => {
-  const unreadNotifications = headerNotifications.value.filter((notification) => !notification.is_read)
-  await Promise.all(unreadNotifications.map((notification) => feedbackStore.markNotificationRead(notification.id)))
+const openNotification = async (notification) => {
+  if (!notification.is_read) await feedbackStore.markNotificationRead(notification.id)
+
+  if (notification.application_id) {
+    goTo(`/dashboard/applications/${notification.application_id}`)
+    return
+  }
+
+  if (notification.conversation_id) {
+    if (authStore.isApplicant) {
+      feedbackStore.openWidget()
+      await feedbackStore.selectConversation(notification.conversation_id)
+      return
+    }
+
+    goToWorkspace()
+  }
+}
+
+const getNotificationTypeLabel = (notification) => {
+  const labels = {
+    feedback_message: 'Сообщение',
+    feedback_reply: 'Ответ',
+    feedback_closed: 'Диалог',
+    application_status_changed: 'Статус',
+    application_internal_comment: 'Комментарий'
+  }
+  return labels[notification.type] || 'Уведомление'
+}
+
+const getNotificationTagType = (notification) => {
+  const types = {
+    feedback_message: 'primary',
+    feedback_reply: 'primary',
+    feedback_closed: 'info',
+    application_status_changed: 'success',
+    application_internal_comment: 'warning'
+  }
+  return types[notification.type] || 'info'
+}
+
+const getNotificationComment = (notification) => {
+  const comment = notification.meta?.comment || notification.meta?.preview
+  if (!comment) return ''
+  return String(comment).length > 90 ? `${String(comment).slice(0, 90)}...` : comment
+}
+
+const getNotificationActionLabel = (notification) => {
+  if (notification.application_id) return 'Открыть заявление'
+  if (notification.conversation_id) return authStore.isApplicant ? 'Открыть чат' : 'Открыть обращения'
+  return 'Посмотреть'
 }
 
 const formatNotificationTime = (value) => {
@@ -347,7 +411,45 @@ const formatNotificationTime = (value) => {
 
 const loadHeaderNotifications = async () => {
   if (!authStore.isAuthenticated) return
+  initHeaderSocket()
   await feedbackStore.loadNotifications()
+}
+
+const initHeaderSocket = () => {
+  const token = getAccessToken() || localStorage.getItem('app-access-token') || localStorage.getItem('app.auth.token')
+  if (!token) return
+  feedbackStore.initSocket(token)
+}
+
+const unlockNotificationSound = () => {
+  isNotificationSoundReady.value = true
+}
+
+const playNotificationSound = () => {
+  if (!isNotificationSoundReady.value) return
+
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (!AudioContext) return
+
+    const audioContext = new AudioContext()
+    const oscillator = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime)
+    gain.gain.setValueAtTime(0.0001, audioContext.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.08, audioContext.currentTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.18)
+
+    oscillator.connect(gain)
+    gain.connect(audioContext.destination)
+    oscillator.start()
+    oscillator.stop(audioContext.currentTime + 0.2)
+    setTimeout(() => audioContext.close(), 260)
+  } catch (error) {
+    console.warn('Не удалось воспроизвести звук уведомления:', error)
+  }
 }
 
 const logout = async () => {
@@ -380,10 +482,26 @@ const confirmLogout = async () => {
   }
 }
 
-onMounted(loadHeaderNotifications)
+onMounted(() => {
+  window.addEventListener('pointerdown', unlockNotificationSound, { once: true })
+  loadHeaderNotifications()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', unlockNotificationSound)
+})
 
 watch(() => authStore.isAuthenticated, async (isAuthenticatedNow) => {
-  if (isAuthenticatedNow) await loadHeaderNotifications()
+  if (isAuthenticatedNow) {
+    await loadHeaderNotifications()
+    return
+  }
+
+  feedbackStore.destroySocket()
+})
+
+watch(() => feedbackStore.latestRealtimeNotification?.id, (id) => {
+  if (id && authStore.isAuthenticated) playNotificationSound()
 })
 </script>
 
@@ -487,10 +605,27 @@ watch(() => authStore.isAuthenticated, async (isAuthenticatedNow) => {
 
 .the-header__notification-item {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   padding: 10px;
   border-radius: 8px;
   cursor: pointer;
+}
+
+.the-header__notification-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.the-header__notification-message,
+.the-header__notification-comment {
+  line-height: 1.35;
+}
+
+.the-header__notification-comment {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .the-header__notification-item:hover {

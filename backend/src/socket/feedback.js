@@ -105,4 +105,11 @@ async function emitNotification(userId, notification) {
   io.to(`user:${userId}`).emit('server:new_notification', notification)
 }
 
-module.exports = { initFeedbackSocket, getIo, emitNewMessage, emitNotification }
+function emitConversationStatus(conversation) {
+  if (!io) return
+  io.to(`conversation:${conversation.id}`).emit('server:conversation_status', conversation)
+  io.to(`user:${conversation.student_id}`).emit('server:conversation_status', conversation)
+  io.to('staff').emit('server:conversation_status', conversation)
+}
+
+module.exports = { initFeedbackSocket, getIo, emitNewMessage, emitNotification, emitConversationStatus }

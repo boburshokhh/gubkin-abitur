@@ -33,7 +33,7 @@
         </template>
 
         <div class="feedback-widget__body">
-          <el-scrollbar ref="scrollbarRef" height="460px" class="feedback-widget__messages">
+          <el-scrollbar ref="scrollbarRef" class="feedback-widget__messages">
             <div ref="messagesRef" class="feedback-widget__messages-inner">
               <div v-if="feedbackStore.loadingMessages" class="feedback-widget__center">
                 <el-icon class="is-loading"><Loading /></el-icon>
@@ -323,9 +323,9 @@ onBeforeUnmount(() => {
   position: absolute;
   right: 0;
   bottom: 76px;
-  width: min(460px, calc(100vw - 32px));
+  width: min(420px, calc(100vw - 32px));
   overflow: visible;
-  border-radius: 18px;
+  border-radius: 20px;
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.22);
 }
 
@@ -342,7 +342,7 @@ onBeforeUnmount(() => {
 }
 
 .feedback-widget__panel :deep(.el-card__header) {
-  padding: 16px 18px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
@@ -374,6 +374,7 @@ onBeforeUnmount(() => {
 }
 
 .feedback-widget__messages {
+  height: min(460px, calc(100vh - 250px));
   border: 0;
   border-radius: 0;
   background:
@@ -384,9 +385,9 @@ onBeforeUnmount(() => {
 .feedback-widget__messages-inner {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-height: 440px;
-  padding: 16px;
+  gap: 7px;
+  min-height: 100%;
+  padding: 12px;
 }
 
 .feedback-widget__center {
@@ -408,8 +409,8 @@ onBeforeUnmount(() => {
 
 .feedback-widget__bubble {
   position: relative;
-  max-width: 78%;
-  padding: 9px 12px 6px;
+  max-width: 76%;
+  padding: 8px 10px 5px;
   border-radius: 16px 16px 16px 4px;
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
@@ -434,9 +435,9 @@ onBeforeUnmount(() => {
 .feedback-widget__image-link {
   display: block;
   overflow: hidden;
-  width: 240px;
+  width: 220px;
   max-width: 100%;
-  height: 170px;
+  height: 156px;
   border-radius: 8px;
 }
 
@@ -489,7 +490,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  padding: 12px;
+  padding: 10px;
   border-top: 1px solid var(--el-border-color-lighter);
   background: var(--el-bg-color);
 }
@@ -512,8 +513,31 @@ onBeforeUnmount(() => {
   }
 
   .feedback-widget__panel {
-    bottom: 72px;
-    width: calc(100vw - 32px);
+    position: fixed;
+    inset: 72px 8px 8px;
+    width: auto;
+    border-radius: 18px;
+  }
+
+  .feedback-widget__panel::after {
+    display: none;
+  }
+
+  .feedback-widget__messages {
+    height: calc(100vh - 205px);
+  }
+
+  .feedback-widget__messages-inner {
+    padding: 10px;
+  }
+
+  .feedback-widget__bubble {
+    max-width: 88%;
+  }
+
+  .feedback-widget__image-link {
+    width: 200px;
+    height: 142px;
   }
 }
 </style>

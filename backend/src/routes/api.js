@@ -6,6 +6,7 @@ const db = require('../config/db');
 const s3 = require('../config/s3');
 const { GetObjectCommand } = require('@aws-sdk/client-s3');
 const { JWT_SECRET, requireAuth, requireAdmin, requireAdminOrReviewer } = require('../middleware/auth');
+const { createNotification, createStaffNotifications } = require('../services/notification-service');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -1382,7 +1383,13 @@ router.post('/applications/:id/comments', requireAdminOrReviewer, async (req, re
 
   try {
     const access = await db.query(
-      'SELECT id FROM applications WHERE id = $1',
+      `SELECT a.id,
+              a.user_id,
+              u.first_name,
+              u.last_name
+       FROM applications a
+       JOIN users u ON u.id = a.user_id
+       WHERE a.id = $1`,
       [req.params.id]
     );
 
@@ -1397,6 +1404,18 @@ router.post('/applications/:id/comments', requireAdminOrReviewer, async (req, re
       [req.params.id, trimmedComment, req.user.id]
     );
 
+    const applicant = access.rows[0];
+    await createStaffNotifications({
+      type: 'application_internal_comment',
+      message: `Внутренний комментарий по заявлению ${applicant.first_name} ${applicant.last_name}`,
+      applicationId: req.params.id,
+      meta: {
+        comment: trimmedComment,
+        createdBy: req.user.id,
+        applicantName: `${applicant.first_name || ''} ${applicant.last_name || ''}`.trim()
+      }
+    });
+
     res.status(201).json({ data: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1407,6 +1426,18 @@ router.post('/applications/:id/comments', requireAdminOrReviewer, async (req, re
 router.put('/applications/:id/status', requireAdminOrReviewer, async (req, res) => {
   const { statusId, comment } = req.body;
   try {
+    const applicationResult = await db.query(
+      `SELECT a.id, a.user_id, s.name AS current_status_name
+       FROM applications a
+       LEFT JOIN application_statuses s ON s.id = a.status_id
+       WHERE a.id = $1`,
+      [req.params.id]
+    );
+
+    if (!applicationResult.rows.length) {
+      return res.status(404).json({ error: 'Заявление не найдено' });
+    }
+
     const rpcResult = await db.query('SELECT add_application_comment($1, $2, $3, $4) as success', [
       req.params.id,
       statusId,
@@ -1415,6 +1446,27 @@ router.put('/applications/:id/status', requireAdminOrReviewer, async (req, res) 
     ]);
 
     if (rpcResult.rows[0]?.success) {
+      const statusResult = await db.query(
+        'SELECT id, name, color FROM application_statuses WHERE id = $1',
+        [statusId]
+      );
+      const status = statusResult.rows[0];
+      const trimmedComment = typeof comment === 'string' ? comment.trim() : '';
+
+      await createNotification({
+        userId: applicationResult.rows[0].user_id,
+        type: 'application_status_changed',
+        message: `Статус заявления изменен: ${status?.name || 'обновлен'}`,
+        applicationId: req.params.id,
+        meta: {
+          oldStatus: applicationResult.rows[0].current_status_name,
+          newStatus: status?.name || null,
+          statusColor: status?.color || null,
+          comment: trimmedComment || null,
+          changedBy: req.user.id
+        }
+      });
+
       res.json({ success: true });
     } else {
       res.status(400).json({ error: 'Не удалось обновить статус' });

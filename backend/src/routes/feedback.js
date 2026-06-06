@@ -4,7 +4,8 @@ const crypto = require('crypto')
 const db = require('../config/db')
 const s3 = require('../config/s3')
 const { requireAuth } = require('../middleware/auth')
-const { emitNewMessage, emitNotification } = require('../socket/feedback')
+const { emitNewMessage, emitConversationStatus } = require('../socket/feedback')
+const { createNotification, createStaffNotifications } = require('../services/notification-service')
 
 const router = express.Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
@@ -32,18 +33,6 @@ async function checkConversationAccess(userId, roleId, conversationId) {
     [conversationId, userId]
   )
   return result.rows.length > 0
-}
-
-// Создать уведомление и разослать через socket
-async function createNotification(userId, text, conversationId, messageId) {
-  const result = await db.query(
-    `INSERT INTO notifications (user_id, message, conversation_id, message_id)
-     VALUES ($1, $2, $3, $4) RETURNING *`,
-    [userId, text, conversationId, messageId]
-  )
-  const notification = result.rows[0]
-  emitNotification(userId, notification)
-  return notification
 }
 
 // ------------------------------------------------------------------
@@ -179,25 +168,28 @@ router.post('/messages', requireAuth, upload.single('image'), async (req, res) =
     // Создать уведомления
     if (roleId !== 2 && roleId !== 3) {
       // Уведомить всех сотрудников и администраторов
-      const staffResult = await db.query(
-        'SELECT id FROM users WHERE role_id IN (2, 3)'
-      )
-      for (const staff of staffResult.rows) {
-        await createNotification(
-          staff.id,
-          `Новое сообщение от ${sender.first_name} ${sender.last_name}`,
-          conversation.id,
-          message.id
-        )
-      }
+      await createStaffNotifications({
+        type: 'feedback_message',
+        message: `Новое сообщение от ${sender.first_name} ${sender.last_name}`,
+        conversationId: conversation.id,
+        messageId: message.id,
+        meta: {
+          senderName: `${sender.first_name || ''} ${sender.last_name || ''}`.trim(),
+          preview: text || (imageUrl ? 'Прикреплено изображение' : '')
+        }
+      })
     } else {
       // Уведомить студента
-      await createNotification(
-        conversation.student_id,
-        `Вы получили ответ на ваш вопрос`,
-        conversation.id,
-        message.id
-      )
+      await createNotification({
+        userId: conversation.student_id,
+        type: 'feedback_reply',
+        message: 'Вы получили ответ на ваш вопрос',
+        conversationId: conversation.id,
+        messageId: message.id,
+        meta: {
+          preview: text || (imageUrl ? 'Прикреплено изображение' : '')
+        }
+      })
     }
 
     res.status(201).json({ data: enrichedMessage })
@@ -297,7 +289,16 @@ router.patch('/conversations/:id/close', requireAuth, async (req, res) => {
       [req.params.id]
     )
     if (result.rows.length === 0) return res.status(404).json({ error: 'Диалог не найден' })
-    res.json({ data: result.rows[0] })
+    const conversation = result.rows[0]
+    emitConversationStatus(conversation)
+    await createNotification({
+      userId: conversation.student_id,
+      type: 'feedback_closed',
+      message: 'Ваш диалог с приемной комиссией закрыт',
+      conversationId: conversation.id,
+      meta: { status: 'closed' }
+    })
+    res.json({ data: conversation })
   } catch (err) {
     res.status(500).json({ error: 'Ошибка при закрытии диалога' })
   }
