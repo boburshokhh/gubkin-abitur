@@ -23,6 +23,7 @@
 
     <!-- Виджет обратной связи -->
     <FeedbackWidget />
+    <StaffFeedbackWidget />
   </div>
 </template>
 
@@ -34,6 +35,7 @@ import { useToast } from 'vue-toastification';
 import ConfirmModal from '@/components/ui/ConfirmModal.vue';
 import MainLayout from '@/components/layout/MainLayout.vue';
 import FeedbackWidget from '@/components/feedback/feedback-widget.vue';
+import StaffFeedbackWidget from '@/components/feedback/staff-feedback-widget.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();

@@ -1,6 +1,10 @@
 <template>
-  <el-card shadow="never" class="feedback-inbox">
-    <template #header>
+  <el-card
+    shadow="never"
+    class="feedback-inbox"
+    :class="{ 'feedback-inbox--compact': compact }"
+  >
+    <template v-if="!compact" #header>
       <div class="feedback-inbox__header">
         <div>
           <h2 class="feedback-inbox__title">Обращения</h2>
@@ -262,6 +266,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useFeedbackStore } from '@/stores/feedback'
 import 'lightgallery/css/lightgallery.css'
 
+defineProps({
+  compact: {
+    type: Boolean,
+    default: false
+  }
+})
+
 const authStore = useAuthStore()
 const feedbackStore = useFeedbackStore()
 
@@ -432,9 +443,14 @@ watch(() => feedbackStore.messages.length, async () => {
   scrollToBottom()
 })
 
+watch(() => feedbackStore.activeConversationId, (conversationId) => {
+  if (conversationId) isMobileDialogOpen.value = true
+})
+
 onMounted(async () => {
   initSocket()
   await feedbackStore.loadConversations()
+  if (feedbackStore.activeConversationId) isMobileDialogOpen.value = true
 })
 
 onBeforeUnmount(() => {
@@ -448,8 +464,16 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+.feedback-inbox--compact {
+  border: 0;
+}
+
 .feedback-inbox :deep(.el-card__body) {
   padding: 12px;
+}
+
+.feedback-inbox--compact :deep(.el-card__body) {
+  padding: 0;
 }
 
 .feedback-inbox__header,
@@ -474,6 +498,10 @@ onBeforeUnmount(() => {
   min-height: min(680px, calc(100vh - 230px));
 }
 
+.feedback-inbox--compact .feedback-inbox__layout {
+  min-height: 560px;
+}
+
 .feedback-inbox__panel {
   overflow: hidden;
   height: 100%;
@@ -486,6 +514,10 @@ onBeforeUnmount(() => {
 
 .feedback-inbox__conversation-scroll {
   height: min(610px, calc(100vh - 300px));
+}
+
+.feedback-inbox--compact .feedback-inbox__conversation-scroll {
+  height: min(520px, calc(100vh - 260px));
 }
 
 .feedback-inbox__menu {
@@ -551,6 +583,11 @@ onBeforeUnmount(() => {
   background:
     radial-gradient(circle at 18px 18px, rgba(64, 158, 255, 0.07) 0 2px, transparent 2px 24px),
     linear-gradient(180deg, #eef6ff 0%, #f8fbff 100%);
+}
+
+.feedback-inbox--compact .feedback-inbox__messages {
+  height: min(430px, calc(100vh - 350px));
+  min-height: 320px;
 }
 
 .feedback-inbox__messages-inner {

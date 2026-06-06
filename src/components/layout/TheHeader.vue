@@ -347,6 +347,12 @@ const markHeaderNotificationsRead = async () => {
   await feedbackStore.markAllNotificationsRead()
 }
 
+const openFeedbackConversation = async (conversationId) => {
+  feedbackStore.openWidget()
+  await feedbackStore.loadConversations()
+  await feedbackStore.selectConversation(conversationId)
+}
+
 const openNotification = async (notification) => {
   if (!notification.is_read) await feedbackStore.markNotificationRead(notification.id)
 
@@ -356,13 +362,7 @@ const openNotification = async (notification) => {
   }
 
   if (notification.conversation_id) {
-    if (authStore.isApplicant) {
-      feedbackStore.openWidget()
-      await feedbackStore.selectConversation(notification.conversation_id)
-      return
-    }
-
-    goToWorkspace()
+    await openFeedbackConversation(notification.conversation_id)
   }
 }
 
@@ -396,7 +396,7 @@ const getNotificationComment = (notification) => {
 
 const getNotificationActionLabel = (notification) => {
   if (notification.application_id) return 'Открыть заявление'
-  if (notification.conversation_id) return authStore.isApplicant ? 'Открыть чат' : 'Открыть обращения'
+  if (notification.conversation_id) return 'Открыть чат'
   return 'Посмотреть'
 }
 
