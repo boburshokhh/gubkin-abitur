@@ -115,6 +115,10 @@ export const useFeedbackStore = defineStore('feedback', () => {
       }
     })
 
+    socket.on('server:notifications_read', ({ conversationId, notificationIds = [] }) => {
+      markConversationNotificationsRead(conversationId, notificationIds)
+    })
+
     socket.on('server:conversation_status', (conversation) => {
       const idx = conversations.value.findIndex((c) => c.id === conversation.id)
       if (idx !== -1) {
@@ -219,10 +223,12 @@ export const useFeedbackStore = defineStore('feedback', () => {
             message.read_at = message.read_at || new Date().toISOString()
           }
         })
+        markConversationNotificationsRead(conversationId, data.notificationIds || [])
       }
     }
     const conv = conversations.value.find((c) => c.id === conversationId)
     if (conv) conv.unread_count = 0
+    markConversationNotificationsRead(conversationId)
   }
 
   async function loadNotifications() {
@@ -234,6 +240,19 @@ export const useFeedbackStore = defineStore('feedback', () => {
     await feedbackApi.markNotificationRead(id)
     const n = notifications.value.find((n) => n.id === id)
     if (n) n.is_read = true
+  }
+
+  function markConversationNotificationsRead(conversationId, notificationIds = []) {
+    if (!conversationId) return
+
+    const readIds = new Set(notificationIds)
+    notifications.value.forEach((notification) => {
+      const matchesById = readIds.size > 0 && readIds.has(notification.id)
+      const matchesByConversation = String(notification.conversation_id) === String(conversationId)
+      if (matchesById || matchesByConversation) {
+        notification.is_read = true
+      }
+    })
   }
 
   async function markAllNotificationsRead() {
@@ -275,6 +294,7 @@ export const useFeedbackStore = defineStore('feedback', () => {
     markMessagesRead,
     loadNotifications,
     markNotificationRead,
+    markConversationNotificationsRead,
     markAllNotificationsRead,
     openWidget,
     closeWidget,

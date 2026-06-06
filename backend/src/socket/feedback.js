@@ -65,8 +65,13 @@ function initFeedbackSocket(socketIoInstance) {
           [conversationId, id]
         )
         const messageIds = readResult.rows.map((row) => row.id)
+        const notificationIds = await markConversationNotificationsRead({
+          conversationId,
+          userId: id
+        })
 
         emitMessageRead({ conversationId, readBy: id, messageIds })
+        emitNotificationsRead({ userId: id, conversationId, notificationIds })
       } catch (err) {
         console.error('mark_read error:', err.message)
       }
@@ -83,6 +88,18 @@ async function canAccessConversation(userId, roleId, conversationId) {
     [conversationId, userId]
   )
   return result.rows.length > 0
+}
+
+async function markConversationNotificationsRead({ conversationId, userId }) {
+  const result = await db.query(
+    `UPDATE notifications
+     SET is_read = TRUE
+     WHERE user_id = $1 AND conversation_id = $2 AND is_read = FALSE
+     RETURNING id`,
+    [userId, conversationId]
+  )
+
+  return result.rows.map((row) => row.id)
 }
 
 async function emitNewMessage(message, conversation) {
@@ -121,11 +138,20 @@ function emitMessageRead({ conversationId, readBy, messageIds = [] }) {
   })
 }
 
+function emitNotificationsRead({ userId, conversationId, notificationIds = [] }) {
+  if (!io) return
+  io.to(`user:${userId}`).emit('server:notifications_read', {
+    conversationId,
+    notificationIds
+  })
+}
+
 module.exports = {
   initFeedbackSocket,
   getIo,
   emitNewMessage,
   emitNotification,
   emitConversationStatus,
-  emitMessageRead
+  emitMessageRead,
+  emitNotificationsRead
 }

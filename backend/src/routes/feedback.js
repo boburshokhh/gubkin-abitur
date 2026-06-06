@@ -5,7 +5,7 @@ const { GetObjectCommand } = require('@aws-sdk/client-s3')
 const db = require('../config/db')
 const s3 = require('../config/s3')
 const { requireAuth } = require('../middleware/auth')
-const { emitNewMessage, emitConversationStatus, emitMessageRead } = require('../socket/feedback')
+const { emitNewMessage, emitConversationStatus, emitMessageRead, emitNotificationsRead } = require('../socket/feedback')
 const { createNotification, createStaffNotifications } = require('../services/notification-service')
 
 const router = express.Router()
@@ -53,6 +53,18 @@ async function markConversationMessagesRead({ conversationId, userId }) {
   )
 
   return readResult.rows.map((row) => row.id)
+}
+
+async function markConversationNotificationsRead({ conversationId, userId }) {
+  const result = await db.query(
+    `UPDATE notifications
+     SET is_read = TRUE
+     WHERE user_id = $1 AND conversation_id = $2 AND is_read = FALSE
+     RETURNING id`,
+    [userId, conversationId]
+  )
+
+  return result.rows.map((row) => row.id)
 }
 
 // ------------------------------------------------------------------
@@ -351,13 +363,16 @@ router.patch('/conversations/:id/read', requireAuth, async (req, res) => {
     if (!hasAccess) return res.status(403).json({ error: 'Нет доступа к этому диалогу' })
 
     const messageIds = await markConversationMessagesRead({ conversationId, userId })
+    const notificationIds = await markConversationNotificationsRead({ conversationId, userId })
     emitMessageRead({ conversationId, readBy: userId, messageIds })
+    emitNotificationsRead({ userId, conversationId, notificationIds })
 
     res.json({
       data: {
         conversationId,
         readBy: userId,
-        messageIds
+        messageIds,
+        notificationIds
       }
     })
   } catch (err) {
