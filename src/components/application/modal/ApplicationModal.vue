@@ -1024,8 +1024,8 @@ function getFileTypeTagType(filename) {
   padding-right: 4px;
 }
 
-.application-modal__content > :deep(.el-card),
-.application-modal__content > :deep(.el-alert) {
+.application-modal__content > .el-card:not(.application-modal__actions-card),
+.application-modal__content > .el-alert {
   grid-column: 1;
 }
 
@@ -1096,7 +1096,7 @@ function getFileTypeTagType(filename) {
   position: sticky;
   top: 0;
   z-index: 1;
-  grid-column: 2;
+  grid-column: 2 !important;
   grid-row: 2 / span 8;
   align-self: start;
 }
@@ -1114,17 +1114,17 @@ function getFileTypeTagType(filename) {
   width: 100%;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1100px) {
   .application-modal__content {
     grid-template-columns: 1fr;
   }
 
-  .application-modal__content > :deep(.el-card),
-  .application-modal__content > :deep(.el-alert),
+  .application-modal__content > .el-card,
+  .application-modal__content > .el-alert,
   .application-modal__summary,
   .application-modal__documents-card,
   .application-modal__actions-card {
-    grid-column: 1;
+    grid-column: 1 !important;
     grid-row: auto;
   }
 
