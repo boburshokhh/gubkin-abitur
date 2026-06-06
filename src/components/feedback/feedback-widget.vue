@@ -58,11 +58,12 @@
                   <Lightgallery
                     v-if="message.image_url"
                     class="feedback-widget__image-gallery"
-                    :settings="{ speed: 400, download: false }"
+                    :settings="{ speed: 400, download: false, selector: '.feedback-widget__image-link' }"
                   >
                     <a
                       v-if="imageUrls[message.id]"
                       :href="imageUrls[message.id]"
+                      :data-src="imageUrls[message.id]"
                       class="feedback-widget__image-link"
                     >
                       <img :src="imageUrls[message.id]" alt="Прикрепленное изображение">

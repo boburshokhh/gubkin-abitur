@@ -1,6 +1,7 @@
 const express = require('express')
 const multer = require('multer')
 const crypto = require('crypto')
+const { GetObjectCommand } = require('@aws-sdk/client-s3')
 const db = require('../config/db')
 const s3 = require('../config/s3')
 const { requireAuth } = require('../middleware/auth')
@@ -223,8 +224,8 @@ router.post('/messages', requireAuth, upload.single('image'), async (req, res) =
 })
 
 // ------------------------------------------------------------------
-// GET /feedback/messages/:conversationId/image/:key
-// Получить presigned URL для изображения
+// GET /feedback/messages/:conversationId/image
+// Получить same-origin URL для изображения
 // ------------------------------------------------------------------
 router.get('/messages/:conversationId/image', requireAuth, async (req, res) => {
   const { id: userId, role_id } = req.user
@@ -237,10 +238,49 @@ router.get('/messages/:conversationId/image', requireAuth, async (req, res) => {
     const hasAccess = await checkConversationAccess(userId, roleId, conversationId)
     if (!hasAccess) return res.status(403).json({ error: 'Нет доступа' })
 
-    const signedUrl = await s3.getPresignedDownloadUrl(s3.BUCKET_FILES, key)
-    res.json({ data: { url: signedUrl } })
+    const url = `/api/feedback/messages/${conversationId}/image/file?key=${encodeURIComponent(key)}`
+    res.setHeader('Cache-Control', 'no-store')
+    res.json({ data: { url } })
   } catch (err) {
     res.status(500).json({ error: err.message })
+  }
+})
+
+// ------------------------------------------------------------------
+// GET /feedback/messages/:conversationId/image/file
+// Стриминг изображения через backend, чтобы URL был доступен браузеру
+// ------------------------------------------------------------------
+router.get('/messages/:conversationId/image/file', requireAuth, async (req, res) => {
+  const { id: userId, role_id } = req.user
+  const roleId = Number(role_id)
+  const { conversationId } = req.params
+  const { key } = req.query
+  if (!key) return res.status(400).json({ error: 'key обязателен' })
+
+  try {
+    const hasAccess = await checkConversationAccess(userId, roleId, conversationId)
+    if (!hasAccess) return res.status(403).json({ error: 'Нет доступа' })
+
+    const fileResult = await db.query(
+      `SELECT id FROM messages
+       WHERE conversation_id = $1 AND image_url = $2
+       LIMIT 1`,
+      [conversationId, key]
+    )
+    if (fileResult.rows.length === 0) return res.status(404).json({ error: 'Изображение не найдено' })
+
+    const s3Response = await s3.s3Client.send(new GetObjectCommand({
+      Bucket: s3.BUCKET_FILES,
+      Key: key
+    }))
+
+    if (s3Response.ContentType) res.setHeader('Content-Type', s3Response.ContentType)
+    if (s3Response.ContentLength) res.setHeader('Content-Length', s3Response.ContentLength)
+    res.setHeader('Cache-Control', 'private, max-age=300')
+    s3Response.Body.pipe(res)
+  } catch (err) {
+    console.error('GET feedback image file error:', err)
+    res.status(404).json({ error: 'Изображение не найдено' })
   }
 })
 

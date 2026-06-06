@@ -1237,7 +1237,10 @@ export const feedback = {
 
   async getImageUrl(conversationId, key) {
     try {
-      const res = await apiClient.get(`/feedback/messages/${conversationId}/image`, { params: { key } })
+      const res = await apiClient.get(`/feedback/messages/${conversationId}/image`, {
+        params: { key, t: Date.now() },
+        headers: { 'Cache-Control': 'no-cache' }
+      })
       return { data: res.data.data, error: null }
     } catch (err) {
       return handleFeedbackError(err)
