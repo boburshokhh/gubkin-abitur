@@ -22,6 +22,11 @@ export async function fetchContacts() {
   return res.data.data
 }
 
+export async function fetchAdmissionStatus() {
+  const res = await apiClient.get('/cms/admission-status')
+  return res.data.data
+}
+
 // ---- Admin: pages/sections ----
 
 export async function adminListPages() {

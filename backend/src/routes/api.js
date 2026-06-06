@@ -38,6 +38,35 @@ function validateRequiredApplicantData(appData) {
   return null;
 }
 
+async function isAdmissionOpen() {
+  const envFallback = process.env.ADMISSION_OPEN === 'true';
+
+  try {
+    const result = await db.query(
+      `SELECT value FROM site_settings WHERE category = 'general' AND key = 'admission_open' LIMIT 1`
+    );
+
+    if (!result.rows.length) return envFallback;
+
+    return result.rows[0].value === 'true';
+  } catch (err) {
+    console.error('Ошибка проверки статуса приема документов:', err);
+    return envFallback;
+  }
+}
+
+async function ensureAdmissionOpenForApplicant(req, res) {
+  const isStaff = req.user?.role_id === 2 || req.user?.role_id === 3;
+  if (isStaff) return true;
+
+  if (await isAdmissionOpen()) return true;
+
+  res.status(403).json({
+    error: 'Прием документов сейчас закрыт. Подача и отправка заявлений временно недоступны.'
+  });
+  return false;
+}
+
 // ==========================================
 // 1. АУТЕНТИФИКАЦИЯ (Auth)
 // ==========================================
@@ -746,6 +775,8 @@ router.get('/applications/:id', requireAuth, async (req, res) => {
 
 // Создать заявление
 router.post('/applications', requireAuth, async (req, res) => {
+  if (!(await ensureAdmissionOpenForApplicant(req, res))) return;
+
   const { app_data } = req.body;
   if (!app_data) {
     return res.status(400).json({ error: 'Не переданы данные заявления' });
@@ -878,6 +909,10 @@ router.put('/applications/:id', requireAuth, async (req, res) => {
       throw new Error('Доступ запрещен');
     }
 
+    if (!isMod && !(await isAdmissionOpen())) {
+      throw new Error('Прием документов сейчас закрыт. Редактирование заявления временно недоступно.');
+    }
+
     await client.query(
       `UPDATE users
        SET first_name = COALESCE($1, first_name),
@@ -971,6 +1006,8 @@ router.put('/applications/:id', requireAuth, async (req, res) => {
 
 // Отправить заявление на рассмотрение (черновик -> подан)
 router.post('/applications/:id/submit', requireAuth, async (req, res) => {
+  if (!(await ensureAdmissionOpenForApplicant(req, res))) return;
+
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
@@ -1438,6 +1475,14 @@ router.get('/cms/contacts', async (req, res) => {
       return acc;
     }, {});
     res.json({ data: grouped });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cms/admission-status', async (_req, res) => {
+  try {
+    res.json({ data: { is_open: await isAdmissionOpen() } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

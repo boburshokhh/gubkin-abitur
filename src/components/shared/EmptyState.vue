@@ -22,6 +22,7 @@
 </template>
 
 <script setup>
-// Проверка статуса приемной кампании
-const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
+import { useAdmissionStatus } from '@/composables/useAdmissionStatus'
+
+const { isAdmissionOpen } = useAdmissionStatus()
 </script> 

@@ -36,11 +36,12 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Document, Plus, User } from '@element-plus/icons-vue'
+import { useAdmissionStatus } from '@/composables/useAdmissionStatus'
 
 const route = useRoute()
 const router = useRouter()
 
-const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true'
+const { isAdmissionOpen } = useAdmissionStatus()
 
 const isApplicationsActive = computed(() => route.path.includes('/dashboard/applications'))
 const isProfileActive = computed(() => route.path === '/dashboard/profile')

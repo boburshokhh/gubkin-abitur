@@ -163,6 +163,7 @@ import { ElMessageBox } from 'element-plus'
 import { ArrowDown, Menu } from '@element-plus/icons-vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
+import { useAdmissionStatus } from '@/composables/useAdmissionStatus'
 
 const route = useRoute()
 const router = useRouter()
@@ -170,7 +171,7 @@ const authStore = useAuthStore()
 const toast = useToast()
 
 const isMobileMenuOpen = ref(false)
-const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true'
+const { isAdmissionOpen } = useAdmissionStatus()
 
 const navigationLinks = [
   { to: '/', text: 'Главная' },
