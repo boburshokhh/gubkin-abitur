@@ -155,27 +155,21 @@ export const profiles = {
   },
 
   async create(profileData) {
-    const { exams, ...rest } = profileData;
-    const { data, error } = await appApi.from('profiles').insert(rest).select().single();
+    const payload = normalizeProfilePayload(profileData);
+    const { data, error } = await appApi.from('profiles').insert(payload).select().single();
     if (error) {
         console.error('Error creating profile:', error);
         return { data, error };
-    }
-    if (exams && exams.length > 0) {
-        await this.saveExams(data.id, exams);
     }
     return { data, error };
   },
 
   async update(id, profileData) {
-    const { exams, ...rest } = profileData;
-    const { data, error } = await appApi.from('profiles').update(rest).eq('id', id).select().single();
+    const payload = normalizeProfilePayload(profileData);
+    const { data, error } = await appApi.from('profiles').update(payload).eq('id', id).select().single();
     if (error) {
         console.error('Error updating profile:', error);
         return { data, error };
-    }
-    if (exams) { // allow updating exams even if it's an empty array
-        await this.saveExams(id, exams);
     }
     return { data, error };
   },
@@ -229,6 +223,20 @@ export const profiles = {
     }
   }
 };
+
+function normalizeProfilePayload(profileData) {
+  return {
+    direction_id: profileData.direction_id,
+    name: profileData.name,
+    description: profileData.description || null,
+    exams: (profileData.exams || [])
+      .filter(exam => exam.subject_id)
+      .map((exam, index) => ({
+        subject_id: exam.subject_id,
+        priority: exam.priority || index + 1
+      }))
+  };
+}
 
 // --- Subjects ---
 export const subjects = {

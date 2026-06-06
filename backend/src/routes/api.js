@@ -412,6 +412,16 @@ router.get('/education/levels', async (req, res) => {
   }
 });
 
+// Предметы вступительных экзаменов
+router.get('/education/subjects', async (req, res) => {
+  try {
+    const result = await db.query('SELECT id, name FROM subjects ORDER BY name');
+    res.json({ data: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Направления подготовки
 router.get('/education/directions', async (req, res) => {
   const { levelId } = req.query;
@@ -485,8 +495,9 @@ router.get('/education/profiles/details', async (req, res) => {
                (
                  SELECT jsonb_agg(
                    jsonb_build_object(
+                     'subject_id', pe.subject_id,
                      'priority', pe.priority,
-                     'subject', jsonb_build_object('name', s.name)
+                     'subject', jsonb_build_object('id', s.id, 'name', s.name)
                    ) ORDER BY pe.priority
                  )
                  FROM profile_exams pe
@@ -500,6 +511,93 @@ router.get('/education/profiles/details', async (req, res) => {
       ORDER BY p.name`;
     const result = await db.query(queryText);
     res.json({ data: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+async function saveProfileExams(client, profileId, exams = []) {
+  await client.query('DELETE FROM profile_exams WHERE profile_id = $1', [profileId]);
+
+  const validExams = exams.filter(exam => exam.subject_id);
+  for (const [index, exam] of validExams.entries()) {
+    await client.query(
+      `INSERT INTO profile_exams (profile_id, subject_id, priority)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (profile_id, subject_id)
+       DO UPDATE SET priority = EXCLUDED.priority`,
+      [profileId, exam.subject_id, exam.priority || index + 1]
+    );
+  }
+}
+
+// Создать профиль (Админ)
+router.post('/education/profiles', requireAdmin, async (req, res) => {
+  const { exams = [], ...profileData } = req.body;
+  const client = await db.pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `INSERT INTO profiles (direction_id, name, description)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [profileData.direction_id, profileData.name, profileData.description || null]
+    );
+
+    await saveProfileExams(client, result.rows[0].id, exams);
+
+    await client.query('COMMIT');
+    res.json({ data: result.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Обновить профиль (Админ)
+router.put('/education/profiles/:id', requireAdmin, async (req, res) => {
+  const { exams = [], ...profileData } = req.body;
+  const client = await db.pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `UPDATE profiles
+       SET direction_id = $1,
+           name = $2,
+           description = $3
+       WHERE id = $4
+       RETURNING *`,
+      [profileData.direction_id, profileData.name, profileData.description || null, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Профиль не найден' });
+    }
+
+    await saveProfileExams(client, req.params.id, exams);
+
+    await client.query('COMMIT');
+    res.json({ data: result.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Удалить профиль (Админ)
+router.delete('/education/profiles/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.query('DELETE FROM profiles WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -522,6 +620,7 @@ router.get('/education/profiles', async (req, res) => {
     let result;
     if (directionId) {
       result = await db.query('SELECT * FROM profiles WHERE direction_id = $1 ORDER BY name', [directionId]);
+      return res.json({ data: result.rows });
     } else {
       // Использовать функцию get_profiles
       const limit = req.query.limit ? parseInt(req.query.limit) : 100;

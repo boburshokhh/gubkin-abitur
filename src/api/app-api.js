@@ -874,8 +874,19 @@ class ApiQueryBuilder {
           const res = await apiClient.get('/education/profiles', { params: { directionId } })
           return { data: res.data.data, error: null }
         }
+
+        if (this.selectFields?.includes('profile_exams')) {
+          const res = await apiClient.get('/education/profiles/details')
+          return { data: res.data.data, error: null }
+        }
         
         const res = await apiClient.get('/education/profiles')
+        return { data: res.data.data, error: null }
+      }
+
+      // ИМИТАЦИЯ ТАБЛИЦЫ: subjects
+      if (this.table === 'subjects') {
+        const res = await apiClient.get('/education/subjects')
         return { data: res.data.data, error: null }
       }
 
