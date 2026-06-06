@@ -25,6 +25,18 @@ CREATE TABLE IF NOT EXISTS cms_sections (
   UNIQUE (page_id, anchor)
 );
 
+CREATE TABLE IF NOT EXISTS cms_section_items (
+  id SERIAL PRIMARY KEY,
+  section_id INTEGER NOT NULL REFERENCES cms_sections(id) ON DELETE CASCADE,
+  item_type VARCHAR(50) NOT NULL DEFAULT 'item',
+  title TEXT,
+  content JSONB NOT NULL DEFAULT '{}'::jsonb,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_published BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS cms_assets (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   bucket TEXT NOT NULL DEFAULT 'site-assets',
@@ -53,6 +65,29 @@ CREATE TABLE IF NOT EXISTS news_posts (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS site_contacts (
+  id SERIAL PRIMARY KEY,
+  type TEXT NOT NULL DEFAULT 'general',
+  label TEXT NOT NULL,
+  value TEXT NOT NULL,
+  href TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_published BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS site_social_links (
+  id SERIAL PRIMARY KEY,
+  platform TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  url TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_published BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS site_settings (
   id SERIAL PRIMARY KEY,
   category TEXT NOT NULL,
@@ -67,8 +102,11 @@ CREATE TABLE IF NOT EXISTS site_settings (
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_cms_sections_page ON cms_sections(page_id);
 CREATE INDEX IF NOT EXISTS idx_cms_sections_published ON cms_sections(page_id, is_published, sort_order);
+CREATE INDEX IF NOT EXISTS idx_cms_section_items_section ON cms_section_items(section_id, is_published, sort_order);
 CREATE INDEX IF NOT EXISTS idx_news_posts_status ON news_posts(status, published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_news_posts_slug ON news_posts(slug);
+CREATE INDEX IF NOT EXISTS idx_site_contacts_published ON site_contacts(is_published, sort_order);
+CREATE INDEX IF NOT EXISTS idx_site_social_links_published ON site_social_links(is_published, sort_order);
 CREATE INDEX IF NOT EXISTS idx_site_settings_category ON site_settings(category);
 CREATE INDEX IF NOT EXISTS idx_cms_assets_created ON cms_assets(created_at DESC);
 
@@ -190,8 +228,8 @@ ON CONFLICT (page_id, anchor) DO NOTHING;
 INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order) VALUES
 (2, 'admission_info', 'admission-info', 'Общая информация', '{
   "kicker": "Общая информация",
-  "title": "Прием на 1-й курс 2026/2027 учебного года",
-  "subtitle": "Основные условия поступления, сроки подачи документов и правила выбора направлений.",
+  "title": "О филиале Губкина в Ташкенте",
+  "subtitle": "Краткая информация об учебном заведении и формате обучения.",
   "cards": [
     {
       "title": "Учебное заведение",
@@ -201,39 +239,6 @@ INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order) VAL
         {"label": "Программы", "value": "Бакалавриат и специалитет"},
         {"label": "Форма обучения", "value": "Очная (дневная)"},
         {"label": "Язык обучения", "value": "Русский"}
-      ],
-      "note": null
-    },
-    {
-      "title": "Квота и условия",
-      "icon_type": "data-analysis",
-      "items": [
-        {"label": "Общая квота на 2026 год", "value": "330 человек", "accent": true},
-        {"label": "Основа приема", "value": "Конкурсная основа по результатам вступительных испытаний или ЕГЭ"}
-      ],
-      "note": {
-        "title": "Для бюджетников, граждан РУз",
-        "description": "Обязательство отработки не менее 3 лет на предприятиях нефтегазовой отрасли Узбекистана.",
-        "type": "info"
-      }
-    },
-    {
-      "title": "Сроки приема",
-      "icon_type": "calendar",
-      "items": [
-        {"label": "Сроки подачи документов", "value": "16 июня - 01 июля 2026 включительно", "accent": true},
-        {"label": "Формат приема", "value": "Очно (off-line) и дистанционно (on-line)"},
-        {"label": "Режим online", "value": "24 часа в сутки"}
-      ],
-      "note": null
-    },
-    {
-      "title": "Выбор направлений",
-      "icon_type": "user",
-      "items": [
-        {"label": "Максимум направлений", "value": "до 3 конкурсных групп", "accent": true},
-        {"label": "Условие", "value": "Единый набор вступительных испытаний с указанием приоритета"},
-        {"label": "Вступительные испытания", "value": "Одинаковые для бюджетных и платных мест"}
       ],
       "note": null
     }
@@ -532,3 +537,28 @@ INSERT INTO site_settings (category, key, value, label, sort_order) VALUES
   ('general', 'admission_year', '2026', 'Год приемной кампании', 2),
   ('general', 'admission_open', 'false', 'Прием документов открыт', 3)
 ON CONFLICT (category, key) DO NOTHING;
+
+INSERT INTO site_contacts (type, label, value, href, sort_order, is_published) VALUES
+  ('address', 'Адрес', 'г. Ташкент, Мирзо Улугбекский район, ул. Дурмон йули, дом 34', NULL, 10, true),
+  ('phone', 'Call-центр', '(+99871) 200-01-56', 'tel:+998712000156', 20, true),
+  ('email', 'Email приемной комиссии', 'admission@gubkin.uz', 'mailto:admission@gubkin.uz', 30, true),
+  ('person', 'Ответственное лицо', 'Гафурова Умида Ирмухаматовна', NULL, 40, true),
+  ('hours', 'Понедельник - пятница', '09:00 - 18:00', NULL, 50, true),
+  ('hours', 'Суббота', '09:00 - 17:00', NULL, 60, true)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO site_social_links (platform, label, url, sort_order, is_published) VALUES
+  ('telegram', 'Telegram канал', 'https://t.me/gubkin_uz', 10, true),
+  ('website', 'Официальный сайт', 'https://gubkin.uz', 20, true)
+ON CONFLICT (platform) DO NOTHING;
+
+INSERT INTO news_posts (slug, title, summary, body, status, published_at) VALUES
+  (
+    'admission-2026-start',
+    'Приёмная кампания 2026/2027',
+    'Опубликована основная информация для абитуриентов о сроках приема документов, направлениях подготовки и вступительных испытаниях.',
+    'В разделе Admission 2025 доступна подробная информация о поступлении: сроки, документы, направления, экзамены, льготы олимпиад и контакты приемной комиссии.',
+    'published',
+    NOW()
+  )
+ON CONFLICT (slug) DO NOTHING;
