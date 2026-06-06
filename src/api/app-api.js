@@ -1137,6 +1137,21 @@ export const appApi = {
         // Функция rpc в appApi должна вернуть сырой массив совместимых профилей
         return { data: res.data.data, error: null }
       }
+      if (fnName === 'get_profiles_with_same_exams') {
+        const profileId = params.profile_id_param || params.p_profile_id || params.profile_id
+        const res = await apiClient.get(`/education/profiles/${profileId}/same-exams`)
+        return { data: res.data.data, error: null }
+      }
+      if (fnName === 'get_profile_exams') {
+        const profileId = params.profile_id_param || params.p_profile_id || params.profile_id
+        const res = await apiClient.get(`/education/profiles/${profileId}/exams`)
+        return { data: res.data.data, error: null }
+      }
+      if (fnName === 'validate_application_choices') {
+        const applicationId = params.application_id_param || params.p_application_id || params.application_id
+        const res = await apiClient.get(`/applications/${applicationId}/choices/validate`)
+        return { data: res.data.data, error: null }
+      }
 
       return { data: null, error: new Error(`RPC function ${fnName} not implemented in proxy`) }
     } catch (err) {

@@ -636,6 +636,70 @@ router.delete('/education/profiles/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Получить профили с тем же набором вступительных экзаменов
+router.get('/education/profiles/:id/same-exams', async (req, res) => {
+  const profileId = parseInt(req.params.id);
+
+  if (!profileId) {
+    return res.status(400).json({ error: 'Некорректный ID профиля' });
+  }
+
+  try {
+    const result = await db.query(
+      `WITH selected_subjects AS (
+         SELECT ARRAY_AGG(subject_id ORDER BY subject_id) AS subjects
+         FROM profile_exams
+         WHERE profile_id = $1
+       ),
+       profile_subjects AS (
+         SELECT p.id AS profile_id,
+                ARRAY_AGG(pe.subject_id ORDER BY pe.subject_id) AS subjects
+         FROM profiles p
+         JOIN profile_exams pe ON pe.profile_id = p.id
+         GROUP BY p.id
+       )
+       SELECT ps.profile_id
+       FROM profile_subjects ps
+       CROSS JOIN selected_subjects ss
+       WHERE ps.subjects = ss.subjects
+       ORDER BY ps.profile_id`,
+      [profileId]
+    );
+
+    res.json({ data: result.rows });
+  } catch (err) {
+    console.error('Ошибка получения совместимых профилей по экзаменам:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Получить экзамены профиля
+router.get('/education/profiles/:id/exams', async (req, res) => {
+  const profileId = parseInt(req.params.id);
+
+  if (!profileId) {
+    return res.status(400).json({ error: 'Некорректный ID профиля' });
+  }
+
+  try {
+    const result = await db.query(
+      `SELECT pe.subject_id,
+              pe.priority,
+              s.name AS subject_name
+       FROM profile_exams pe
+       JOIN subjects s ON s.id = pe.subject_id
+       WHERE pe.profile_id = $1
+       ORDER BY pe.priority`,
+      [profileId]
+    );
+
+    res.json({ data: result.rows });
+  } catch (err) {
+    console.error('Ошибка получения экзаменов профиля:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Получить профиль по ID
 router.get('/education/profiles/:id', async (req, res) => {
   try {
@@ -1097,6 +1161,44 @@ router.get('/applications/:id/compatibles', requireAuth, async (req, res) => {
       count: rpcResult.rows[0]?.total_count || 0 
     });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Проверить, что выбранные профили заявления имеют одинаковый набор экзаменов
+router.get('/applications/:id/choices/validate', requireAuth, async (req, res) => {
+  try {
+    const access = await db.query(
+      'SELECT user_id FROM applications WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (!access.rows.length) {
+      return res.status(404).json({ error: 'Заявление не найдено' });
+    }
+
+    const isStaff = req.user.role_id === 2 || req.user.role_id === 3;
+    if (!isStaff && access.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    const result = await db.query(
+      `WITH choice_subjects AS (
+         SELECT ac.profile_id,
+                ARRAY_AGG(pe.subject_id ORDER BY pe.subject_id) AS subjects
+         FROM application_choices ac
+         JOIN profile_exams pe ON pe.profile_id = ac.profile_id
+         WHERE ac.application_id = $1
+         GROUP BY ac.profile_id
+       )
+       SELECT COUNT(DISTINCT subjects)::int <= 1 AS is_valid
+       FROM choice_subjects`,
+      [req.params.id]
+    );
+
+    res.json({ data: result.rows[0]?.is_valid ?? true });
+  } catch (err) {
+    console.error('Ошибка проверки совместимости выбранных профилей:', err);
     res.status(500).json({ error: err.message });
   }
 });
