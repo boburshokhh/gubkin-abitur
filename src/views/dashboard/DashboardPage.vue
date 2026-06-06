@@ -290,13 +290,13 @@ import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { appApi } from '@/api/app-api';
+import { useAdmissionStatus } from '@/composables/useAdmissionStatus';
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 
-// Проверка статуса приемной кампании
-const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
+const { isAdmissionOpen } = useAdmissionStatus();
 
 const isLoading = ref(true);
 const isSaving = ref(false);

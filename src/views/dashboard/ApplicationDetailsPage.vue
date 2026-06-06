@@ -827,13 +827,13 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useApplicationStore } from '@/stores/application';
 import { appApi } from '@/api/app-api';
+import { useAdmissionStatus } from '@/composables/useAdmissionStatus';
 
 const route = useRoute();
 const router = useRouter();
 const appStore = useApplicationStore();
 
-// Проверка статуса приемной кампании
-const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
+const { isAdmissionOpen } = useAdmissionStatus();
 
 const isLoading = ref(true);
 const error = ref('');

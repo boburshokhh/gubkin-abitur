@@ -56,6 +56,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useApplicationStore } from '@/stores/application'
 import { useRoute } from 'vue-router'
+import { useAdmissionStatus } from '@/composables/useAdmissionStatus'
 
 // Компоненты
 import EmptyState from '@/components/shared/EmptyState.vue'
@@ -63,6 +64,7 @@ import ApplicationCard from '@/components/application/ApplicationCard.vue'
 
 const route = useRoute()
 const appStore = useApplicationStore()
+const { isAdmissionOpen } = useAdmissionStatus()
 
 // Состояние
 const applications = ref([])
@@ -70,7 +72,7 @@ const isLoading = ref(true)
 const error = ref('')
 
 // Конфигурация
-const navItems = [
+const navItems = computed(() => [
   { 
     path: '/dashboard/applications', 
     label: 'Мои заявления', 
@@ -84,11 +86,11 @@ const navItems = [
   { 
     path: '/register',
     label: 'Подать новое заявление',
-    visible: import.meta.env.VITE_ADMISSION_OPEN === 'true',
+    visible: isAdmissionOpen.value,
     icon: 'M12 4v16m8-8H4',
     primary: true 
   }
-]
+])
 
 // Утилиты
 const getNavClass = (path) => {

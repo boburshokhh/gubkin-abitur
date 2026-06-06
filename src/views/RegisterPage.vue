@@ -173,14 +173,14 @@ import ProgramSelectionStep from '@/components/register/ProgramSelectionStep.vue
 import ConfirmationStep from '@/components/register/ConfirmationStep.vue';
 import SuccessMessage from '@/components/register/SuccessMessage.vue';
 import AdmissionClosedMessage from '@/components/register/AdmissionClosedMessage.vue';
+import { useAdmissionStatus } from '@/composables/useAdmissionStatus';
 
 const router = useRouter();
 const appStore = useApplicationStore();
 const authStore = useAuthStore();
 const toast = useToast();
 
-// Проверка статуса приемной кампании
-const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
+const { isAdmissionOpen, loadAdmissionStatus } = useAdmissionStatus({ loadOnMount: false });
 
 const totalSteps = 5;
 const currentStep = ref(1);
@@ -242,7 +242,9 @@ const form = ref({
 
 // Загрузка всех необходимых данных при монтировании
 onMounted(async () => {
-  if (!isAdmissionOpen) {
+  await loadAdmissionStatus();
+
+  if (!isAdmissionOpen.value) {
     isFormLoading.value = false;
     return;
   }

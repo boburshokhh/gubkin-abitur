@@ -156,12 +156,11 @@
 import BaseButton from '@/components/base/BaseButton.vue';
 import { ref, computed, onMounted } from 'vue';
 import { BaseCard } from '@/components/ui';
-import { fetchCmsPage, getSectionByAnchor, fetchContacts } from '@/api/cms.js';
-
-const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
+import { fetchCmsPage, getSectionByAnchor } from '@/api/cms.js';
+import { useAdmissionStatus } from '@/composables/useAdmissionStatus';
 
 const pageData = ref(null)
-const settingsData = ref({})
+const { isAdmissionOpen: admissionOpen } = useAdmissionStatus()
 
 const sections = computed(() => pageData.value?.sections || [])
 
@@ -187,21 +186,10 @@ const timelineItems = computed(() => timelineContent.value.items || [])
 const faqTitle = computed(() => faqContent.value.title || 'Частые вопросы абитуриентов')
 const faqs = computed(() => faqContent.value.items || [])
 
-const admissionOpen = computed(() => {
-  if (settingsData.value?.general?.admission_open !== undefined) {
-    return settingsData.value.general.admission_open === 'true'
-  }
-  return isAdmissionOpen
-})
-
 onMounted(async () => {
   try {
-    const [page, contacts] = await Promise.allSettled([
-      fetchCmsPage('home'),
-      fetchContacts()
-    ])
+    const [page] = await Promise.allSettled([fetchCmsPage('home')])
     if (page.status === 'fulfilled') pageData.value = page.value
-    if (contacts.status === 'fulfilled') settingsData.value = contacts.value
   } catch {
     // fallback to static content
   }

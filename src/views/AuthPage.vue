@@ -155,6 +155,7 @@ import { useAuthStore } from '@/stores/auth';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseLoader from '@/components/ui/BaseLoader.vue';
 import { useToast } from 'vue-toastification';
+import { useAdmissionStatus } from '@/composables/useAdmissionStatus';
 
 const router = useRouter();
 const route = useRoute();
@@ -164,7 +165,7 @@ const isLogin = ref(true);
 const isLoading = computed(() => authStore.loading);
 const error = ref('');
 const isResendingVerification = ref(false);
-const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true';
+const { isAdmissionOpen } = useAdmissionStatus();
 
 const form = reactive({
   firstName: '',
@@ -174,7 +175,7 @@ const form = reactive({
 });
 
 const toggleMode = () => {
-  if (isLogin.value && !isAdmissionOpen) {
+  if (isLogin.value && !isAdmissionOpen.value) {
     error.value = 'Регистрация новых аккаунтов закрыта: прием на 2026 год сейчас не ведется.';
     return;
   }
@@ -263,7 +264,7 @@ const handleSubmit = async () => {
         toast.error(error.value);
       }
     } else {
-      if (!isAdmissionOpen) {
+      if (!isAdmissionOpen.value) {
         error.value = 'Регистрация новых аккаунтов закрыта: прием на 2026 год сейчас не ведется.';
         toast.error(error.value);
         return;
