@@ -27,6 +27,63 @@
 
       <el-space class="the-header__actions">
         <template v-if="isAuthenticated">
+          <el-popover
+            placement="bottom"
+            width="320"
+            trigger="click"
+          >
+            <template #reference>
+              <el-badge
+                :value="headerUnreadNotifications"
+                :hidden="headerUnreadNotifications === 0"
+                :max="99"
+              >
+                <el-button
+                  class="the-header__notifications"
+                  :icon="Bell"
+                  circle
+                  aria-label="Уведомления"
+                />
+              </el-badge>
+            </template>
+
+            <div class="the-header__notifications-panel">
+              <div class="the-header__notifications-title">
+                <el-text tag="strong">Уведомления</el-text>
+                <el-button
+                  v-if="headerUnreadNotifications > 0"
+                  size="small"
+                  text
+                  type="primary"
+                  @click="markHeaderNotificationsRead"
+                >
+                  Прочитать все
+                </el-button>
+              </div>
+
+              <el-empty
+                v-if="headerNotifications.length === 0"
+                description="Новых уведомлений нет"
+                :image-size="72"
+              />
+
+              <el-scrollbar v-else max-height="280px">
+                <div
+                  v-for="notification in headerNotifications"
+                  :key="notification.id"
+                  class="the-header__notification-item"
+                  :class="{ 'the-header__notification-item--unread': !notification.is_read }"
+                  @click="markNotificationRead(notification.id)"
+                >
+                  <el-text>{{ notification.message }}</el-text>
+                  <el-text size="small" type="info">
+                    {{ formatNotificationTime(notification.created_at) }}
+                  </el-text>
+                </div>
+              </el-scrollbar>
+            </div>
+          </el-popover>
+
           <el-dropdown
             trigger="click"
             @command="handleUserCommand"
@@ -129,6 +186,19 @@
           </el-descriptions>
 
           <el-button
+            v-if="headerNotifications.length > 0"
+            @click="markHeaderNotificationsRead"
+          >
+            Уведомления
+            <el-badge
+              class="the-header__drawer-badge"
+              :value="headerUnreadNotifications"
+              :hidden="headerUnreadNotifications === 0"
+              :max="99"
+            />
+          </el-button>
+
+          <el-button
             v-if="hasStaffWorkspace"
             @click="goToWorkspace"
           >
@@ -157,17 +227,19 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { ArrowDown, Menu } from '@element-plus/icons-vue'
+import { ArrowDown, Bell, Menu } from '@element-plus/icons-vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
+import { useFeedbackStore } from '@/stores/feedback'
 import { useAdmissionStatus } from '@/composables/useAdmissionStatus'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const feedbackStore = useFeedbackStore()
 const toast = useToast()
 
 const isMobileMenuOpen = ref(false)
@@ -181,6 +253,12 @@ const navigationLinks = [
 ]
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+const headerNotifications = computed(() =>
+  feedbackStore.notifications.filter((notification) => !notification.conversation_id)
+)
+const headerUnreadNotifications = computed(() =>
+  headerNotifications.value.filter((notification) => !notification.is_read).length
+)
 const hasStaffWorkspace = computed(() => authStore.isAdmin || authStore.isReviewer)
 const workspacePath = computed(() => (authStore.isAdmin ? '/admin' : '/reviewer'))
 const workspaceLabel = computed(() => (
@@ -249,6 +327,29 @@ const handleUserCommand = (command) => {
   if (command === 'logout') confirmLogout()
 }
 
+const markNotificationRead = async (id) => {
+  await feedbackStore.markNotificationRead(id)
+}
+
+const markHeaderNotificationsRead = async () => {
+  const unreadNotifications = headerNotifications.value.filter((notification) => !notification.is_read)
+  await Promise.all(unreadNotifications.map((notification) => feedbackStore.markNotificationRead(notification.id)))
+}
+
+const formatNotificationTime = (value) => {
+  return new Date(value).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const loadHeaderNotifications = async () => {
+  if (!authStore.isAuthenticated) return
+  await feedbackStore.loadNotifications()
+}
+
 const logout = async () => {
   try {
     await authStore.logout()
@@ -278,6 +379,12 @@ const confirmLogout = async () => {
     if (error !== 'cancel' && error !== 'close') console.error('Ошибка подтверждения выхода:', error)
   }
 }
+
+onMounted(loadHeaderNotifications)
+
+watch(() => authStore.isAuthenticated, async (isAuthenticatedNow) => {
+  if (isAuthenticatedNow) await loadHeaderNotifications()
+})
 </script>
 
 <style scoped>
@@ -360,6 +467,42 @@ const confirmLogout = async () => {
 .the-header__profile-arrow {
   flex-shrink: 0;
   color: var(--el-text-color-secondary);
+}
+
+.the-header__notifications {
+  flex: 0 0 auto;
+}
+
+.the-header__notifications-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.the-header__notifications-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.the-header__notification-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.the-header__notification-item:hover {
+  background: var(--el-fill-color-light);
+}
+
+.the-header__notification-item--unread {
+  background: var(--el-color-primary-light-9);
+}
+
+.the-header__drawer-badge {
+  margin-left: 8px;
 }
 
 .the-header__mobile-button {

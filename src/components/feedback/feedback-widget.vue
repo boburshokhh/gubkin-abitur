@@ -1,6 +1,6 @@
 <template>
   <div v-if="shouldShowWidget" class="feedback-widget">
-    <el-badge :value="totalUnread" :hidden="totalUnread === 0" :max="99">
+    <el-badge :value="unreadMessages" :hidden="unreadMessages === 0" :max="99">
       <el-button
         class="feedback-widget__button"
         type="primary"
@@ -66,9 +66,20 @@
                 </el-button>
               </div>
 
-              <el-text size="small" type="info" class="feedback-widget__time">
-                {{ formatTime(message.created_at) }}
-              </el-text>
+              <div class="feedback-widget__meta">
+                <el-text size="small" type="info">
+                  {{ formatTime(message.created_at) }}
+                </el-text>
+                <span
+                  v-if="isOwnMessage(message)"
+                  class="feedback-widget__read-status"
+                  :class="{ 'feedback-widget__read-status--read': message.is_read }"
+                  :title="message.is_read ? 'Прочитано' : 'Отправлено'"
+                >
+                  <el-icon><Check /></el-icon>
+                  <el-icon v-if="message.is_read"><Check /></el-icon>
+                </span>
+              </div>
             </el-card>
           </div>
         </div>
@@ -116,7 +127,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ChatDotRound, Close, Loading, Paperclip, Promotion, Service } from '@element-plus/icons-vue'
+import { ChatDotRound, Check, Close, Loading, Paperclip, Promotion, Service } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { feedback as feedbackApi, getAccessToken } from '@/api/app-api'
 import { useAuthStore } from '@/stores/auth'
@@ -136,7 +147,7 @@ const sending = ref(false)
 const socketInitialized = ref(false)
 const tokenRetryTimer = ref(null)
 
-const totalUnread = computed(() => feedbackStore.unreadNotifications + feedbackStore.unreadMessages)
+const unreadMessages = computed(() => feedbackStore.unreadMessages)
 const shouldShowWidget = computed(() => authStore.isAuthenticated && authStore.isApplicant)
 
 async function handleToggle() {
@@ -223,6 +234,10 @@ function formatTime(value) {
   return new Date(value).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 }
 
+function isOwnMessage(message) {
+  return message.sender_id === authStore.user?.id
+}
+
 async function initializeSocket() {
   if (socketInitialized.value || !authStore.isAuthenticated) return
 
@@ -277,10 +292,14 @@ onBeforeUnmount(() => {
   z-index: 1000;
 }
 
-.feedback-widget__button {
+.feedback-widget__button.el-button.is-circle {
   width: 56px;
+  min-width: 56px;
   height: 56px;
+  padding: 0;
+  border-radius: 50%;
   font-size: 22px;
+  aspect-ratio: 1 / 1;
   box-shadow: var(--el-box-shadow-dark);
 }
 
@@ -352,10 +371,29 @@ onBeforeUnmount(() => {
   border-radius: 8px;
 }
 
-.feedback-widget__time {
-  display: block;
+.feedback-widget__meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
   margin-top: 4px;
-  text-align: right;
+}
+
+.feedback-widget__read-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  color: var(--el-text-color-placeholder);
+}
+
+.feedback-widget__read-status--read {
+  color: var(--el-color-primary);
+}
+
+.feedback-widget__read-status .el-icon {
+  width: 12px;
+  margin-left: -3px;
+  font-size: 12px;
 }
 
 .feedback-widget__preview {

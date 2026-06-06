@@ -156,9 +156,20 @@
                       </el-button>
                     </div>
 
-                    <el-text size="small" type="info" class="feedback-inbox__time">
-                      {{ formatTime(message.created_at) }}
-                    </el-text>
+                    <div class="feedback-inbox__meta">
+                      <el-text size="small" type="info">
+                        {{ formatTime(message.created_at) }}
+                      </el-text>
+                      <span
+                        v-if="isStaffMessage(message)"
+                        class="feedback-inbox__read-status"
+                        :class="{ 'feedback-inbox__read-status--read': message.is_read }"
+                        :title="message.is_read ? 'Прочитано' : 'Отправлено'"
+                      >
+                        <el-icon><Check /></el-icon>
+                        <el-icon v-if="message.is_read"><Check /></el-icon>
+                      </span>
+                    </div>
                   </el-card>
                 </div>
               </div>
@@ -219,7 +230,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Loading, Paperclip, Promotion, Refresh } from '@element-plus/icons-vue'
+import { Check, Loading, Paperclip, Promotion, Refresh } from '@element-plus/icons-vue'
 import { feedback as feedbackApi, getAccessToken } from '@/api/app-api'
 import { useFeedbackStore } from '@/stores/feedback'
 
@@ -358,6 +369,10 @@ function formatDate(value) {
 
 function formatTime(value) {
   return new Date(value).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+}
+
+function isStaffMessage(message) {
+  return Number(message.sender_role_id) !== 1
 }
 
 function initSocket() {
@@ -507,10 +522,28 @@ onBeforeUnmount(() => {
   border-radius: 8px;
 }
 
-.feedback-inbox__time {
-  display: block;
+.feedback-inbox__meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
   margin-top: 4px;
-  text-align: right;
+}
+
+.feedback-inbox__read-status {
+  display: inline-flex;
+  align-items: center;
+  color: var(--el-text-color-placeholder);
+}
+
+.feedback-inbox__read-status--read {
+  color: var(--el-color-primary);
+}
+
+.feedback-inbox__read-status .el-icon {
+  width: 12px;
+  margin-left: -3px;
+  font-size: 12px;
 }
 
 .feedback-inbox__closed,
