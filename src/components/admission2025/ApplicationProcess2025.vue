@@ -2,9 +2,9 @@
   <section class="admission-section white">
     <div class="admission-container narrow">
       <div class="section-heading">
-        <el-tag type="primary" effect="plain" round>Подача заявления</el-tag>
+        <el-tag class="section-kicker" effect="plain" round>Подача заявления</el-tag>
         <h2>Процесс подачи документов</h2>
-        <p>Пошаговая инструкция для абитуриентов 2025 года.</p>
+        <p>Пошаговая инструкция для абитуриентов 2026 года.</p>
       </div>
 
       <el-timeline>
@@ -56,8 +56,8 @@
         <el-col :xs="24" :md="12">
           <el-alert
             title="Прием документов"
-            description="16 июня - 01 июля 2025 включительно."
-            type="error"
+            description="16 июня - 01 июля 2026 включительно."
+            type="info"
             show-icon
             :closable="false"
           />
@@ -65,7 +65,7 @@
         <el-col :xs="24" :md="12">
           <el-alert
             title="Для участников олимпиад"
-            description="Подтверждающие документы принимаются до 01 июля 2025."
+            description="Подтверждающие документы принимаются до 01 июля 2026."
             type="warning"
             show-icon
             :closable="false"
@@ -105,7 +105,7 @@ const steps = [
     timestamp: 'Шаг 2',
     title: 'Подготовьте документы',
     icon: Document,
-    type: 'success',
+    type: 'primary',
     description: 'Соберите необходимые документы в электронном виде: PDF или JPG.',
     groups: [
       {
@@ -122,24 +122,24 @@ const steps = [
     timestamp: 'Шаг 3',
     title: 'Заполните форму на сайте',
     icon: EditPen,
-    type: 'warning',
+    type: 'primary',
     description: 'Перейдите на gubkin.uz и заполните форму во вкладке «Абитуриенту / Онлайн подача документов».',
     note: {
       title: 'Режим online-приема',
-      description: '24 часа в сутки в период с 16 июня по 01 июля 2025 года.',
-      type: 'success'
+      description: '24 часа в сутки в период с 16 июня по 01 июля 2026 года.',
+      type: 'info'
     }
   },
   {
     timestamp: 'Шаг 4',
     title: 'Получите подтверждение',
     icon: Finished,
-    type: 'success',
+    type: 'primary',
     description: 'После проверки документов получите SMS-подтверждение о регистрации.',
     note: {
       title: 'SMS-уведомление',
       description: 'Сообщение придет на номер телефона из заявления с регистрационным номером личного дела.',
-      type: 'success'
+      type: 'info'
     }
   }
 ]
@@ -173,7 +173,8 @@ const steps = [
   margin: 14px 0;
   color: #111827;
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: -0.035em;
 }
 
 .section-heading p {
@@ -184,7 +185,12 @@ const steps = [
 }
 
 .step-card {
+  border: 1px solid #e2e8f0;
   border-radius: 20px;
+}
+
+.step-card :deep(.el-card__header) {
+  border-bottom-color: #eef2f7;
 }
 
 .step-header {
@@ -193,7 +199,7 @@ const steps = [
   gap: 12px;
   color: #111827;
   font-size: 1.15rem;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .step-card p {
@@ -234,5 +240,11 @@ const steps = [
 .final-alert {
   margin-top: 18px;
   border-radius: 16px;
+}
+
+.section-kicker {
+  border-color: rgba(18, 61, 112, 0.18);
+  background: rgba(18, 61, 112, 0.06);
+  color: #123d70;
 }
 </style>

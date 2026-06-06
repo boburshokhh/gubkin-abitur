@@ -2,7 +2,7 @@
   <section class="admission-section white">
     <div class="admission-container narrow">
       <div class="section-heading">
-        <el-tag type="primary" effect="plain" round>Документы</el-tag>
+        <el-tag class="section-kicker" effect="plain" round>Документы</el-tag>
         <h2>Необходимые документы</h2>
         <p>
           Документы предоставляются в электронном виде для очной off-line и дистанционной
@@ -20,7 +20,7 @@
                 </el-icon>
                 <div>
                   <h3>{{ documentItem.title }}</h3>
-                  <el-tag :type="documentItem.tagType" round>Обязательно</el-tag>
+                  <el-tag class="status-tag" effect="plain" round>Обязательно</el-tag>
                 </div>
               </div>
               <el-tag effect="plain" round>{{ documentItem.number }}</el-tag>
@@ -47,7 +47,7 @@
       <el-card class="summary-card" shadow="never">
         <template #header>
           <div class="card-header">
-            <el-icon color="#2563eb" size="24"><Calendar /></el-icon>
+            <el-icon color="#123d70" size="24"><Calendar /></el-icon>
             <span>Сроки и режим работы</span>
           </div>
         </template>
@@ -56,8 +56,8 @@
           <el-col :xs="24" :md="12">
             <el-alert
               title="Прием документов"
-              description="с 16 июня по 1 июля включительно 2025 года. Документы принимаются online 24 часа в сутки."
-              type="success"
+              description="с 16 июня по 1 июля включительно 2026 года. Документы принимаются online 24 часа в сутки."
+              type="info"
               show-icon
               :closable="false"
             />
@@ -90,7 +90,6 @@ const documents = [
     title: 'Документ об образовании',
     icon: Document,
     iconClass: 'text-success',
-    tagType: 'success',
     description:
       'Оригинал или копия документа государственного образца об образовании: аттестат о среднем образовании, диплом о среднем и профессиональном образовании.',
     notes: [
@@ -102,7 +101,7 @@ const documents = [
       {
         title: 'Для второго высшего образования',
         description: 'Лица, желающие получить второе высшее образование, представляют копию диплома о высшем образовании.',
-        type: 'warning'
+        type: 'info'
       }
     ]
   },
@@ -111,14 +110,13 @@ const documents = [
     title: 'Документы, удостоверяющие личность',
     icon: Files,
     iconClass: 'text-warning',
-    tagType: 'warning',
     description:
       'Отсканированная цветная копия первой страницы паспорта или ID-карты в формате PDF и копия нотариально заверенного перевода первой страницы паспорта/ID-карты или копия свидетельства о рождении на кириллице.',
     notes: [
       {
         title: 'Важно',
         description: 'Абитуриенты, которым исполнилось 16 лет и не имеющие паспорт или ID-карту, не будут допущены до экзаменов.',
-        type: 'error'
+        type: 'warning'
       }
     ]
   },
@@ -127,7 +125,6 @@ const documents = [
     title: 'Фотография',
     icon: Picture,
     iconClass: 'text-purple',
-    tagType: 'info',
     description: 'Фотография 3х4 см: цветное фото, белый фон, протокольный вид.'
   },
   {
@@ -135,14 +132,13 @@ const documents = [
     title: 'Подача документов',
     icon: Edit,
     iconClass: 'text-primary',
-    tagType: 'primary',
     description:
       'Абитуриент заполняет на официальном сайте Филиала gubkin.uz форму во вкладке «Абитуриенту / Онлайн подача документов» и отправляет необходимые документы в приемную комиссию.',
     notes: [
       {
         title: 'SMS-подтверждение',
         description: 'После проверки документов абитуриент получает SMS с регистрационным номером личного дела.',
-        type: 'success'
+        type: 'info'
       },
       {
         title: 'Выбор направлений',
@@ -182,7 +178,8 @@ const documents = [
   margin: 14px 0;
   color: #111827;
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: -0.035em;
 }
 
 .section-heading p {
@@ -198,7 +195,13 @@ const documents = [
 
 .document-card,
 .summary-card {
-  border-radius: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+}
+
+.document-card :deep(.el-card__header),
+.summary-card :deep(.el-card__header) {
+  border-bottom-color: #eef2f7;
 }
 
 .document-header,
@@ -217,7 +220,7 @@ const documents = [
   margin: 0 0 8px;
   color: #111827;
   font-size: 1.18rem;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .document-description {
@@ -240,23 +243,30 @@ const documents = [
 .card-header {
   color: #111827;
   font-size: 1.12rem;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .text-primary {
-  color: #2563eb;
+  color: #123d70;
 }
 
 .text-success {
-  color: #16a34a;
+  color: #123d70;
 }
 
 .text-warning {
-  color: #d97706;
+  color: #123d70;
 }
 
 .text-purple {
-  color: #7c3aed;
+  color: #123d70;
+}
+
+.section-kicker,
+.status-tag {
+  border-color: rgba(18, 61, 112, 0.18);
+  background: rgba(18, 61, 112, 0.06);
+  color: #123d70;
 }
 
 @media (max-width: 767px) {

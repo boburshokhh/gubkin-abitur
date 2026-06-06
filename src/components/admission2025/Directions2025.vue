@@ -2,7 +2,7 @@
   <section class="admission-section muted">
     <div class="admission-container">
       <div class="section-heading">
-        <el-tag type="success" effect="plain" round>Направления подготовки</el-tag>
+        <el-tag class="section-kicker" effect="plain" round>Направления подготовки</el-tag>
         <h2>5 направлений, 11 специализаций, 330 мест</h2>
         <p>Выберите до трех конкурсных групп с единым набором вступительных испытаний.</p>
       </div>
@@ -13,7 +13,7 @@
             <template #header>
               <div class="direction-header">
                 <div>
-                  <el-tag :type="direction.tagType" effect="dark" round>{{ direction.level }}</el-tag>
+                  <el-tag class="direction-tag" effect="plain" round>{{ direction.level }}</el-tag>
                   <h3>{{ direction.code }} «{{ direction.title }}»</h3>
                 </div>
                 <el-statistic :value="direction.places" suffix="мест" />
@@ -25,7 +25,7 @@
               <el-col v-for="profile in direction.profiles" :key="profile.name" :xs="24" :md="direction.profiles.length > 2 ? 8 : 12">
                 <div class="profile-card">
                   <span>{{ profile.name }}</span>
-                  <el-tag :type="direction.tagType" round>{{ profile.places }} мест</el-tag>
+                  <el-tag class="places-tag" effect="plain" round>{{ profile.places }} мест</el-tag>
                 </div>
               </el-col>
             </el-row>
@@ -35,7 +35,7 @@
 
       <el-alert
         class="important-alert"
-        type="warning"
+        type="info"
         show-icon
         :closable="false"
         title="Важная информация"
@@ -52,7 +52,6 @@ const directions = [
     title: 'Технология геологической разведки',
     level: 'Специалитет',
     places: 30,
-    tagType: 'success',
     profileTitle: 'Специализация',
     profiles: [{ name: 'Цифровой геоинжиниринг', places: 30 }]
   },
@@ -61,7 +60,6 @@ const directions = [
     title: 'Нефтегазовое дело',
     level: 'Бакалавриат',
     places: 120,
-    tagType: 'primary',
     profileTitle: 'Профили подготовки',
     wide: true,
     profiles: [
@@ -76,7 +74,6 @@ const directions = [
     title: 'Нефтегазовые техника и технологии',
     level: 'Специалитет',
     places: 90,
-    tagType: 'warning',
     profileTitle: 'Специализации',
     wide: true,
     profiles: [
@@ -90,7 +87,6 @@ const directions = [
     title: 'Экономика',
     level: 'Бакалавриат',
     places: 30,
-    tagType: 'danger',
     profileTitle: 'Профиль подготовки',
     profiles: [{ name: 'Экономика и проекты устойчивого развития энергетики', places: 30 }]
   },
@@ -99,7 +95,6 @@ const directions = [
     title: 'Менеджмент',
     level: 'Бакалавриат',
     places: 60,
-    tagType: 'info',
     profileTitle: 'Профили подготовки',
     profiles: [
       { name: 'Управление бизнесом в энергетике', places: 30 },
@@ -133,7 +128,8 @@ const directions = [
   margin: 14px 0;
   color: #111827;
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: -0.035em;
 }
 
 .section-heading p {
@@ -146,7 +142,12 @@ const directions = [
 .direction-card {
   height: calc(100% - 24px);
   margin-bottom: 24px;
-  border-radius: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+}
+
+.direction-card :deep(.el-card__header) {
+  border-bottom-color: #eef2f7;
 }
 
 .direction-header {
@@ -160,14 +161,14 @@ const directions = [
   margin: 12px 0 0;
   color: #111827;
   font-size: 1.25rem;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1.35;
 }
 
 .profiles-title {
   margin: 0 0 16px;
   color: #334155;
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .profile-card {
@@ -191,6 +192,14 @@ const directions = [
 .important-alert {
   margin-top: 10px;
   border-radius: 16px;
+}
+
+.section-kicker,
+.direction-tag,
+.places-tag {
+  border-color: rgba(18, 61, 112, 0.18);
+  background: rgba(18, 61, 112, 0.06);
+  color: #123d70;
 }
 
 @media (max-width: 767px) {

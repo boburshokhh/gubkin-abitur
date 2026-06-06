@@ -174,7 +174,7 @@ const isAdmissionOpen = import.meta.env.VITE_ADMISSION_OPEN === 'true'
 
 const navigationLinks = [
   { to: '/', text: 'Главная' },
-  { to: '/admission2025', text: 'Прием 2025' },
+  { to: '/admission2025', text: 'Прием 2026' },
   { to: '/faq', text: 'Вопросы и ответы' },
   { to: '/statistics', text: 'Статистика' }
 ]

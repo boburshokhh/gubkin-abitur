@@ -41,7 +41,7 @@
             </li>
             <li>
               <router-link to="/admission2025" class="hover:text-white transition-colors duration-200">
-                Прием 2025
+                Прием 2026
               </router-link>
             </li>
             <li>

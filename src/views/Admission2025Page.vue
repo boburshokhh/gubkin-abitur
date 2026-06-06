@@ -2,9 +2,9 @@
   <main class="admission-page">
     <section class="admission-hero">
       <div class="admission-container">
-        <el-row :gutter="32" align="middle">
-          <el-col :xs="24" :lg="15">
-            <el-tag effect="dark" size="large" round>Прием 2025/2026</el-tag>
+        <el-row :gutter="40" align="middle">
+          <el-col :xs="24" :lg="14">
+            <el-tag class="hero-tag" effect="plain" size="large" round>Прием 2026/2027</el-tag>
             <h1>Поступление в филиал Губкина в Ташкенте</h1>
             <p class="hero-description">
               Вся ключевая информация для абитуриентов: сроки приема, направления подготовки,
@@ -21,8 +21,8 @@
             </div>
           </el-col>
 
-          <el-col :xs="24" :lg="9">
-            <el-card class="hero-card" shadow="always">
+          <el-col :xs="24" :lg="10">
+            <el-card class="hero-card" shadow="never">
               <el-statistic title="Общая квота" :value="330" suffix="мест" />
               <el-divider />
               <div class="hero-card-grid">
@@ -57,9 +57,8 @@
               <el-button
                 v-for="item in navItems"
                 :key="item.id"
-                round
                 plain
-                type="primary"
+                class="nav-button"
                 @click="scrollToSection(item.id)"
               >
                 {{ item.label }}
@@ -136,7 +135,19 @@ function scrollToSection(sectionId) {
 
 <style scoped>
 .admission-page {
-  background: #f5f7fb;
+  --admission-bg: #f7f9fc;
+  --admission-surface: #ffffff;
+  --admission-surface-soft: #f1f5f9;
+  --admission-border: #e2e8f0;
+  --admission-text: #111827;
+  --admission-muted: #667085;
+  --admission-primary: #123d70;
+  --admission-primary-soft: #e8f0f9;
+  --admission-accent: #0f766e;
+  --admission-warning-bg: #fff8e8;
+  --admission-warning-text: #8a5a00;
+  background: var(--admission-bg);
+  color: var(--admission-text);
 }
 
 .admission-container {
@@ -145,27 +156,35 @@ function scrollToSection(sectionId) {
 }
 
 .admission-hero {
-  padding: 72px 0;
-  color: #fff;
+  padding: 76px 0 64px;
+  color: var(--admission-text);
   background:
-    radial-gradient(circle at 18% 18%, rgba(64, 158, 255, 0.36), transparent 32%),
-    linear-gradient(135deg, #071a3d 0%, #123d70 52%, #0f766e 100%);
+    linear-gradient(180deg, rgba(232, 240, 249, 0.82) 0%, rgba(247, 249, 252, 0.88) 100%),
+    #f7f9fc;
+}
+
+.hero-tag {
+  border-color: rgba(18, 61, 112, 0.18);
+  background: rgba(18, 61, 112, 0.06);
+  color: var(--admission-primary);
 }
 
 .admission-hero h1 {
   max-width: 760px;
   margin: 18px 0;
-  font-size: clamp(2.4rem, 5vw, 4.7rem);
-  font-weight: 800;
-  line-height: 1.05;
+  color: var(--admission-text);
+  font-size: clamp(2.25rem, 4.4vw, 4.2rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.08;
 }
 
 .hero-description {
   max-width: 720px;
   margin: 0;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 1.2rem;
-  line-height: 1.75;
+  color: var(--admission-muted);
+  font-size: 1.08rem;
+  line-height: 1.72;
 }
 
 .hero-actions {
@@ -176,8 +195,10 @@ function scrollToSection(sectionId) {
 }
 
 .hero-card {
-  border: 0;
-  border-radius: 28px;
+  border: 1px solid var(--admission-border);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18px);
 }
 
 .hero-card :deep(.el-card__body) {
@@ -192,20 +213,22 @@ function scrollToSection(sectionId) {
 
 .hero-card-grid span {
   display: block;
-  color: #6b7280;
+  color: var(--admission-muted);
   font-size: 0.84rem;
 }
 
 .hero-card-grid strong {
   display: block;
   margin-top: 4px;
-  color: #111827;
+  color: var(--admission-text);
   font-size: 1rem;
+  font-weight: 650;
 }
 
 .admission-nav {
-  padding: 14px 0;
-  border-bottom: 1px solid #dfe7f2;
+  padding: 12px 0;
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.86);
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
 }
@@ -215,6 +238,77 @@ function scrollToSection(sectionId) {
   gap: 10px;
   min-width: max-content;
   padding-bottom: 2px;
+}
+
+.nav-button {
+  border-color: var(--admission-border);
+  color: var(--admission-primary);
+  font-weight: 500;
+}
+
+.nav-button:hover,
+.nav-button:focus {
+  border-color: rgba(18, 61, 112, 0.28);
+  background: var(--admission-primary-soft);
+  color: var(--admission-primary);
+}
+
+.admission-page :deep(.el-button--primary) {
+  --el-button-bg-color: var(--admission-primary);
+  --el-button-border-color: var(--admission-primary);
+  --el-button-hover-bg-color: #0d335f;
+  --el-button-hover-border-color: #0d335f;
+  --el-button-active-bg-color: #092846;
+  --el-button-active-border-color: #092846;
+}
+
+.admission-page :deep(.el-card) {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.admission-page :deep(.el-card.is-hover-shadow:hover) {
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+}
+
+.admission-page :deep(.el-alert) {
+  border: 1px solid var(--admission-border);
+  background: var(--admission-surface-soft);
+  color: var(--admission-text);
+}
+
+.admission-page :deep(.el-alert--info) {
+  border-color: #d8e4f2;
+  background: #f3f7fb;
+}
+
+.admission-page :deep(.el-alert--warning) {
+  border-color: #f3dfb2;
+  background: var(--admission-warning-bg);
+  color: var(--admission-warning-text);
+}
+
+.admission-page :deep(.el-alert--error) {
+  border-color: #f0c7c7;
+  background: #fff5f5;
+}
+
+.admission-page :deep(.el-alert__title) {
+  color: inherit;
+  font-weight: 650;
+}
+
+.admission-page :deep(.el-alert__description) {
+  color: #475569;
+  line-height: 1.6;
+}
+
+.admission-page :deep(.el-statistic__head) {
+  color: var(--admission-muted);
+}
+
+.admission-page :deep(.el-statistic__content) {
+  color: var(--admission-primary);
+  font-weight: 650;
 }
 
 @media (max-width: 767px) {

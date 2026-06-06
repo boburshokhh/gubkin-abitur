@@ -2,7 +2,7 @@
   <section class="admission-section muted">
     <div class="admission-container narrow">
       <div class="section-heading">
-        <el-tag type="warning" effect="plain" round>Экзамены</el-tag>
+        <el-tag class="section-kicker" effect="plain" round>Экзамены</el-tag>
         <h2>Расписание вступительных испытаний</h2>
         <p>Экзамены проводятся в помещениях Филиала по адресу: ул. Дурмон йули, дом 34.</p>
       </div>
@@ -13,7 +13,7 @@
             <template #header>
               <div class="exam-header">
                 <div>
-                  <el-tag :type="exam.type" round>{{ exam.format }}</el-tag>
+                  <el-tag class="exam-tag" effect="plain" round>{{ exam.format }}</el-tag>
                   <h3>{{ exam.subject }}</h3>
                   <span>{{ exam.duration }}</span>
                 </div>
@@ -43,7 +43,7 @@
               v-if="exam.warning"
               class="exam-alert"
               :title="exam.warning"
-              type="error"
+              type="warning"
               show-icon
               :closable="false"
             />
@@ -98,12 +98,12 @@
       <el-row :gutter="18" class="result-row">
         <el-col :xs="24" :md="12">
           <el-card shadow="hover" class="result-card">
-            <el-statistic title="Публикация рейтинговых списков" value="15 июля 2025" />
+            <el-statistic title="Публикация рейтинговых списков" value="15 июля 2026" />
           </el-card>
         </el-col>
         <el-col :xs="24" :md="12">
           <el-card shadow="hover" class="result-card">
-            <el-statistic title="Зачисление по конкурсу" value="20-25 июля 2025" />
+            <el-statistic title="Зачисление по конкурсу" value="20-25 июля 2026" />
           </el-card>
         </el-col>
       </el-row>
@@ -138,7 +138,7 @@ const exams = [
     time: '09:00',
     format: 'Письменно',
     duration: '2 часа',
-    type: 'success',
+    type: 'primary',
     scope: 'Для всех направлений',
     description: 'Обязательный экзамен для всех специальностей. Результат оценивается по 100-балльной шкале.',
     details: [
@@ -152,7 +152,7 @@ const exams = [
     time: '09:00',
     format: 'Устно',
     duration: '30-40 минут подготовки',
-    type: 'warning',
+    type: 'info',
     scope: 'Только для направлений «Экономика» и «Менеджмент»',
     description: 'Специальный экзамен для экономических направлений. Результат оценивается по 100-балльной шкале.',
     details: [
@@ -192,7 +192,8 @@ const exams = [
   margin: 14px 0;
   color: #111827;
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: -0.035em;
 }
 
 .section-heading p {
@@ -206,7 +207,14 @@ const exams = [
 .rules-card,
 .result-card {
   margin-bottom: 20px;
-  border-radius: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+}
+
+.exam-card :deep(.el-card__header),
+.rules-card :deep(.el-card__header),
+.result-card :deep(.el-card__header) {
+  border-bottom-color: #eef2f7;
 }
 
 .exam-header {
@@ -220,7 +228,7 @@ const exams = [
   margin: 10px 0 4px;
   color: #111827;
   font-size: 1.35rem;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .exam-header span,
@@ -234,8 +242,9 @@ const exams = [
 
 .exam-date strong {
   display: block;
-  color: #2563eb;
+  color: #123d70;
   font-size: 1.4rem;
+  font-weight: 650;
 }
 
 .exam-alert {
@@ -249,7 +258,7 @@ const exams = [
   gap: 12px;
   color: #111827;
   font-size: 1.12rem;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .plain-list {
@@ -265,6 +274,13 @@ const exams = [
 
 .result-row {
   margin-top: 8px;
+}
+
+.section-kicker,
+.exam-tag {
+  border-color: rgba(18, 61, 112, 0.18);
+  background: rgba(18, 61, 112, 0.06);
+  color: #123d70;
 }
 
 @media (max-width: 767px) {

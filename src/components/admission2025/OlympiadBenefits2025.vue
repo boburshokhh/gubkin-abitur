@@ -2,9 +2,9 @@
   <section class="admission-section white">
     <div class="admission-container narrow">
       <div class="section-heading">
-        <el-tag type="warning" effect="plain" round>Олимпиады</el-tag>
+        <el-tag class="section-kicker" effect="plain" round>Олимпиады</el-tag>
         <h2>Льготы для участников олимпиад</h2>
-        <p>Особые условия поступления для победителей, призеров и участников олимпиад 2025 года.</p>
+        <p>Особые условия поступления для победителей, призеров и участников олимпиад 2026 года.</p>
       </div>
 
       <el-row :gutter="22">
@@ -42,7 +42,7 @@
                 v-for="item in olympiad.list"
                 :key="item"
                 checked
-                type="success"
+                class="benefit-check-tag"
               >
                 {{ item }}
               </el-check-tag>
@@ -63,8 +63,8 @@
           <el-col :xs="24" :md="12">
             <el-alert
               title="Сроки подачи документов"
-              description="Победители и призеры олимпиад должны представить подтверждающие документы до 01 июля 2025 года."
-              type="error"
+              description="Победители и призеры олимпиад должны представить подтверждающие документы до 01 июля 2026 года."
+              type="warning"
               show-icon
               :closable="false"
             />
@@ -95,7 +95,7 @@ const technicalDirections = [
 
 const olympiads = [
   {
-    title: 'Республиканская олимпиада РУз 2025',
+    title: 'Республиканская олимпиада РУз 2026',
     subtitle: 'По математике для учащихся школ, лицеев и колледжей',
     icon: Trophy,
     iconClass: 'text-warning',
@@ -105,7 +105,7 @@ const olympiads = [
       {
         title: 'Технические направления',
         description: 'Победители заключительного этапа принимаются без вступительных испытаний.',
-        type: 'success'
+        type: 'info'
       },
       {
         title: 'Экономика и Менеджмент',
@@ -115,7 +115,7 @@ const olympiads = [
     ]
   },
   {
-    title: 'Губкинская предметная олимпиада 2025',
+    title: 'Губкинская предметная олимпиада 2026',
     subtitle: 'По русскому языку и математике',
     icon: Medal,
     iconClass: 'text-primary',
@@ -125,7 +125,7 @@ const olympiads = [
       {
         title: 'Победители и призеры технических направлений',
         description: 'Принимаются без вступительных испытаний.',
-        type: 'success'
+        type: 'info'
       },
       {
         title: 'Экономика и Менеджмент',
@@ -170,7 +170,8 @@ const olympiads = [
   margin: 14px 0;
   color: #111827;
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: -0.035em;
 }
 
 .section-heading p {
@@ -183,7 +184,13 @@ const olympiads = [
 .benefit-card,
 .conditions-card {
   margin-bottom: 22px;
-  border-radius: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+}
+
+.benefit-card :deep(.el-card__header),
+.conditions-card :deep(.el-card__header) {
+  border-bottom-color: #eef2f7;
 }
 
 .benefit-header,
@@ -197,7 +204,7 @@ const olympiads = [
   margin: 0 0 4px;
   color: #111827;
   font-size: 1.25rem;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .benefit-header span {
@@ -213,7 +220,7 @@ const olympiads = [
 .benefit-list h4 {
   margin: 0 0 14px;
   color: #111827;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .benefit-list {
@@ -229,14 +236,21 @@ const olympiads = [
 .card-header {
   color: #111827;
   font-size: 1.12rem;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .text-primary {
-  color: #2563eb;
+  color: #123d70;
 }
 
 .text-warning {
-  color: #d97706;
+  color: #123d70;
+}
+
+.section-kicker,
+.benefit-check-tag {
+  border-color: rgba(18, 61, 112, 0.18);
+  background: rgba(18, 61, 112, 0.06);
+  color: #123d70;
 }
 </style>

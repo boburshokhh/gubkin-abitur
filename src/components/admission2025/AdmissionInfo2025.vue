@@ -2,8 +2,8 @@
   <section class="admission-section white">
     <div class="admission-container">
       <div class="section-heading">
-        <el-tag type="primary" effect="plain" round>Общая информация</el-tag>
-        <h2>Прием на 1-й курс 2025/2026 учебного года</h2>
+        <el-tag class="section-kicker" effect="plain" round>Общая информация</el-tag>
+        <h2>Прием на 1-й курс 2026/2027 учебного года</h2>
         <p>Основные условия поступления, сроки подачи документов и правила выбора направлений.</p>
       </div>
 
@@ -69,13 +69,13 @@ const infoCards = [
     icon: DataAnalysis,
     iconClass: 'text-success',
     items: [
-      { label: 'Общая квота на 2025 год', value: '330 человек', accent: true },
+      { label: 'Общая квота на 2026 год', value: '330 человек', accent: true },
       { label: 'Основа приема', value: 'Конкурсная основа по результатам вступительных испытаний или ЕГЭ' }
     ],
     note: {
       title: 'Для бюджетников, граждан РУз',
       description: 'Обязательство отработки не менее 3 лет на предприятиях нефтегазовой отрасли Узбекистана.',
-      type: 'warning'
+      type: 'info'
     }
   },
   {
@@ -83,7 +83,7 @@ const infoCards = [
     icon: Calendar,
     iconClass: 'text-info',
     items: [
-      { label: 'Сроки подачи документов', value: '16 июня - 01 июля 2025 включительно', accent: true },
+      { label: 'Сроки подачи документов', value: '16 июня - 01 июля 2026 включительно', accent: true },
       { label: 'Формат приема', value: 'Очно (off-line) и дистанционно (on-line)' },
       { label: 'Режим online', value: '24 часа в сутки' }
     ]
@@ -104,6 +104,7 @@ const infoCards = [
 <style scoped>
 .admission-section {
   padding: 72px 0;
+  color: #111827;
 }
 
 .admission-section.white {
@@ -125,7 +126,8 @@ const infoCards = [
   margin: 14px 0;
   color: #111827;
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: -0.035em;
 }
 
 .section-heading p {
@@ -138,7 +140,12 @@ const infoCards = [
 .info-card {
   height: calc(100% - 24px);
   margin-bottom: 24px;
-  border-radius: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+}
+
+.info-card :deep(.el-card__header) {
+  border-bottom-color: #eef2f7;
 }
 
 .card-header {
@@ -147,26 +154,33 @@ const infoCards = [
   gap: 12px;
   color: #111827;
   font-size: 1.12rem;
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .card-note {
   margin-top: 18px;
+  border-radius: 12px;
 }
 
 .text-primary {
-  color: #2563eb;
+  color: #123d70;
 }
 
 .text-success {
-  color: #16a34a;
+  color: #123d70;
 }
 
 .text-info {
-  color: #0284c7;
+  color: #123d70;
 }
 
 .text-purple {
-  color: #7c3aed;
+  color: #123d70;
+}
+
+.section-kicker {
+  border-color: rgba(18, 61, 112, 0.18);
+  background: rgba(18, 61, 112, 0.06);
+  color: #123d70;
 }
 </style>

@@ -2,7 +2,7 @@
   <section class="admission-section muted">
     <div class="admission-container">
       <div class="section-heading">
-        <el-tag type="info" effect="plain" round>Контакты</el-tag>
+        <el-tag class="section-kicker" effect="plain" round>Контакты</el-tag>
         <h2>Контакты приемной комиссии</h2>
         <p>Свяжитесь с нами для получения дополнительной информации и технической поддержки.</p>
       </div>
@@ -107,7 +107,7 @@ const contactCards = [
     note: {
       title: 'Воскресенье',
       description: 'Выходной день.',
-      type: 'warning'
+      type: 'info'
     }
   },
   {
@@ -135,7 +135,7 @@ const contactCards = [
     note: {
       title: 'Рекомендации',
       description: 'Используйте актуальную версию браузера, проверьте интернет-соединение и подготовьте PDF-документы до 5 МБ.',
-      type: 'warning'
+      type: 'info'
     }
   }
 ]
@@ -165,7 +165,8 @@ const contactCards = [
   margin: 14px 0;
   color: #111827;
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: -0.035em;
 }
 
 .section-heading p {
@@ -178,7 +179,13 @@ const contactCards = [
 .contact-card {
   height: calc(100% - 24px);
   margin-bottom: 24px;
-  border-radius: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+}
+
+.contact-card :deep(.el-card__header),
+.map-card :deep(.el-card__header) {
+  border-bottom-color: #eef2f7;
 }
 
 .contact-header {
@@ -187,7 +194,7 @@ const contactCards = [
   gap: 12px;
   color: #111827;
   font-size: 1.12rem;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .contact-note {
@@ -197,7 +204,8 @@ const contactCards = [
 
 .map-card {
   margin-top: 12px;
-  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
 }
 
 .map-frame {
@@ -212,18 +220,24 @@ const contactCards = [
 }
 
 .text-primary {
-  color: #2563eb;
+  color: #123d70;
 }
 
 .text-success {
-  color: #16a34a;
+  color: #123d70;
 }
 
 .text-info {
-  color: #0284c7;
+  color: #123d70;
 }
 
 .text-purple {
-  color: #7c3aed;
+  color: #123d70;
+}
+
+.section-kicker {
+  border-color: rgba(18, 61, 112, 0.18);
+  background: rgba(18, 61, 112, 0.06);
+  color: #123d70;
 }
 </style>
