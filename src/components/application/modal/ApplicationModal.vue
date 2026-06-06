@@ -390,6 +390,24 @@
 
       <el-card class="application-modal__actions-card" shadow="never">
         <template #header>Обновление статуса</template>
+
+        <div class="application-modal__quick-check">
+          <el-text type="info" size="small">Комплектность</el-text>
+          <strong>{{ documentsStatusText }}</strong>
+          <el-space wrap :size="4">
+            <el-tag
+              v-for="item in requiredFileRows"
+              :key="`quick-top-${item.category}`"
+              :type="item.files.length ? 'success' : item.required ? 'danger' : 'info'"
+              effect="light"
+            >
+              {{ item.label }}
+            </el-tag>
+          </el-space>
+        </div>
+
+        <el-divider />
+
         <el-form label-position="top">
           <el-form-item label="Изменить статус">
             <el-select v-model="newStatus" class="application-modal__field">
@@ -431,22 +449,6 @@
           <el-button @click="close">Закрыть</el-button>
         </el-space>
 
-        <el-divider />
-
-        <div class="application-modal__quick-check">
-          <el-text type="info" size="small">Комплектность</el-text>
-          <strong>{{ documentsStatusText }}</strong>
-          <el-space direction="vertical" alignment="flex-start" :size="4">
-            <el-tag
-              v-for="item in requiredFileRows"
-              :key="`quick-${item.category}`"
-              :type="item.files.length ? 'success' : item.required ? 'danger' : 'info'"
-              effect="light"
-            >
-              {{ item.label }}
-            </el-tag>
-          </el-space>
-        </div>
       </el-card>
     </div>
   </el-dialog>
@@ -1099,6 +1101,13 @@ function getFileTypeTagType(filename) {
   grid-column: 2 !important;
   grid-row: 2 / span 8;
   align-self: start;
+  max-height: calc(70vh - 8px);
+  overflow: hidden;
+}
+
+.application-modal__actions-card :deep(.el-card__body) {
+  max-height: calc(70vh - 72px);
+  overflow-y: auto;
 }
 
 .application-modal__action-buttons {
