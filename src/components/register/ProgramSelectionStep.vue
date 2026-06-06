@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6">
+  <el-form label-position="top" class="register-step-form">
     <el-alert
       title="Выбор образовательных программ"
       description="Можно выбрать до 3 профилей. После первого выбора система покажет только программы с совпадающим набором вступительных испытаний."
@@ -98,7 +98,7 @@
       show-icon
       :closable="false"
     />
-  </div>
+  </el-form>
 </template>
 
 <script setup>
@@ -224,3 +224,29 @@ watch(selectedProfiles, (newSelectedProfiles) => {
   emit('update:modelValue', { ...props.modelValue, choices: validChoices });
 }, { deep: true });
 </script>
+
+<style scoped>
+.register-step-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+:deep(.el-form-item__label) {
+  justify-content: flex-start;
+  height: auto;
+  margin-bottom: 8px;
+  color: #374151;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+:deep(.el-form-item__content),
+:deep(.el-select) {
+  width: 100%;
+}
+</style>

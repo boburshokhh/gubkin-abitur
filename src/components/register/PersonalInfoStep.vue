@@ -3,7 +3,7 @@
     <el-skeleton :rows="6" animated />
   </div>
 
-  <div v-else class="space-y-4">
+  <el-form v-else label-position="top" class="register-step-form">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <el-form-item label="Фамилия" required :error="errors.lastName">
         <el-input v-model="modelValue.lastName" placeholder="Введите фамилию" clearable />
@@ -92,7 +92,7 @@
         </el-radio-group>
       </el-form-item>
     </div>
-  </div>
+  </el-form>
 </template>
 
 <script setup>
@@ -140,3 +140,31 @@ const residenceRegion = computed({
   }
 });
 </script>
+
+<style scoped>
+.register-step-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+:deep(.el-form-item__label) {
+  justify-content: flex-start;
+  height: auto;
+  margin-bottom: 8px;
+  color: #374151;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+:deep(.el-form-item__content),
+:deep(.el-input),
+:deep(.el-select),
+:deep(.el-date-editor.el-input) {
+  width: 100%;
+}
+</style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-5">
+  <el-form label-position="top" class="register-step-form">
     <el-alert type="info" show-icon :closable="false">
       <template #title>Требования к документу</template>
       <ul class="list-disc list-inside space-y-1 text-sm">
@@ -70,7 +70,7 @@
       @view="() => emit('file-view', 'passportTranslation')"
       @reset="() => emit('file-reset', 'passportTranslation')"
     />
-  </div>
+  </el-form>
 </template>
 
 <script setup>
@@ -101,3 +101,30 @@ defineProps({
 
 const emit = defineEmits(['update:modelValue', 'passport-format', 'file-change', 'file-view', 'file-reset']);
 </script>
+
+<style scoped>
+.register-step-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+:deep(.el-form-item__label) {
+  justify-content: flex-start;
+  height: auto;
+  margin-bottom: 8px;
+  color: #374151;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+:deep(.el-form-item__content),
+:deep(.el-input),
+:deep(.el-date-editor.el-input) {
+  width: 100%;
+}
+</style>

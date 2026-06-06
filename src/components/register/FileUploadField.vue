@@ -119,3 +119,29 @@ function handleRemove() {
   emit('reset');
 }
 </script>
+
+<style scoped>
+:deep(.el-form-item) {
+  display: block;
+  margin-bottom: 18px;
+}
+
+:deep(.el-form-item__label) {
+  justify-content: flex-start;
+  height: auto;
+  margin-bottom: 8px;
+  color: #374151;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+:deep(.el-form-item__content) {
+  display: block;
+  width: 100%;
+}
+
+:deep(.el-upload),
+:deep(.el-upload-dragger) {
+  width: 100%;
+}
+</style>
