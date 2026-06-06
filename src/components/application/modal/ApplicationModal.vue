@@ -2,7 +2,7 @@
   <el-dialog
     :model-value="show"
     :title="`Заявка №${application?.id?.substring(0, 8) || ''}`"
-    width="min(960px, 94vw)"
+    width="min(1180px, 96vw)"
     class="application-modal"
     destroy-on-close
     @close="close"
@@ -10,6 +10,55 @@
     <el-skeleton v-if="isUpdating && !application" :rows="8" animated />
 
     <div v-else class="application-modal__content">
+      <section class="application-modal__summary">
+        <div class="application-modal__summary-main">
+          <div>
+            <el-text type="info" size="small">Абитуриент</el-text>
+            <h2 class="application-modal__applicant-name">
+              {{ getUserFullName(applicant) }}
+            </h2>
+          </div>
+
+          <el-space wrap>
+            <el-tag :type="getStatusType(application?.status_id)" effect="light" size="large">
+              {{ getStatusName(application?.status_id) }}
+            </el-tag>
+            <el-tag :type="missingRequiredFiles.length ? 'danger' : 'success'" effect="light" size="large">
+              Документы {{ requiredFilesLoaded }}/{{ requiredFilesTotal }}
+            </el-tag>
+            <el-tag v-if="application?.accommodation_needed" type="info" effect="light" size="large">
+              Общежитие
+            </el-tag>
+          </el-space>
+        </div>
+
+        <div class="application-modal__summary-grid">
+          <div class="application-modal__summary-item">
+            <el-text type="info" size="small">Дата подачи</el-text>
+            <strong>{{ formatDate(application?.created_at) }}</strong>
+          </div>
+          <div class="application-modal__summary-item">
+            <el-text type="info" size="small">Телефон</el-text>
+            <strong>{{ application?.phone || applicant?.phone || 'Не указан' }}</strong>
+          </div>
+          <div class="application-modal__summary-item">
+            <el-text type="info" size="small">Email</el-text>
+            <strong>{{ application?.email || applicant?.email || 'Не указан' }}</strong>
+          </div>
+          <div class="application-modal__summary-item">
+            <el-text type="info" size="small">Приоритет 1</el-text>
+            <strong>{{ primaryChoice ? getProfileFullName(primaryChoice) : 'Не выбран' }}</strong>
+          </div>
+          <div class="application-modal__summary-item">
+            <el-text type="info" size="small">Форма обучения</el-text>
+            <strong>{{ getStudyFormText(application?.study_form) }}</strong>
+          </div>
+          <div class="application-modal__summary-item">
+            <el-text type="info" size="small">Финансирование</el-text>
+            <strong>{{ getFundingFormText(application?.funding_form) }}</strong>
+          </div>
+        </div>
+      </section>
       <el-card shadow="never">
         <template #header>
           <div class="application-modal__card-header">
@@ -133,8 +182,20 @@
         :closable="false"
       />
 
-      <el-card shadow="never">
+      <el-card class="application-modal__documents-card" shadow="never">
         <template #header>Загруженные документы и файлы</template>
+
+        <el-alert
+          v-if="missingRequiredFiles.length"
+          type="warning"
+          show-icon
+          :closable="false"
+          class="application-modal__documents-alert"
+        >
+          <template #title>
+            Не хватает обязательных документов: {{ missingRequiredFiles.map(item => item.label).join(', ') }}
+          </template>
+        </el-alert>
 
         <el-collapse model-value="required-files">
           <el-collapse-item name="required-files" title="Обязательные документы">
@@ -260,7 +321,7 @@
         </el-timeline>
       </el-card>
 
-      <el-card shadow="never">
+      <el-card class="application-modal__actions-card" shadow="never">
         <template #header>Обновление статуса</template>
         <el-form label-position="top">
           <el-form-item label="Изменить статус">
@@ -283,27 +344,44 @@
             />
           </el-form-item>
         </el-form>
+
+        <el-space direction="vertical" fill class="application-modal__action-buttons">
+          <el-button
+            type="primary"
+            :loading="isUpdating"
+            :disabled="newStatus === application?.status_id"
+            @click="updateStatus"
+          >
+            Обновить статус
+          </el-button>
+          <el-button
+            :icon="Download"
+            :disabled="!application"
+            @click="downloadStudentData"
+          >
+            Скачать данные студента
+          </el-button>
+          <el-button @click="close">Закрыть</el-button>
+        </el-space>
+
+        <el-divider />
+
+        <div class="application-modal__quick-check">
+          <el-text type="info" size="small">Комплектность</el-text>
+          <strong>{{ documentsStatusText }}</strong>
+          <el-space direction="vertical" alignment="flex-start" :size="4">
+            <el-tag
+              v-for="item in requiredFileRows"
+              :key="`quick-${item.category}`"
+              :type="item.files.length ? 'success' : item.required ? 'danger' : 'info'"
+              effect="light"
+            >
+              {{ item.label }}
+            </el-tag>
+          </el-space>
+        </div>
       </el-card>
     </div>
-
-    <template #footer>
-      <el-button
-        :icon="Download"
-        :disabled="!application"
-        @click="downloadStudentData"
-      >
-        Скачать данные студента
-      </el-button>
-      <el-button @click="close">Закрыть</el-button>
-      <el-button
-        type="primary"
-        :loading="isUpdating"
-        :disabled="newStatus === application?.status_id"
-        @click="updateStatus"
-      >
-        Обновить статус
-      </el-button>
-    </template>
   </el-dialog>
 </template>
 
@@ -377,6 +455,21 @@ const requiredFileRows = computed(() => [
 const applicant = computed(() => props.application?.user || props.application?.users || {});
 const applicationChoices = computed(() => (
   props.application?.application_choices || props.application?.choices || []
+));
+const primaryChoice = computed(() => (
+  applicationChoices.value.find(choice => Number(choice.priority) === 1) || applicationChoices.value[0] || null
+));
+const requiredFilesTotal = computed(() => requiredFileRows.value.filter(item => item.required).length);
+const requiredFilesLoaded = computed(() => (
+  requiredFileRows.value.filter(item => item.required && item.files.length).length
+));
+const missingRequiredFiles = computed(() => (
+  requiredFileRows.value.filter(item => item.required && !item.files.length)
+));
+const documentsStatusText = computed(() => (
+  missingRequiredFiles.value.length
+    ? `Не хватает ${missingRequiredFiles.value.length} из ${requiredFilesTotal.value}`
+    : 'Комплект документов загружен'
 ));
 
 const regionName = computed(() => {
@@ -785,10 +878,59 @@ function getFileTypeTagType(filename) {
 <style scoped>
 .application-modal__content {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 16px;
   max-height: 70vh;
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.application-modal__content > :deep(.el-card),
+.application-modal__content > :deep(.el-alert) {
+  grid-column: 1;
+}
+
+.application-modal__summary {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 12px;
+  background: var(--el-fill-color-extra-light);
+}
+
+.application-modal__summary-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.application-modal__applicant-name {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+}
+
+.application-modal__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.application-modal__summary-item {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.application-modal__summary-item strong {
+  overflow: hidden;
+  color: var(--el-text-color-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .application-modal__card-header {
@@ -798,13 +940,71 @@ function getFileTypeTagType(filename) {
   gap: 12px;
 }
 
+.application-modal__documents-card {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.application-modal__documents-alert {
+  margin-bottom: 16px;
+}
+
+.application-modal__actions-card {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  grid-column: 2;
+  grid-row: 2 / span 8;
+  align-self: start;
+}
+
+.application-modal__action-buttons {
+  width: 100%;
+}
+
+.application-modal__quick-check {
+  display: grid;
+  gap: 8px;
+}
+
 .application-modal__field {
   width: 100%;
+}
+
+@media (max-width: 980px) {
+  .application-modal__content {
+    grid-template-columns: 1fr;
+  }
+
+  .application-modal__content > :deep(.el-card),
+  .application-modal__content > :deep(.el-alert),
+  .application-modal__summary,
+  .application-modal__documents-card,
+  .application-modal__actions-card {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .application-modal__actions-card {
+    position: static;
+  }
+
+  .application-modal__summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
   .application-modal__content {
     max-height: 65vh;
+  }
+
+  .application-modal__summary-main {
+    flex-direction: column;
+  }
+
+  .application-modal__summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style> 
