@@ -1,19 +1,25 @@
 <template>
-  <div class="mb-10">
-    <div class="flex justify-between mb-2">
-      <span class="text-sm font-medium">Этап {{ currentStep }} из {{ totalSteps }}</span>
-      <span class="text-sm font-medium">{{ Math.round((currentStep / totalSteps) * 100) }}% завершено</span>
-    </div>
-    <div class="w-full bg-gray-200 rounded-full h-2">
-      <div 
-        class="bg-primary-600 h-2 rounded-full transition-all duration-500" 
-        :style="`width: ${(currentStep / totalSteps) * 100}%`"
-      ></div>
-    </div>
+  <div class="mb-10 rounded-xl bg-white p-4 shadow-sm">
+    <el-steps :active="currentStep - 1" finish-status="success" align-center>
+      <el-step
+        v-for="step in steps"
+        :key="step.title"
+        :title="step.title"
+      />
+    </el-steps>
+    <el-progress
+      class="mt-5"
+      :percentage="Math.round((currentStep / totalSteps) * 100)"
+      :stroke-width="10"
+      striped
+      striped-flow
+    />
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue';
+
 defineProps({
   currentStep: {
     type: Number,
@@ -24,4 +30,12 @@ defineProps({
     required: true
   }
 });
+
+const steps = computed(() => [
+  { title: 'Личные данные' },
+  { title: 'Паспорт' },
+  { title: 'Образование' },
+  { title: 'Программы' },
+  { title: 'Проверка' }
+]);
 </script> 

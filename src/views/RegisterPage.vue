@@ -3,7 +3,7 @@
   <AdmissionClosedMessage v-if="!isAdmissionOpen" />
   
   <!-- Если прием открыт, показываем форму -->
-  <div v-else class="min-h-screen bg-gray-50">
+  <div v-else class="min-h-screen bg-slate-50">
     <!-- Заголовок страницы -->
     <section class="py-10 md:py-16 bg-gradient-to-r from-primary-600 to-primary-800 text-white">
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -51,9 +51,15 @@
           />
           
           <!-- Форма подачи заявления -->
-          <BaseCard v-if="!isSubmitted">
+          <el-card v-if="!isSubmitted" class="register-card" shadow="always">
             <template #header>
-              <h2 class="text-xl font-bold text-gray-900">{{ stepTitle }}</h2>
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="text-sm text-gray-500">Шаг {{ currentStep }} из {{ totalSteps }}</p>
+                  <h2 class="text-xl font-bold text-gray-900">{{ stepTitle }}</h2>
+                </div>
+                <el-tag type="primary" effect="light">{{ Math.round((currentStep / totalSteps) * 100) }}% завершено</el-tag>
+              </div>
             </template>
             
             <!-- Шаг 1: Личные данные -->
@@ -62,6 +68,7 @@
               v-model="form"
               :errors="errors"
               :isLoading="isFormLoading"
+              :regions="regionsData"
               @phone-format="formatPhoneNumber"
             />
             
@@ -70,8 +77,10 @@
               v-if="currentStep === 2"
               v-model="form"
               :errors="errors"
+              :isForeignResidence="form.isForeignResidence"
               :fileUploading="fileUploading"
               :filePreview="filePreview"
+              @passport-format="formatPassportSeries"
               @file-change="onFileChange"
               @file-view="viewFile"
               @file-reset="resetFile"
@@ -102,9 +111,7 @@
               v-model="form"
               :errors="errors"
               :regions="regionsData"
-              :availablePrograms="availablePrograms"
               :availableProfiles="appStore.allProfiles"
-              :availableSpecialties="appStore.allSpecialties"
               :fileUploading="fileUploading"
               :filePreview="filePreview"
               @file-change="onFileChange"
@@ -114,34 +121,36 @@
             
             <!-- Кнопки навигации -->
             <div class="mt-8 flex justify-between">
-              <BaseButton 
+              <el-button
                 v-if="currentStep > 1"
-                variant="outline" 
+                size="large"
                 @click="prevStep"
               >
                 Назад
-              </BaseButton>
+              </el-button>
               <div v-else></div>
               
               <div>
-                <BaseButton 
+                <el-button
                   v-if="currentStep < totalSteps" 
-                  variant="primary" 
+                  type="primary"
+                  size="large"
                   @click="nextStep"
                 >
                   Далее
-                </BaseButton>
-                <BaseButton 
+                </el-button>
+                <el-button
                   v-else 
-                  variant="primary" 
+                  type="primary"
+                  size="large"
                   @click="submitForm"
                   :loading="isSubmitting"
                 >
                   Отправить заявление
-                </BaseButton>
+                </el-button>
               </div>
             </div>
-          </BaseCard>
+          </el-card>
           
           <!-- Успешная отправка -->
           <SuccessMessage
@@ -156,12 +165,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { BaseButton, BaseCard } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth';
 import { useApplicationStore } from '@/stores/application';
 import { useToast } from 'vue-toastification';
-import { appApi, documents, applicationFiles, olympiadCertificates } from '@/api/app-api';
+import { appApi, applicationFiles, olympiadCertificates } from '@/api/app-api';
 
 // Импорт компонентов
 import ProgressBar from '@/components/register/ProgressBar.vue';
@@ -175,7 +182,6 @@ import SuccessMessage from '@/components/register/SuccessMessage.vue';
 import AdmissionClosedMessage from '@/components/register/AdmissionClosedMessage.vue';
 import { useAdmissionStatus } from '@/composables/useAdmissionStatus';
 
-const router = useRouter();
 const appStore = useApplicationStore();
 const authStore = useAuthStore();
 const toast = useToast();
@@ -195,16 +201,98 @@ const applicationNumber = ref('');
 const submissionProgress = ref(0);
 const submissionStatus = ref('');
 
-const userApplications = ref([])
-const currentApplication = ref(null)
-const applicationDocuments = ref([])
-const educationLevels = ref([])
-const allDirections = ref([])
-const allProfiles = ref([])
-const documentTypes = ref([])
+const phoneFields = ['phone', 'parentPhone'];
+const fileRules = {
+  passportScan: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' },
+  passportTranslation: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' },
+  photoFile: { types: ['image/jpeg', 'image/png'], extensions: ['.jpg', '.jpeg', '.png'], description: 'JPG или PNG' },
+  educationScan: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' },
+  olympiadCertificate: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' }
+};
+const uzbekPassportPattern = /^[A-Z]{2}\s?\d{7}$/;
+const foreignPassportPattern = /^[A-Z0-9][A-Z0-9\s-]{4,19}$/i;
+const internationalPhonePattern = /^\+\d{8,15}$/;
+
+function getDigits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function formatUzbekPhone(value) {
+  let digits = getDigits(value);
+  if (digits.startsWith('998')) digits = digits.slice(3);
+  digits = digits.slice(0, 9);
+
+  const parts = [
+    digits.slice(0, 2),
+    digits.slice(2, 5),
+    digits.slice(5, 7),
+    digits.slice(7, 9)
+  ].filter(Boolean);
+
+  return parts.length ? `+998 ${parts.join(' ')}` : '+998 ';
+}
+
+function formatInternationalPhone(value) {
+  const digits = getDigits(value).slice(0, 15);
+  return digits ? `+${digits}` : '+';
+}
+
+function normalizePassportSeries(value, isForeignResidence) {
+  const normalized = String(value || '').toUpperCase().replace(/[^A-Z0-9 -]/g, '').replace(/\s+/g, ' ').trimStart();
+  if (isForeignResidence) return normalized.slice(0, 20);
+
+  const compact = normalized.replace(/[^A-Z0-9]/g, '').slice(0, 9);
+  const letters = compact.slice(0, 2).replace(/[^A-Z]/g, '');
+  const numbers = compact.slice(2).replace(/\D/g, '').slice(0, 7);
+  return numbers ? `${letters} ${numbers}`.trim() : letters;
+}
+
+function isForeignResidenceSelected() {
+  return Boolean(form.value.isForeignResidence);
+}
+
+function validatePhoneValue(value, label) {
+  if (!value?.trim()) return `${label} обязателен для заполнения.`;
+
+  if (isForeignResidenceSelected()) {
+    const normalized = formatInternationalPhone(value);
+    if (!internationalPhonePattern.test(normalized)) return `${label}: введите международный номер в формате + и 8-15 цифр.`;
+    return '';
+  }
+
+  if (getDigits(value).replace(/^998/, '').length !== 9) return `${label}: введите корректный номер Узбекистана.`;
+  return '';
+}
+
+function validatePassportValue(value) {
+  if (!value?.trim()) return 'Серия и номер паспорта обязательны для заполнения.';
+
+  if (isForeignResidenceSelected()) {
+    if (!foreignPassportPattern.test(value.trim())) return 'Введите корректный номер паспорта: 5-20 символов, латиница, цифры, пробел или дефис.';
+    return '';
+  }
+
+  if (!uzbekPassportPattern.test(value.trim())) return 'Введите серию паспорта в формате AA 1234567.';
+  return '';
+}
+
+function validateSelectedFile(file, fieldName) {
+  const rule = fileRules[fieldName] || {
+    types: ['image/jpeg', 'image/png', 'application/pdf'],
+    extensions: ['.jpg', '.jpeg', '.png', '.pdf'],
+    description: 'JPG, PNG или PDF'
+  };
+  const fileName = file.name?.toLowerCase() || '';
+  const hasValidExtension = rule.extensions.some(extension => fileName.endsWith(extension));
+  const hasValidType = rule.types.includes(file.type);
+
+  if (!hasValidType && !hasValidExtension) return `Неподдерживаемый тип файла. Допустимые форматы: ${rule.description}.`;
+  if (file.size > 10 * 1024 * 1024) return 'Размер файла превышает допустимый максимум (10MB).';
+
+  return '';
+}
+
 const regionsData = ref([])
-const isLoading = ref(false)
-const error = ref(null)
 
 // Инициализация формы с правильной структурой
 const form = ref({
@@ -217,6 +305,7 @@ const form = ref({
   middleName: '',
   birthDate: null, // null вместо пустой строки для поля типа date
   region_id: null,
+  isForeignResidence: false,
   address: '', // Добавляем поле адреса
   phone: '',
   parentPhone: '',
@@ -302,10 +391,13 @@ function validateStep() {
     if (!f.lastName?.trim()) errors.value.lastName = 'Фамилия обязательна для заполнения.';
     if (!f.firstName?.trim()) errors.value.firstName = 'Имя обязательно для заполнения.';
     if (!f.birthDate) errors.value.birthDate = 'Дата рождения обязательна для заполнения.';
-    if (!f.region_id) errors.value.region_id = 'Регион проживания обязателен для заполнения.';
+    if (!f.region_id && !f.isForeignResidence) errors.value.region_id = 'Регион проживания обязателен для заполнения.';
     if (!f.address?.trim()) errors.value.address = 'Полный адрес места проживания обязателен для заполнения.';
-    if (!f.phone?.trim()) errors.value.phone = 'Телефон обязателен для заполнения.';
-    if (!f.parentPhone?.trim()) errors.value.parentPhone = 'Телефон родителя обязателен для заполнения.';
+    if (f.isForeignResidence && f.address.trim().length < 10) errors.value.address = 'Укажите страну, город/регион и полный адрес проживания.';
+    const phoneError = validatePhoneValue(f.phone, 'Телефон');
+    const parentPhoneError = validatePhoneValue(f.parentPhone, 'Телефон родителя');
+    if (phoneError) errors.value.phone = phoneError;
+    if (parentPhoneError) errors.value.parentPhone = parentPhoneError;
     if (!f.email?.trim()) errors.value.email = 'Email обязателен для заполнения.';
     if (!f.gender?.trim()) errors.value.gender = 'Пол обязателен для заполнения.';
     
@@ -316,7 +408,8 @@ function validateStep() {
     
   } else if (currentStep.value === 2) {
     // Паспортные данные - все поля обязательны
-    if (!f.passport_series?.trim()) errors.value.passport_series = 'Серия и номер паспорта обязательны для заполнения.';
+    const passportError = validatePassportValue(f.passport_series);
+    if (passportError) errors.value.passport_series = passportError;
     if (!f.passport_issue_date) errors.value.passport_issue_date = 'Дата выдачи паспорта обязательна для заполнения.';
     if (!f.passport_issued_by?.trim()) errors.value.passport_issued_by = 'Орган, выдавший паспорт, обязателен для заполнения.';
     
@@ -382,14 +475,17 @@ const isCurrentStepValid = computed(() => {
   const f = form.value;
   
   if (currentStep.value === 1) {
+    const isRegionValid = f.isForeignResidence || Boolean(f.region_id);
+    const isAddressValid = f.isForeignResidence ? f.address?.trim().length >= 10 : Boolean(f.address?.trim());
+    const arePhonesValid = phoneFields.every(field => !validatePhoneValue(f[field], field === 'phone' ? 'Телефон' : 'Телефон родителя'));
+
     return !!(
       f.lastName?.trim() &&
       f.firstName?.trim() &&
       f.birthDate &&
-      f.region_id &&
-      f.address?.trim() &&
-      f.phone?.trim() &&
-      f.parentPhone?.trim() &&
+      isRegionValid &&
+      isAddressValid &&
+      arePhonesValid &&
       f.email?.trim() &&
       f.gender?.trim() &&
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email || '')
@@ -397,6 +493,7 @@ const isCurrentStepValid = computed(() => {
   } else if (currentStep.value === 2) {
     return !!(
       f.passport_series?.trim() &&
+      !validatePassportValue(f.passport_series) &&
       f.passport_issue_date &&
       f.passport_issued_by?.trim() &&
       (f.passportScan || filePreview.value.passportScan) &&
@@ -538,6 +635,7 @@ async function submitForm() {
     delete applicationPayload.middleName;
     delete applicationPayload.birthDate;
     delete applicationPayload.parentPhone;
+    delete applicationPayload.isForeignResidence;
 
     // Этап 2: Создание заявления (20%)
     submissionProgress.value = 20;
@@ -677,68 +775,9 @@ async function submitForm() {
   }
 }
 
-// Данные из хранилища
-const availablePrograms = computed(() => appStore.programsForSelection);
 // Состояния формы
 const fileUploading = ref({});
 const filePreview = ref({});
-
-// Выбранное направление и связанные данные
-const selectedDirection = computed(() => {
-  if (!form.value.direction) return null;
-  return availablePrograms.value.find(d => d.id === form.value.direction);
-});
-
-const availableProfiles = ref([]);
-const availableSpecialties = ref([]);
-
-// Обработчик изменения направления
-const onDirectionChange = async () => {
-  form.value.profile = '';
-  form.value.specialty = '';
-  availableProfiles.value = [];
-  availableSpecialties.value = [];
-  
-  if (!form.value.direction) return;
-  
-  try {
-    const { data: profilesData, error } = await appApi
-      .from('profiles')
-      .select('*')
-      .eq('direction_id', form.value.direction);
-    
-    if (error) throw error;
-    
-    if (profilesData && profilesData.length > 0) {
-      availableProfiles.value = profilesData;
-    }
-  } catch (error) {
-    toast.error('Не удалось загрузить профили для выбранного направления');
-  }
-};
-
-// Обработчик изменения профиля
-const onProfileChange = async () => {
-  form.value.specialty = '';
-  availableSpecialties.value = [];
-  
-  if (!form.value.profile) return;
-  
-  try {
-    const { data: specialtiesData, error } = await appApi
-      .from('specialties')
-      .select('*')
-      .eq('profile_id', form.value.profile);
-    
-    if (error) throw error;
-    
-    if (specialtiesData && specialtiesData.length > 0) {
-      availableSpecialties.value = specialtiesData;
-    }
-  } catch (error) {
-    toast.error('Не удалось загрузить специальности для выбранного профиля');
-  }
-};
 
 // Обработка файлов
 const onFileChange = async (file, fieldName) => {
@@ -747,16 +786,8 @@ const onFileChange = async (file, fieldName) => {
   try {
     fileUploading.value[fieldName] = true;
     
-    const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    
-    if (!validTypes.includes(file.type)) {
-      throw new Error('Неподдерживаемый тип файла. Допустимые форматы: JPG, PNG, PDF');
-    }
-    
-    if (file.size > maxSize) {
-      throw new Error('Размер файла превышает допустимый максимум (10MB)');
-    }
+    const fileError = validateSelectedFile(file, fieldName);
+    if (fileError) throw new Error(fileError);
     
     form.value[fieldName] = file;
     
@@ -813,10 +844,15 @@ const resetFile = (fieldName) => {
 
 // Форматирование номера телефона
 const formatPhoneNumber = (field) => {
-  // Оставляем номер как есть, без форматирования и валидации
-  // Можно добавить + в начало, если нужно отображать со знаком плюса
-  if (form.value[field] && !form.value[field].startsWith('+')) {
-    form.value[field] = '+' + form.value[field];
-  }
+  form.value[field] = isForeignResidenceSelected()
+    ? formatInternationalPhone(form.value[field])
+    : formatUzbekPhone(form.value[field]);
+
+  if (errors.value[field]) delete errors.value[field];
+};
+
+const formatPassportSeries = () => {
+  form.value.passport_series = normalizePassportSeries(form.value.passport_series, isForeignResidenceSelected());
+  if (errors.value.passport_series) delete errors.value.passport_series;
 };
 </script> 

@@ -1,111 +1,82 @@
 <template>
-  <div class="space-y-4">
-    <!-- Информация о требованиях к паспорту -->
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-      <div class="flex items-start">
-        <div class="flex-shrink-0">
-          <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-          </svg>
-        </div>
-        <div class="ml-3">
-          <h3 class="text-sm font-medium text-blue-800">Требования к документу</h3>
-          <div class="mt-2 text-sm text-blue-700">
-            <ul class="list-disc list-inside space-y-1">
-              <li>Сканированная цветная копия оригинала первой страницы паспорта и копия нотариально заверенного перевода на кириллицу и загружайте их поотдельности</li>
-              <li>Для ID-карты: лицевая и обратная стороны — в одном PDF-файле.</li>
-              <li>Абитуриент должен достичь 16-летнего возраста на момент подачи документов.</li>
-            
-            </ul>
-          </div>
-          
-        </div>
-      </div>
-    </div>
-    
+  <div class="space-y-5">
+    <el-alert type="info" show-icon :closable="false">
+      <template #title>Требования к документу</template>
+      <ul class="list-disc list-inside space-y-1 text-sm">
+        <li>Сканированная цветная копия оригинала первой страницы паспорта и нотариально заверенный перевод загружаются отдельно.</li>
+        <li>Для ID-карты: лицевая и обратная стороны в одном PDF-файле.</li>
+        <li>Абитуриент должен достичь 16-летнего возраста на момент подачи документов.</li>
+      </ul>
+    </el-alert>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <BaseInput
+      <el-form-item label="Серия и номер паспорта" required :error="errors.passport_series">
+        <el-input
           v-model="modelValue.passport_series"
-          label="Серия и номер паспорта"
-          placeholder="AA 1234567"
-          required
-          :error="errors.passport_series"
-          :class="{ 'border-red-500': errors.passport_series }"
+          :placeholder="isForeignResidence ? 'A12345678' : 'AA 1234567'"
+          clearable
+          @input="() => emit('passport-format')"
         />
-      </div>
-      <div>
-        <BaseInput
+      </el-form-item>
+
+      <el-form-item label="Дата выдачи" required :error="errors.passport_issue_date">
+        <el-date-picker
           v-model="modelValue.passport_issue_date"
+          class="w-full"
           type="date"
-          label="Дата выдачи"
-          required
-          :error="errors.passport_issue_date"
-          :class="{ 'border-red-500': errors.passport_issue_date }"
+          value-format="YYYY-MM-DD"
+          placeholder="Выберите дату"
         />
-      </div>
+      </el-form-item>
     </div>
-    
-    <div>
-      <BaseInput
+
+    <el-form-item label="Кем выдан" required :error="errors.passport_issued_by">
+      <el-input
         v-model="modelValue.passport_issued_by"
-        label="Кем выдан"
         placeholder="Укажите орган, выдавший паспорт"
-        required
-        :error="errors.passport_issued_by"
-        :class="{ 'border-red-500': errors.passport_issued_by }"
+        clearable
       />
-    </div>
-    <p class="text-sm text-gray-500 bg-yellow-100 p-2 rounded-lg">
-      <span class="font-medium">Важно:</span>
-      <span>
-        Названия файла должен быть в формате Ф_И_О_паспорт.pdf Пример: "Иванов_Иван_Иванович_паспорт.pdf"
-      </span>
-    </p>
+    </el-form-item>
+
+    <el-alert
+      title="Название файла: Ф_И_О_паспорт.pdf, например Иванов_Иван_Иванович_паспорт.pdf"
+      type="warning"
+      show-icon
+      :closable="false"
+    />
+
     <FileUploadField
       fieldName="passportScan"
-      label="Скан или фото паспорта/ID-карты (обязательно)"
+      label="Скан или фото паспорта/ID-карты"
       :isUploading="fileUploading.passportScan"
       :preview="filePreview.passportScan"
       :error="errors.passportScan"
       required
       accept=".pdf"
-      @change="(file) => $emit('file-change', file, 'passportScan')"
-      @view="() => $emit('file-view', 'passportScan')"
-      @reset="() => $emit('file-reset', 'passportScan')"
+      @change="(file) => emit('file-change', file, 'passportScan')"
+      @view="() => emit('file-view', 'passportScan')"
+      @reset="() => emit('file-reset', 'passportScan')"
     />
-    
-    <!-- Новое поле для нотариально заверенного перевода -->
-    <div class="border-t pt-4">
-      <!-- <p class="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg mb-4">
-        <span class="font-medium text-blue-800">Дополнительно:</span>
-        <span class="text-blue-700">
-          Если ваш паспорт оформлен не на кириллице, загрузите нотариально заверенный перевод документа отдельным файлом.
-        </span>
-      </p> -->
-      <FileUploadField
-        fieldName="passportTranslation"
-        label="Нотариально заверенный перевод паспорта (PDF) (обязательно)"
-        :isUploading="fileUploading.passportTranslation"
-        :preview="filePreview.passportTranslation"
-        :error="errors.passportTranslation"
-        accept=".pdf"
-        required
-        @change="(file) => $emit('file-change', file, 'passportTranslation')"
-        @view="() => $emit('file-view', 'passportTranslation')"
-        @reset="() => $emit('file-reset', 'passportTranslation')"
-        :class="{ 'border-red-500': errors.passportTranslation }"
-      />
-    </div>
+
+    <FileUploadField
+      fieldName="passportTranslation"
+      label="Нотариально заверенный перевод паспорта"
+      :isUploading="fileUploading.passportTranslation"
+      :preview="filePreview.passportTranslation"
+      :error="errors.passportTranslation"
+      required
+      accept=".pdf"
+      @change="(file) => emit('file-change', file, 'passportTranslation')"
+      @view="() => emit('file-view', 'passportTranslation')"
+      @reset="() => emit('file-reset', 'passportTranslation')"
+    />
   </div>
 </template>
 
 <script setup>
-import { BaseInput } from '@/components/ui';
 import FileUploadField from './FileUploadField.vue';
-import { watch } from 'vue';
 
-const props = defineProps({
+defineProps({
   modelValue: {
     type: Object,
     required: true
@@ -113,6 +84,10 @@ const props = defineProps({
   errors: {
     type: Object,
     default: () => ({})
+  },
+  isForeignResidence: {
+    type: Boolean,
+    default: false
   },
   fileUploading: {
     type: Object,
@@ -124,7 +99,5 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'file-change', 'file-view', 'file-reset']);
-
-
-</script> 
+const emit = defineEmits(['update:modelValue', 'passport-format', 'file-change', 'file-view', 'file-reset']);
+</script>
