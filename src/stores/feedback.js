@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { feedback as feedbackApi } from '@/api/app-api'
+import { useAuthStore } from '@/stores/auth'
 import {
   connectFeedbackSocket,
   disconnectFeedbackSocket,
@@ -9,6 +10,7 @@ import {
 } from '@/services/feedback-socket'
 
 export const useFeedbackStore = defineStore('feedback', () => {
+  const authStore = useAuthStore()
   const isOpen = ref(false)
   const conversations = ref([])
   const activeConversationId = ref(null)
@@ -43,11 +45,15 @@ export const useFeedbackStore = defineStore('feedback', () => {
     const socket = connectFeedbackSocket(token)
     isSocketInitialized.value = true
 
-    socket.on('connect', () => {
+    socket.on('connect', async () => {
       socketConnected.value = true
       if (activeConversationId.value) {
         joinConversation(activeConversationId.value)
+        await loadMessages(activeConversationId.value)
+        await markMessagesRead(activeConversationId.value)
       }
+      await loadConversations()
+      await loadNotifications()
     })
 
     socket.on('disconnect', () => {
@@ -58,6 +64,9 @@ export const useFeedbackStore = defineStore('feedback', () => {
       if (msg.conversation_id === activeConversationId.value) {
         const exists = messages.value.some((m) => m.id === msg.id)
         if (!exists) messages.value.push(msg)
+        if (msg.sender_id !== authStore.user?.id) {
+          markMessagesRead(msg.conversation_id)
+        }
       }
       updateConversationLastMessage(msg.conversation_id)
     })
@@ -81,9 +90,18 @@ export const useFeedbackStore = defineStore('feedback', () => {
       }
     })
 
-    socket.on('server:message_read', ({ conversationId }) => {
+    socket.on('server:message_read', ({ conversationId, readBy, messageIds = [] }) => {
       if (conversationId === activeConversationId.value) {
-        messages.value.forEach((m) => { m.is_read = true })
+        const readMessageIds = new Set(messageIds)
+        messages.value.forEach((message) => {
+          const shouldMarkById = readMessageIds.size > 0 && readMessageIds.has(message.id)
+          const shouldMarkByReader = readMessageIds.size === 0 && message.sender_id !== readBy
+          if (shouldMarkById || shouldMarkByReader) {
+            message.is_read = true
+            message.read_by = readBy
+            message.read_at = message.read_at || new Date().toISOString()
+          }
+        })
       }
       const conv = conversations.value.find((c) => c.id === conversationId)
       if (conv) conv.unread_count = 0
@@ -189,7 +207,20 @@ export const useFeedbackStore = defineStore('feedback', () => {
   }
 
   async function markMessagesRead(conversationId) {
-    markRead(conversationId)
+    const hasSocketRead = markRead(conversationId)
+    if (!hasSocketRead) {
+      const { data, error } = await feedbackApi.markConversationRead(conversationId)
+      if (!error && data) {
+        const readMessageIds = new Set(data.messageIds || [])
+        messages.value.forEach((message) => {
+          if (readMessageIds.has(message.id)) {
+            message.is_read = true
+            message.read_by = data.readBy
+            message.read_at = message.read_at || new Date().toISOString()
+          }
+        })
+      }
+    }
     const conv = conversations.value.find((c) => c.id === conversationId)
     if (conv) conv.unread_count = 0
   }

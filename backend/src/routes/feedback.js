@@ -4,11 +4,18 @@ const crypto = require('crypto')
 const db = require('../config/db')
 const s3 = require('../config/s3')
 const { requireAuth } = require('../middleware/auth')
-const { emitNewMessage, emitConversationStatus } = require('../socket/feedback')
+const { emitNewMessage, emitConversationStatus, emitMessageRead } = require('../socket/feedback')
 const { createNotification, createStaffNotifications } = require('../services/notification-service')
 
 const router = express.Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+const IMAGE_EXTENSIONS = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif'
+}
 
 // Получить или создать conversationId студента
 async function getOrCreateConversation(studentId) {
@@ -33,6 +40,18 @@ async function checkConversationAccess(userId, roleId, conversationId) {
     [conversationId, userId]
   )
   return result.rows.length > 0
+}
+
+async function markConversationMessagesRead({ conversationId, userId }) {
+  const readResult = await db.query(
+    `UPDATE messages
+     SET is_read = TRUE, read_at = NOW(), read_by = $2
+     WHERE conversation_id = $1 AND sender_id != $2 AND is_read = FALSE
+     RETURNING id`,
+    [conversationId, userId]
+  )
+
+  return readResult.rows.map((row) => row.id)
 }
 
 // ------------------------------------------------------------------
@@ -117,6 +136,10 @@ router.post('/messages', requireAuth, upload.single('image'), async (req, res) =
     return res.status(400).json({ error: 'Необходимо указать текст или прикрепить изображение' })
   }
 
+  if (req.file && !ALLOWED_IMAGE_MIME_TYPES.has(req.file.mimetype)) {
+    return res.status(400).json({ error: 'Можно прикреплять только изображения JPG, PNG, WEBP или GIF' })
+  }
+
   try {
     let conversation
 
@@ -134,7 +157,7 @@ router.post('/messages', requireAuth, upload.single('image'), async (req, res) =
     let imageUrl = null
 
     if (req.file) {
-      const fileExt = req.file.originalname.split('.').pop()
+      const fileExt = IMAGE_EXTENSIONS[req.file.mimetype]
       const fileId = crypto.randomUUID()
       const s3Key = `feedback/${conversation.id}/${fileId}.${fileExt}`
       await s3.uploadToS3(s3.BUCKET_FILES, s3Key, req.file.buffer, req.file.mimetype)
@@ -271,6 +294,35 @@ router.patch('/notifications/read-all', requireAuth, async (req, res) => {
     res.json({ data: { success: true } })
   } catch (err) {
     res.status(500).json({ error: 'Ошибка при обновлении уведомлений' })
+  }
+})
+
+// ------------------------------------------------------------------
+// PATCH /feedback/conversations/:id/read
+// REST fallback для отметки сообщений диалога прочитанными
+// ------------------------------------------------------------------
+router.patch('/conversations/:id/read', requireAuth, async (req, res) => {
+  const { id: userId, role_id } = req.user
+  const roleId = Number(role_id)
+  const conversationId = req.params.id
+
+  try {
+    const hasAccess = await checkConversationAccess(userId, roleId, conversationId)
+    if (!hasAccess) return res.status(403).json({ error: 'Нет доступа к этому диалогу' })
+
+    const messageIds = await markConversationMessagesRead({ conversationId, userId })
+    emitMessageRead({ conversationId, readBy: userId, messageIds })
+
+    res.json({
+      data: {
+        conversationId,
+        readBy: userId,
+        messageIds
+      }
+    })
+  } catch (err) {
+    console.error('PATCH /conversations/:id/read error:', err)
+    res.status(500).json({ error: 'Ошибка при отметке сообщений прочитанными' })
   }
 })
 

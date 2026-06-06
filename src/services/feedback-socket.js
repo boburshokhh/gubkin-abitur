@@ -35,5 +35,7 @@ export function joinConversation(conversationId) {
 }
 
 export function markRead(conversationId) {
-  socket?.emit('client:mark_read', { conversationId })
+  if (!socket?.connected) return false
+  socket.emit('client:mark_read', { conversationId })
+  return true
 }

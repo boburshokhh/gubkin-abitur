@@ -57,16 +57,16 @@ function initFeedbackSocket(socketIoInstance) {
         const access = await canAccessConversation(id, roleId, conversationId)
         if (!access) return
 
-        await db.query(
-          `UPDATE messages SET is_read = TRUE
-           WHERE conversation_id = $1 AND sender_id != $2 AND is_read = FALSE`,
+        const readResult = await db.query(
+          `UPDATE messages
+           SET is_read = TRUE, read_at = NOW(), read_by = $2
+           WHERE conversation_id = $1 AND sender_id != $2 AND is_read = FALSE
+           RETURNING id`,
           [conversationId, id]
         )
+        const messageIds = readResult.rows.map((row) => row.id)
 
-        io.to(`conversation:${conversationId}`).emit('server:message_read', {
-          conversationId,
-          readBy: id
-        })
+        emitMessageRead({ conversationId, readBy: id, messageIds })
       } catch (err) {
         console.error('mark_read error:', err.message)
       }
@@ -112,4 +112,20 @@ function emitConversationStatus(conversation) {
   io.to('staff').emit('server:conversation_status', conversation)
 }
 
-module.exports = { initFeedbackSocket, getIo, emitNewMessage, emitNotification, emitConversationStatus }
+function emitMessageRead({ conversationId, readBy, messageIds = [] }) {
+  if (!io) return
+  io.to(`conversation:${conversationId}`).emit('server:message_read', {
+    conversationId,
+    readBy,
+    messageIds
+  })
+}
+
+module.exports = {
+  initFeedbackSocket,
+  getIo,
+  emitNewMessage,
+  emitNotification,
+  emitConversationStatus,
+  emitMessageRead
+}

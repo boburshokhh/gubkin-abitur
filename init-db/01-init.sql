@@ -291,6 +291,8 @@ CREATE TABLE IF NOT EXISTS messages (
   text TEXT,
   image_url TEXT,
   is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  read_at TIMESTAMPTZ,
+  read_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -335,6 +337,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages (conversatio
 CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages (sender_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_is_read ON messages (is_read) WHERE is_read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_messages_read_by ON messages (read_by);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications (user_id, is_read) WHERE is_read = FALSE;
 CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications (type);

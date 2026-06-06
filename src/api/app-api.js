@@ -1271,6 +1271,15 @@ export const feedback = {
     }
   },
 
+  async markConversationRead(conversationId) {
+    try {
+      const res = await apiClient.patch(`/feedback/conversations/${conversationId}/read`)
+      return { data: res.data.data, error: null }
+    } catch (err) {
+      return handleFeedbackError(err)
+    }
+  },
+
   async closeConversation(conversationId) {
     try {
       const res = await apiClient.patch(`/feedback/conversations/${conversationId}/close`)

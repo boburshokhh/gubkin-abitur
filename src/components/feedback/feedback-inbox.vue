@@ -185,7 +185,7 @@
                         {{ formatTime(message.created_at) }}
                       </el-text>
                       <span
-                        v-if="isStaffMessage(message)"
+                        v-if="isOwnMessage(message)"
                         class="feedback-inbox__read-status"
                         :class="{ 'feedback-inbox__read-status--read': message.is_read }"
                         :title="message.is_read ? 'Прочитано' : 'Отправлено'"
@@ -257,9 +257,11 @@ import Lightgallery from 'lightgallery/vue'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Check, Loading, Paperclip, Promotion, Refresh } from '@element-plus/icons-vue'
 import { feedback as feedbackApi, getAccessToken } from '@/api/app-api'
+import { useAuthStore } from '@/stores/auth'
 import { useFeedbackStore } from '@/stores/feedback'
 import 'lightgallery/css/lightgallery.css'
 
+const authStore = useAuthStore()
 const feedbackStore = useFeedbackStore()
 
 const scrollbarRef = ref(null)
@@ -401,8 +403,8 @@ function formatTime(value) {
   return new Date(value).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 }
 
-function isStaffMessage(message) {
-  return Number(message.sender_role_id) !== 1
+function isOwnMessage(message) {
+  return message.sender_id === authStore.user?.id
 }
 
 async function preloadMessageImages() {
