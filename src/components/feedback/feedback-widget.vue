@@ -1,5 +1,5 @@
 <template>
-  <div v-if="authStore.isAuthenticated" class="feedback-widget">
+  <div v-if="shouldShowWidget" class="feedback-widget">
     <el-badge :value="totalUnread" :hidden="totalUnread === 0" :max="99">
       <el-button
         class="feedback-widget__button"
@@ -137,6 +137,7 @@ const socketInitialized = ref(false)
 const tokenRetryTimer = ref(null)
 
 const totalUnread = computed(() => feedbackStore.unreadNotifications + feedbackStore.unreadMessages)
+const shouldShowWidget = computed(() => authStore.isAuthenticated && authStore.isApplicant)
 
 async function handleToggle() {
   feedbackStore.toggleWidget()

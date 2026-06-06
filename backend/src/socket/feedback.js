@@ -35,16 +35,17 @@ function initFeedbackSocket(socketIoInstance) {
 
   io.on('connection', (socket) => {
     const { id, role_id } = socket.user
+    const roleId = Number(role_id)
 
     socket.join(`user:${id}`)
 
-    if (role_id === 2 || role_id === 3) {
+    if (roleId === 2 || roleId === 3) {
       socket.join('staff')
     }
 
     socket.on('client:join_conversation', async (conversationId) => {
       try {
-        const access = await canAccessConversation(id, role_id, conversationId)
+        const access = await canAccessConversation(id, roleId, conversationId)
         if (access) socket.join(`conversation:${conversationId}`)
       } catch (err) {
         console.error('join_conversation error:', err.message)
@@ -53,7 +54,7 @@ function initFeedbackSocket(socketIoInstance) {
 
     socket.on('client:mark_read', async ({ conversationId }) => {
       try {
-        const access = await canAccessConversation(id, role_id, conversationId)
+        const access = await canAccessConversation(id, roleId, conversationId)
         if (!access) return
 
         await db.query(

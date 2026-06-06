@@ -52,9 +52,10 @@ async function createNotification(userId, text, conversationId, messageId) {
 // ------------------------------------------------------------------
 router.get('/conversations', requireAuth, async (req, res) => {
   const { id: userId, role_id } = req.user
+  const roleId = Number(role_id)
   try {
     let result
-    if (role_id === 2 || role_id === 3) {
+    if (roleId === 2 || roleId === 3) {
       result = await db.query(
         `SELECT c.*,
            u.first_name AS student_first_name,
@@ -90,9 +91,10 @@ router.get('/conversations', requireAuth, async (req, res) => {
 // ------------------------------------------------------------------
 router.get('/messages/:conversationId', requireAuth, async (req, res) => {
   const { id: userId, role_id } = req.user
+  const roleId = Number(role_id)
   const { conversationId } = req.params
   try {
-    const hasAccess = await checkConversationAccess(userId, role_id, conversationId)
+    const hasAccess = await checkConversationAccess(userId, roleId, conversationId)
     if (!hasAccess) return res.status(403).json({ error: 'Нет доступа к этому диалогу' })
 
     const result = await db.query(
@@ -119,6 +121,7 @@ router.get('/messages/:conversationId', requireAuth, async (req, res) => {
 // ------------------------------------------------------------------
 router.post('/messages', requireAuth, upload.single('image'), async (req, res) => {
   const { id: userId, role_id } = req.user
+  const roleId = Number(role_id)
   const { text, conversationId: bodyConvId } = req.body
 
   if (!text && !req.file) {
@@ -128,8 +131,8 @@ router.post('/messages', requireAuth, upload.single('image'), async (req, res) =
   try {
     let conversation
 
-    if (role_id === 1) {
-      // Студент — всегда получает или создает свой единственный диалог
+    if (roleId !== 2 && roleId !== 3) {
+      // Студент — всегда получает или создает свой единственный диалог.
       conversation = await getOrCreateConversation(userId)
     } else {
       // Сотрудник/администратор — отвечает в указанный диалог
@@ -174,7 +177,7 @@ router.post('/messages', requireAuth, upload.single('image'), async (req, res) =
     emitNewMessage(enrichedMessage, conversation)
 
     // Создать уведомления
-    if (role_id === 1) {
+    if (roleId !== 2 && roleId !== 3) {
       // Уведомить всех сотрудников и администраторов
       const staffResult = await db.query(
         'SELECT id FROM users WHERE role_id IN (2, 3)'
@@ -210,12 +213,13 @@ router.post('/messages', requireAuth, upload.single('image'), async (req, res) =
 // ------------------------------------------------------------------
 router.get('/messages/:conversationId/image', requireAuth, async (req, res) => {
   const { id: userId, role_id } = req.user
+  const roleId = Number(role_id)
   const { conversationId } = req.params
   const { key } = req.query
   if (!key) return res.status(400).json({ error: 'key обязателен' })
 
   try {
-    const hasAccess = await checkConversationAccess(userId, role_id, conversationId)
+    const hasAccess = await checkConversationAccess(userId, roleId, conversationId)
     if (!hasAccess) return res.status(403).json({ error: 'Нет доступа' })
 
     const signedUrl = await s3.getPresignedDownloadUrl(s3.BUCKET_FILES, key)
@@ -284,7 +288,8 @@ router.patch('/notifications/read-all', requireAuth, async (req, res) => {
 // ------------------------------------------------------------------
 router.patch('/conversations/:id/close', requireAuth, async (req, res) => {
   const { role_id } = req.user
-  if (role_id !== 2 && role_id !== 3) return res.status(403).json({ error: 'Нет доступа' })
+  const roleId = Number(role_id)
+  if (roleId !== 2 && roleId !== 3) return res.status(403).json({ error: 'Нет доступа' })
 
   try {
     const result = await db.query(
