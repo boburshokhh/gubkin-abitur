@@ -495,17 +495,29 @@ onBeforeUnmount(() => {
 }
 
 .feedback-inbox__layout {
-  min-height: min(680px, calc(100vh - 230px));
+  height: min(680px, calc(100vh - 230px));
+  min-height: 520px;
 }
 
 .feedback-inbox--compact .feedback-inbox__layout {
-  min-height: 560px;
+  height: min(560px, calc(100vh - 180px));
+  min-height: 480px;
 }
 
 .feedback-inbox__panel {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   height: 100%;
   border-radius: 14px;
+}
+
+.feedback-inbox__panel :deep(> .el-card__body) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .feedback-inbox__panel :deep(.el-card__header) {
@@ -513,11 +525,13 @@ onBeforeUnmount(() => {
 }
 
 .feedback-inbox__conversation-scroll {
-  height: min(610px, calc(100vh - 300px));
+  flex: 1;
+  min-height: 0;
 }
 
 .feedback-inbox--compact .feedback-inbox__conversation-scroll {
-  height: min(520px, calc(100vh - 260px));
+  flex: 1;
+  min-height: 0;
 }
 
 .feedback-inbox__menu {
@@ -569,15 +583,16 @@ onBeforeUnmount(() => {
 .feedback-inbox__center,
 .feedback-inbox__empty-dialog {
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
-  min-height: min(520px, calc(100vh - 330px));
+  min-height: 0;
   gap: 8px;
 }
 
 .feedback-inbox__messages {
-  height: min(520px, calc(100vh - 390px));
-  min-height: 360px;
+  flex: 1;
+  min-height: 0;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 12px;
   background:
@@ -586,8 +601,8 @@ onBeforeUnmount(() => {
 }
 
 .feedback-inbox--compact .feedback-inbox__messages {
-  height: min(430px, calc(100vh - 350px));
-  min-height: 320px;
+  flex: 1;
+  min-height: 0;
 }
 
 .feedback-inbox__messages-inner {
@@ -677,12 +692,11 @@ onBeforeUnmount(() => {
 
 .feedback-inbox__closed,
 .feedback-inbox__composer {
+  flex: 0 0 auto;
   margin-top: 12px;
 }
 
 .feedback-inbox__composer {
-  position: sticky;
-  bottom: 0;
   padding-top: 2px;
   background: var(--el-bg-color);
 }
@@ -734,13 +748,14 @@ onBeforeUnmount(() => {
   }
 
   .feedback-inbox__layout {
-    min-height: auto;
+    height: calc(100vh - 160px);
+    min-height: 420px;
   }
 
   .feedback-inbox__conversation-scroll,
   .feedback-inbox__messages {
-    height: calc(100vh - 260px);
-    min-height: 360px;
+    flex: 1;
+    min-height: 0;
   }
 
   .feedback-inbox__bubble {
@@ -751,8 +766,8 @@ onBeforeUnmount(() => {
 @media (max-width: 480px) {
   .feedback-inbox__conversation-scroll,
   .feedback-inbox__messages {
-    height: calc(100vh - 235px);
-    min-height: 320px;
+    flex: 1;
+    min-height: 0;
   }
 
   .feedback-inbox__bubble {

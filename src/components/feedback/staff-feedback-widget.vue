@@ -487,7 +487,10 @@ onBeforeUnmount(() => {
 }
 
 .staff-feedback-widget__sidebar {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
   border-right: 1px solid var(--el-border-color-lighter);
   background: #f8fafc;
 }
@@ -506,7 +509,8 @@ onBeforeUnmount(() => {
 }
 
 .staff-feedback-widget__chat-list {
-  height: calc(100% - 57px);
+  flex: 1;
+  min-height: 0;
 }
 
 .staff-feedback-widget__chat-item {
@@ -579,6 +583,8 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background:
     radial-gradient(circle at 18px 18px, rgba(64, 158, 255, 0.08) 0 2px, transparent 2px 24px),
     linear-gradient(180deg, #eef6ff 0%, #f8fbff 100%);
@@ -604,6 +610,7 @@ onBeforeUnmount(() => {
 }
 
 .staff-feedback-widget__dialog-head {
+  flex: 0 0 auto;
   min-height: 57px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--el-border-color-lighter);
@@ -623,6 +630,7 @@ onBeforeUnmount(() => {
 
 .staff-feedback-widget__messages {
   flex: 1;
+  min-height: 0;
 }
 
 .staff-feedback-widget__messages-inner {
@@ -712,6 +720,7 @@ onBeforeUnmount(() => {
 
 .staff-feedback-widget__closed,
 .staff-feedback-widget__composer {
+  flex: 0 0 auto;
   margin: 10px 12px 12px;
 }
 
