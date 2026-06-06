@@ -1109,7 +1109,11 @@ router.post('/applications', requireAuth, async (req, res) => {
     );
 
     if (checkApp.rows.length > 0) {
-      throw new Error('Вы уже создали активное заявление на этот учебный год');
+      const activeApplicationError = new Error('У вас уже есть активная заявка. Вы не можете подать новую заявку, пока текущая заявка находится на рассмотрении.');
+      activeApplicationError.code = 'ACTIVE_APPLICATION_EXISTS';
+      activeApplicationError.status = 409;
+      activeApplicationError.applicationId = checkApp.rows[0].id;
+      throw activeApplicationError;
     }
 
     // Сохраняем персональные данные анкеты в профиле пользователя,
@@ -1193,6 +1197,14 @@ router.post('/applications', requireAuth, async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Ошибка транзакции создания заявления:', err);
+    if (err.code === 'ACTIVE_APPLICATION_EXISTS') {
+      return res.status(err.status).json({
+        error: err.message,
+        code: err.code,
+        application_id: err.applicationId
+      });
+    }
+
     res.status(400).json({ error: err.message || 'Ошибка создания заявления' });
   } finally {
     client.release();

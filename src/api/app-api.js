@@ -391,7 +391,14 @@ export const applications = {
       const response = await apiClient.post('/applications', { app_data: applicationData })
       return { data: response.data.data, error: null }
     } catch (err) {
-      return { data: null, error: err.response?.data?.error || err.message }
+      const responseData = err.response?.data || {}
+      return {
+        data: null,
+        error: responseData.error || err.message,
+        code: responseData.code,
+        status: err.response?.status,
+        applicationId: responseData.application_id
+      }
     }
   },
 

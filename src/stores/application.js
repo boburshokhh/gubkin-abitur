@@ -123,9 +123,16 @@ export const useApplicationStore = defineStore('application', () => {
         study_form: applicationData.study_form || 'full-time' // Устанавливаем 'full-time' если значение не задано
       }
 
-      const { data, error: createError } = await applicationsApi.create(applicationWithDefaults)
+      const createResult = await applicationsApi.create(applicationWithDefaults)
+      const { data, error: createError } = createResult
       
-      if (createError) throw createError
+      if (createError) {
+        const appError = new Error(createError)
+        appError.code = createResult.code
+        appError.status = createResult.status
+        appError.applicationId = createResult.applicationId
+        throw appError
+      }
       
       if (data) {
         userApplications.value.unshift(data)
@@ -135,7 +142,13 @@ export const useApplicationStore = defineStore('application', () => {
     } catch (err) {
       console.error('Ошибка создания заявки:', err)
       error.value = err.message || 'Не удалось создать заявку'
-      return { success: false, error: error.value }
+      return {
+        success: false,
+        error: error.value,
+        code: err.code,
+        status: err.status,
+        applicationId: err.applicationId
+      }
     } finally {
       isLoading.value = false
     }

@@ -197,6 +197,8 @@ const isSubmitted = ref(false);
 const errors = ref({});
 const applicationNumber = ref('');
 
+const activeApplicationMessage = 'У вас уже есть активная заявка. Повторная подача невозможна, пока текущая заявка находится на рассмотрении.';
+
 // Переменные для отслеживания прогресса отправки
 const submissionProgress = ref(0);
 const submissionStatus = ref('');
@@ -641,9 +643,16 @@ async function submitForm() {
     submissionProgress.value = 20;
     submissionStatus.value = 'Создание заявления в системе...';
     
-    const { success, data, error } = await appStore.createApplication(applicationPayload);
+    const createResult = await appStore.createApplication(applicationPayload);
+    const { success, data, error, code } = createResult;
     
     if (!success || !data) {
+      if (code === 'ACTIVE_APPLICATION_EXISTS') {
+        toast.warning(activeApplicationMessage);
+        errors.value.submit = activeApplicationMessage;
+        return;
+      }
+
       throw new Error(error || 'Не удалось создать заявление');
     }
     
