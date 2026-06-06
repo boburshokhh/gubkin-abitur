@@ -86,6 +86,76 @@ async function ensureAdmissionOpenForApplicant(req, res) {
   return false;
 }
 
+function isStaffUser(user) {
+  return user?.role_id === 2 || user?.role_id === 3;
+}
+
+async function getApplicationHistory(applicationId) {
+  const result = await db.query(
+    `WITH ordered_history AS (
+       SELECT
+         h.id,
+         h.application_id,
+         h.status_id,
+         h.comment,
+         h.created_by,
+         h.created_at,
+         s.name AS status_name,
+         s.color AS status_color,
+         LAG(s.id) OVER history_order AS old_status_id,
+         LAG(s.name) OVER history_order AS old_status_name,
+         LAG(s.color) OVER history_order AS old_status_color
+       FROM application_history h
+       JOIN application_statuses s ON s.id = h.status_id
+       WHERE h.application_id = $1
+       WINDOW history_order AS (ORDER BY h.created_at ASC, h.id ASC)
+     )
+     SELECT
+       oh.id,
+       oh.application_id,
+       oh.status_id,
+       oh.comment,
+       oh.created_by,
+       oh.created_at,
+       oh.status_name,
+       oh.status_color,
+       jsonb_build_object(
+         'id', oh.status_id,
+         'name', oh.status_name,
+         'color', oh.status_color
+       ) AS status,
+       CASE
+         WHEN oh.old_status_id IS NULL THEN NULL
+         ELSE jsonb_build_object(
+           'id', oh.old_status_id,
+           'name', oh.old_status_name,
+           'color', oh.old_status_color
+         )
+       END AS old_status,
+       jsonb_build_object(
+         'id', oh.status_id,
+         'name', oh.status_name,
+         'color', oh.status_color
+       ) AS new_status,
+       CASE
+         WHEN u.id IS NULL THEN NULL
+         ELSE jsonb_build_object(
+           'id', u.id,
+           'first_name', u.first_name,
+           'last_name', u.last_name,
+           'middle_name', u.middle_name,
+           'email', u.email
+         )
+       END AS created_by_user
+     FROM ordered_history oh
+     LEFT JOIN users u ON u.id = oh.created_by
+     ORDER BY oh.created_at DESC, oh.id DESC`,
+    [applicationId]
+  );
+
+  return result.rows;
+}
+
 // ==========================================
 // 1. АУТЕНТИФИКАЦИЯ (Auth)
 // ==========================================
@@ -848,10 +918,11 @@ router.get('/applications/:id', requireAuth, async (req, res) => {
     }
 
     // Безопасность: обычный абитуриент может смотреть только свои заявления
-    const isMod = req.user.role_id === 2 || req.user.role_id === 3;
-    if (!isMod && details.user_id !== req.user.id) {
+    if (!isStaffUser(req.user) && details.user_id !== req.user.id) {
       return res.status(403).json({ error: 'Доступ запрещен' });
     }
+
+    details.application_history = await getApplicationHistory(req.params.id);
 
     res.json({ data: details });
   } catch (err) {
@@ -1136,15 +1207,21 @@ router.post('/applications/:id/submit', requireAuth, async (req, res) => {
 // Получить историю заявления
 router.get('/applications/:id/history', requireAuth, async (req, res) => {
   try {
-    const result = await db.query(
-      `SELECT h.*, s.name as status_name, s.color as status_color 
-       FROM application_history h
-       JOIN application_statuses s ON s.id = h.status_id
-       WHERE h.application_id = $1 
-       ORDER BY h.created_at DESC`,
+    const access = await db.query(
+      'SELECT user_id FROM applications WHERE id = $1',
       [req.params.id]
     );
-    res.json({ data: result.rows });
+
+    if (!access.rows.length) {
+      return res.status(404).json({ error: 'Заявление не найдено' });
+    }
+
+    if (!isStaffUser(req.user) && access.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    const history = await getApplicationHistory(req.params.id);
+    res.json({ data: history });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
