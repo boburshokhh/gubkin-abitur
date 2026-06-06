@@ -9,70 +9,33 @@ const { JWT_SECRET, requireAuth, requireAdmin, requireAdminOrReviewer } = requir
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-const admissionClosedMessage = 'Прием документов на 2026 учебный год закрыт. Подача новых заявлений временно недоступна.';
 
-function isAdmissionOpen() {
-  return process.env.ADMISSION_OPEN === 'true' || process.env.VITE_ADMISSION_OPEN === 'true';
+function normalizeOptionalString(value) {
+  if (typeof value !== 'string') return value ?? null;
+
+  const trimmedValue = value.trim();
+  return trimmedValue || null;
 }
 
-function requireAdmissionOpen(req, res, next) {
-  if (isAdmissionOpen()) return next();
-
-  return res.status(403).json({ error: admissionClosedMessage });
-}
-
-function requireAdmissionOpenForApplicant(req, res, next) {
-  const isStaff = req.user?.role_id === 2 || req.user?.role_id === 3;
-  if (isStaff || isAdmissionOpen()) return next();
-
-  return res.status(403).json({ error: admissionClosedMessage });
-}
-
-function buildRegion(row, prefix) {
-  if (!row?.[`${prefix}_region_id`]) return null;
-
+function normalizeApplicationData(appData = {}) {
   return {
-    id: row[`${prefix}_region_id`],
-    name: row[`${prefix}_region_name`],
-    code: row[`${prefix}_region_code`]
+    ...appData,
+    first_name: appData.first_name ?? appData.firstName,
+    last_name: appData.last_name ?? appData.lastName,
+    middle_name: appData.middle_name ?? appData.middleName,
+    birth_date: normalizeOptionalString(appData.birth_date ?? appData.birthDate),
+    parent_phone: appData.parent_phone ?? appData.parentPhone,
+    address: normalizeOptionalString(appData.address),
+    gender: normalizeOptionalString(appData.gender)
   };
 }
 
-function normalizeApplicationDetails(details, profileRow = {}) {
-  const applicationRegion = details.region || details.regions || buildRegion(profileRow, 'application');
-  const userRegion = buildRegion(profileRow, 'user');
-  const user = details.user || details.users || {};
-  const normalizedUser = {
-    ...user,
-    id: profileRow.user_id || user.id,
-    email: profileRow.email || user.email,
-    first_name: profileRow.first_name || user.first_name,
-    last_name: profileRow.last_name || user.last_name,
-    middle_name: profileRow.middle_name ?? user.middle_name,
-    phone: profileRow.phone ?? user.phone,
-    birth_date: profileRow.birth_date || user.birth_date,
-    gender: profileRow.gender || user.gender,
-    region_id: profileRow.user_region_id || user.region_id,
-    region: user.region || user.regions || userRegion,
-    regions: user.regions || user.region || userRegion
-  };
+function validateRequiredApplicantData(appData) {
+  if (!appData.birth_date) return 'Дата рождения обязательна для заполнения';
+  if (!appData.gender) return 'Пол обязателен для заполнения';
+  if (!appData.address) return 'Адрес проживания обязателен для заполнения';
 
-  return {
-    ...details,
-    first_name: details.first_name || normalizedUser.first_name,
-    last_name: details.last_name || normalizedUser.last_name,
-    middle_name: details.middle_name ?? normalizedUser.middle_name,
-    phone: details.phone ?? normalizedUser.phone,
-    email: details.email || normalizedUser.email,
-    birth_date: details.birth_date || normalizedUser.birth_date,
-    gender: details.gender || normalizedUser.gender,
-    address: details.address ?? profileRow.address,
-    region_id: details.region_id || profileRow.application_region_id || normalizedUser.region_id,
-    region: applicationRegion,
-    regions: applicationRegion,
-    user: normalizedUser,
-    users: normalizedUser
-  };
+  return null;
 }
 
 // ==========================================
@@ -80,7 +43,7 @@ function normalizeApplicationDetails(details, profileRow = {}) {
 // ==========================================
 
 // Регистрация
-router.post('/auth/signup', requireAdmissionOpen, async (req, res) => {
+router.post('/auth/signup', async (req, res) => {
   const { email, password, options } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email и пароль обязательны' });
@@ -675,32 +638,7 @@ router.get('/applications/:id', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Доступ запрещен' });
     }
 
-    const profileResult = await db.query(
-      `SELECT
-         a.address,
-         a.region_id AS application_region_id,
-         ar.name AS application_region_name,
-         ar.code AS application_region_code,
-         u.id AS user_id,
-         u.email,
-         u.first_name,
-         u.last_name,
-         u.middle_name,
-         u.phone,
-         u.birth_date,
-         u.gender,
-         u.region_id AS user_region_id,
-         ur.name AS user_region_name,
-         ur.code AS user_region_code
-       FROM applications a
-       JOIN users u ON u.id = a.user_id
-       LEFT JOIN regions ar ON ar.id = a.region_id
-       LEFT JOIN regions ur ON ur.id = u.region_id
-       WHERE a.id = $1`,
-      [req.params.id]
-    );
-
-    res.json({ data: normalizeApplicationDetails(details, profileResult.rows[0]) });
+    res.json({ data: details });
   } catch (err) {
     console.error('Ошибка получения деталей заявления:', err);
     res.status(500).json({ error: err.message });
@@ -708,10 +646,16 @@ router.get('/applications/:id', requireAuth, async (req, res) => {
 });
 
 // Создать заявление
-router.post('/applications', requireAuth, requireAdmissionOpenForApplicant, async (req, res) => {
+router.post('/applications', requireAuth, async (req, res) => {
   const { app_data } = req.body;
   if (!app_data) {
     return res.status(400).json({ error: 'Не переданы данные заявления' });
+  }
+
+  const appData = normalizeApplicationData(app_data);
+  const validationError = validateRequiredApplicantData(appData);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
   }
 
   const client = await db.pool.connect();
@@ -743,13 +687,13 @@ router.post('/applications', requireAuth, requireAdmissionOpenForApplicant, asyn
            updated_at = NOW()
        WHERE id = $8`,
       [
-        app_data.first_name,
-        app_data.last_name,
-        app_data.middle_name,
-        app_data.phone,
-        app_data.birth_date,
-        app_data.gender,
-        app_data.region_id,
+        appData.first_name,
+        appData.last_name,
+        appData.middle_name,
+        appData.phone,
+        appData.birth_date,
+        appData.gender,
+        appData.region_id,
         req.user.id
       ]
     );
@@ -766,32 +710,32 @@ router.post('/applications', requireAuth, requireAdmissionOpenForApplicant, asyn
       RETURNING id`,
       [
         req.user.id,
-        app_data.passport_series,
-        app_data.passport_issue_date,
-        app_data.passport_issued_by,
-        app_data.education_level,
-        app_data.education_institution,
-        app_data.education_graduation_year,
-        app_data.document_number,
-        app_data.document_date,
-        app_data.study_form || 'full-time',
-        app_data.funding_form,
-        app_data.accommodation_needed || false,
-        app_data.olympiad_participant || false,
-        app_data.parent_phone,
+        appData.passport_series,
+        appData.passport_issue_date,
+        appData.passport_issued_by,
+        appData.education_level,
+        appData.education_institution,
+        appData.education_graduation_year,
+        appData.document_number,
+        appData.document_date,
+        appData.study_form || 'full-time',
+        appData.funding_form,
+        appData.accommodation_needed || false,
+        appData.olympiad_participant || false,
+        appData.parent_phone,
         currentYear,
-        app_data.education_document_number,
-        app_data.education_document_date,
-        app_data.region_id,
-        app_data.address
+        appData.education_document_number,
+        appData.education_document_date,
+        appData.region_id,
+        appData.address
       ]
     );
 
     const applicationId = insertAppResult.rows[0].id;
 
     // Вставляем выбранные профили (choices)
-    if (app_data.choices && Array.isArray(app_data.choices)) {
-      for (const choice of app_data.choices) {
+    if (appData.choices && Array.isArray(appData.choices)) {
+      for (const choice of appData.choices) {
         await client.query(
           'INSERT INTO application_choices (application_id, profile_id, priority) VALUES ($1, $2, $3)',
           [applicationId, choice.profile_id, choice.priority]
@@ -817,8 +761,9 @@ router.post('/applications', requireAuth, requireAdmissionOpenForApplicant, asyn
 });
 
 // Обновить заявление
-router.put('/applications/:id', requireAuth, requireAdmissionOpenForApplicant, async (req, res) => {
-  const { choices, ...appData } = req.body;
+router.put('/applications/:id', requireAuth, async (req, res) => {
+  const { choices, ...rawAppData } = req.body;
+  const appData = normalizeApplicationData(rawAppData);
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
@@ -926,7 +871,7 @@ router.put('/applications/:id', requireAuth, requireAdmissionOpenForApplicant, a
 });
 
 // Отправить заявление на рассмотрение (черновик -> подан)
-router.post('/applications/:id/submit', requireAuth, requireAdmissionOpenForApplicant, async (req, res) => {
+router.post('/applications/:id/submit', requireAuth, async (req, res) => {
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
