@@ -14,11 +14,23 @@
         Дополнительное содержимое этой секции можно редактировать через JSON ниже
       </template>
     </el-alert>
+    <el-form-item class="json-field" label="JSON содержимое" :error="jsonError">
+      <el-input
+        v-model="jsonText"
+        type="textarea"
+        :rows="14"
+        resize="vertical"
+        spellcheck="false"
+        placeholder="{ ... }"
+        @focus="isEditingJson = true"
+        @blur="isEditingJson = false"
+      />
+    </el-form-item>
   </el-form>
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 
 const props = defineProps({ modelValue: { type: Object, default: () => ({}) } })
 const emit = defineEmits(['update:modelValue'])
@@ -30,6 +42,51 @@ const local = reactive({
   ...props.modelValue
 })
 
-watch(local, () => emit('update:modelValue', { ...local }), { deep: true })
-watch(() => props.modelValue, (v) => Object.assign(local, v), { deep: true })
+const jsonText = ref(JSON.stringify(local, null, 2))
+const jsonError = ref('')
+const isEditingJson = ref(false)
+const isSyncingJson = ref(false)
+
+function replaceLocal(nextValue) {
+  Object.keys(local).forEach((key) => delete local[key])
+  Object.assign(local, nextValue || {})
+}
+
+watch(local, () => {
+  if (!isSyncingJson.value) emit('update:modelValue', { ...local })
+  if (!isEditingJson.value) jsonText.value = JSON.stringify(local, null, 2)
+}, { deep: true })
+
+watch(jsonText, (value) => {
+  if (!isEditingJson.value) return
+
+  try {
+    const parsedValue = JSON.parse(value)
+    jsonError.value = ''
+    isSyncingJson.value = true
+    replaceLocal(parsedValue)
+    emit('update:modelValue', { ...parsedValue })
+  } catch (error) {
+    jsonError.value = 'Некорректный JSON: ' + error.message
+  } finally {
+    isSyncingJson.value = false
+  }
+})
+
+watch(() => props.modelValue, (value) => {
+  replaceLocal(value)
+  if (!isEditingJson.value) jsonText.value = JSON.stringify(value || {}, null, 2)
+}, { deep: true })
 </script>
+
+<style scoped>
+.json-field {
+  margin-top: 16px;
+}
+
+.json-field :deep(textarea) {
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+</style>
