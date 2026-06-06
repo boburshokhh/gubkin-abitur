@@ -9,24 +9,6 @@
           clearable
         />
 
-        <el-select
-          v-model="selectedSavedViewId"
-          class="application-filters__saved-select"
-          clearable
-          placeholder="Сохранённые виды"
-          @change="applySavedView"
-        >
-          <el-option
-            v-for="view in savedViews"
-            :key="view.id"
-            :label="view.name"
-            :value="view.id"
-          />
-        </el-select>
-
-        <el-button @click="saveCurrentView">
-          Сохранить вид
-        </el-button>
         <el-button @click="resetFilters">
           Сбросить
         </el-button>
@@ -44,87 +26,79 @@
         </el-check-tag>
       </div>
 
-      <el-collapse class="application-filters__advanced" accordion>
-        <el-collapse-item name="advanced">
-          <template #title>
-            Расширенные фильтры
-            <el-text type="info" size="small" class="application-filters__hint">
-              уровень, направление и профиль применяются к приоритету 1
-            </el-text>
-          </template>
+      <el-text type="info" size="small">
+        Уровень, направление и профиль применяются к приоритету 1
+      </el-text>
 
-          <el-form label-position="top" class="application-filters__advanced-grid">
-            <el-form-item label="Статус">
-              <el-select v-model="localFilters.statusId" clearable placeholder="Все статусы">
-                <el-option
-                  v-for="status in statuses"
-                  :key="status.id"
-                  :label="status.name"
-                  :value="status.id"
-                />
-              </el-select>
-            </el-form-item>
+      <el-form label-position="top" class="application-filters__grid">
+        <el-form-item label="Статус">
+          <el-select v-model="localFilters.statusId" clearable placeholder="Все статусы">
+            <el-option
+              v-for="status in statuses"
+              :key="status.id"
+              :label="status.name"
+              :value="status.id"
+            />
+          </el-select>
+        </el-form-item>
 
-            <el-form-item label="Уровень">
-              <el-select
-                v-model="localFilters.levelId"
-                clearable
-                placeholder="Все уровни"
-                @change="resetDirectionAndProfile"
-              >
-                <el-option
-                  v-for="level in allLevels"
-                  :key="level.id"
-                  :label="level.name"
-                  :value="level.id"
-                />
-              </el-select>
-            </el-form-item>
+        <el-form-item label="Уровень">
+          <el-select
+            v-model="localFilters.levelId"
+            clearable
+            placeholder="Все уровни"
+            @change="resetDirectionAndProfile"
+          >
+            <el-option
+              v-for="level in allLevels"
+              :key="level.id"
+              :label="level.name"
+              :value="level.id"
+            />
+          </el-select>
+        </el-form-item>
 
-            <el-form-item label="Направление">
-              <el-select
-                v-model="localFilters.directionId"
-                :disabled="!localFilters.levelId"
-                clearable
-                filterable
-                placeholder="Все направления"
-                @change="resetProfile"
-              >
-                <el-option
-                  v-for="direction in availableDirections"
-                  :key="direction.id"
-                  :label="direction.name"
-                  :value="direction.id"
-                />
-              </el-select>
-            </el-form-item>
+        <el-form-item label="Направление">
+          <el-select
+            v-model="localFilters.directionId"
+            :disabled="!localFilters.levelId"
+            clearable
+            filterable
+            placeholder="Все направления"
+            @change="resetProfile"
+          >
+            <el-option
+              v-for="direction in availableDirections"
+              :key="direction.id"
+              :label="direction.name"
+              :value="direction.id"
+            />
+          </el-select>
+        </el-form-item>
 
-            <el-form-item label="Профиль">
-              <el-select
-                v-model="localFilters.profileId"
-                :disabled="!localFilters.directionId"
-                clearable
-                filterable
-                placeholder="Все профили"
-              >
-                <el-option
-                  v-for="profile in availableProfiles"
-                  :key="profile.id"
-                  :label="profile.name"
-                  :value="profile.id"
-                />
-              </el-select>
-            </el-form-item>
-          </el-form>
-        </el-collapse-item>
-      </el-collapse>
+        <el-form-item label="Профиль">
+          <el-select
+            v-model="localFilters.profileId"
+            :disabled="!localFilters.directionId"
+            clearable
+            filterable
+            placeholder="Все профили"
+          >
+            <el-option
+              v-for="profile in availableProfiles"
+              :key="profile.id"
+              :label="profile.name"
+              :value="profile.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
     </div>
   </el-card>
 </template>
 
 <script setup>
 import { reactive, watch, computed, ref, onMounted } from 'vue';
-import { ElMessageBox } from 'element-plus';
 import { levels as levelsApi, directions as directionsApi, profiles as profilesApi } from '@/api/education';
 import { useToast } from 'vue-toastification';
 
@@ -135,21 +109,17 @@ const props = defineProps({
 
 const emit = defineEmits(['update:filters']);
 const toast = useToast();
-const savedViewsStorageKey = 'admin.application.savedViews';
 
 const localFilters = reactive({ ...props.initialFilters });
 
 const allLevels = ref([]);
 const allDirections = ref([]);
 const allProfiles = ref([]);
-const savedViews = ref([]);
-const selectedSavedViewId = ref(null);
 const activeQuickFilterId = ref('all');
 let emitTimeout = null;
 
 onMounted(async () => {
   try {
-    loadSavedViews();
     const [levelsRes, directionsRes, profilesRes] = await Promise.all([
       levelsApi.getAll(),
       directionsApi.getAll(),
@@ -168,7 +138,6 @@ onMounted(async () => {
 
 watch(localFilters, (newFilters) => {
   activeQuickFilterId.value = getActiveQuickFilterId(newFilters);
-  selectedSavedViewId.value = getActiveSavedViewId(newFilters);
   window.clearTimeout(emitTimeout);
   emitTimeout = window.setTimeout(() => {
     emit('update:filters', { ...newFilters });
@@ -212,78 +181,12 @@ function resetFilters() {
     profileId: null,
     searchQuery: ''
   });
-  selectedSavedViewId.value = null;
   activeQuickFilterId.value = 'all';
-}
-
-async function saveCurrentView() {
-  try {
-    const { value } = await ElMessageBox.prompt(
-      'Введите название представления',
-      'Сохранить текущий вид',
-      {
-        confirmButtonText: 'Сохранить',
-        cancelButtonText: 'Отмена',
-        inputPlaceholder: 'Например: Новые магистратура'
-      }
-    );
-
-    const name = value?.trim();
-    if (!name) return;
-
-    const view = {
-      id: `${Date.now()}`,
-      name,
-      filters: { ...localFilters }
-    };
-    savedViews.value = [view, ...savedViews.value.filter(item => item.name !== name)].slice(0, 12);
-    persistSavedViews();
-    selectedSavedViewId.value = view.id;
-    toast.success('Представление сохранено');
-  } catch (error) {
-    // Пользователь отменил сохранение.
-  }
-}
-
-function applySavedView(viewId) {
-  const view = savedViews.value.find(item => item.id === viewId);
-  if (!view) return;
-
-  Object.assign(localFilters, {
-    statusId: view.filters.statusId ?? null,
-    levelId: view.filters.levelId ?? null,
-    directionId: view.filters.directionId ?? null,
-    profileId: view.filters.profileId ?? null,
-    searchQuery: view.filters.searchQuery ?? ''
-  });
-}
-
-function loadSavedViews() {
-  try {
-    savedViews.value = JSON.parse(localStorage.getItem(savedViewsStorageKey) || '[]');
-  } catch (error) {
-    savedViews.value = [];
-  }
-}
-
-function persistSavedViews() {
-  localStorage.setItem(savedViewsStorageKey, JSON.stringify(savedViews.value));
 }
 
 function getActiveQuickFilterId(filters) {
   const match = quickFilters.value.find(filter => filter.filters.statusId === filters.statusId);
   return match?.id || '';
-}
-
-function getActiveSavedViewId(filters) {
-  const match = savedViews.value.find(view => (
-    view.filters.statusId === filters.statusId
-    && view.filters.levelId === filters.levelId
-    && view.filters.directionId === filters.directionId
-    && view.filters.profileId === filters.profileId
-    && (view.filters.searchQuery || '') === (filters.searchQuery || '')
-  ));
-  return match?.id || null;
 }
 
 const availableDirections = computed(() => {
@@ -305,12 +208,11 @@ const availableProfiles = computed(() => {
 
 .application-filters__toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(220px, 280px) auto auto;
+  grid-template-columns: minmax(260px, 1fr) auto;
   gap: 12px;
 }
 
 .application-filters__search,
-.application-filters__saved-select,
 .application-filters :deep(.el-select) {
   width: 100%;
 }
@@ -322,15 +224,7 @@ const availableProfiles = computed(() => {
   gap: 8px;
 }
 
-.application-filters__advanced :deep(.el-collapse-item__header) {
-  gap: 8px;
-}
-
-.application-filters__hint {
-  margin-left: 8px;
-}
-
-.application-filters__advanced-grid {
+.application-filters__grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(180px, 1fr));
   gap: 16px;
@@ -341,14 +235,14 @@ const availableProfiles = computed(() => {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
-  .application-filters__advanced-grid {
+  .application-filters__grid {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 }
 
 @media (max-width: 640px) {
   .application-filters__toolbar,
-  .application-filters__advanced-grid {
+  .application-filters__grid {
     grid-template-columns: 1fr;
   }
 }
