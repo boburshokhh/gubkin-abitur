@@ -2,9 +2,9 @@
   <section class="admission-section white">
     <div class="admission-container narrow">
       <div class="section-heading">
-        <el-tag class="section-kicker" effect="plain" round>Олимпиады</el-tag>
-        <h2>Льготы для участников олимпиад</h2>
-        <p>Особые условия поступления для победителей, призеров и участников олимпиад 2026 года.</p>
+        <el-tag class="section-kicker" effect="plain" round>{{ sectionKicker }}</el-tag>
+        <h2>{{ sectionTitle }}</h2>
+        <p>{{ sectionSubtitle }}</p>
       </div>
 
       <el-row :gutter="22">
@@ -12,9 +12,7 @@
           <el-card class="benefit-card" shadow="hover">
             <template #header>
               <div class="benefit-header">
-                <el-icon :class="olympiad.iconClass" size="30">
-                  <component :is="olympiad.icon" />
-                </el-icon>
+                <el-icon class="text-primary" size="30"><Trophy /></el-icon>
                 <div>
                   <h3>{{ olympiad.title }}</h3>
                   <span>{{ olympiad.subtitle }}</span>
@@ -23,23 +21,23 @@
             </template>
 
             <el-row :gutter="16">
-              <el-col v-for="benefit in olympiad.benefits" :key="benefit.title" :xs="24" :md="12">
+              <el-col v-for="benefit in (olympiad.benefits || [])" :key="benefit.title" :xs="24" :md="12">
                 <el-alert
                   class="benefit-alert"
                   :title="benefit.title"
                   :description="benefit.description"
-                  :type="benefit.type"
+                  :type="benefit.type || 'info'"
                   show-icon
                   :closable="false"
                 />
               </el-col>
             </el-row>
 
-            <el-divider v-if="olympiad.listTitle" />
-            <div v-if="olympiad.listTitle" class="benefit-list">
-              <h4>{{ olympiad.listTitle }}</h4>
+            <el-divider v-if="olympiad.list_title || olympiad.listTitle" />
+            <div v-if="olympiad.list_title || olympiad.listTitle" class="benefit-list">
+              <h4>{{ olympiad.list_title || olympiad.listTitle }}</h4>
               <el-check-tag
-                v-for="item in olympiad.list"
+                v-for="item in (olympiad.list || [])"
                 :key="item"
                 checked
                 class="benefit-check-tag"
@@ -51,7 +49,7 @@
         </el-col>
       </el-row>
 
-      <el-card class="conditions-card" shadow="never">
+      <el-card v-if="conditions.length" class="conditions-card" shadow="never">
         <template #header>
           <div class="card-header">
             <el-icon color="#dc2626" size="24"><WarningFilled /></el-icon>
@@ -60,20 +58,11 @@
         </template>
 
         <el-row :gutter="18">
-          <el-col :xs="24" :md="12">
+          <el-col v-for="cond in conditions" :key="cond.title" :xs="24" :md="12">
             <el-alert
-              title="Сроки подачи документов"
-              description="Победители и призеры олимпиад должны представить подтверждающие документы до 01 июля 2026 года."
-              type="warning"
-              show-icon
-              :closable="false"
-            />
-          </el-col>
-          <el-col :xs="24" :md="12">
-            <el-alert
-              title="Для республиканской олимпиады"
-              description="Нужны подтверждающие документы и нотариально заверенный перевод на русский язык."
-              type="warning"
+              :title="cond.title"
+              :description="cond.description"
+              :type="cond.type || 'warning'"
               show-icon
               :closable="false"
             />
@@ -85,61 +74,18 @@
 </template>
 
 <script setup>
-import { Medal, Trophy, WarningFilled } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { Trophy, WarningFilled } from '@element-plus/icons-vue'
 
-const technicalDirections = [
-  'Технология геологической разведки',
-  'Нефтегазовые техника и технологии',
-  'Нефтегазовое дело (конкурсные группы 1-8)'
-]
+const props = defineProps({
+  sectionData: { type: Object, default: () => ({}) }
+})
 
-const olympiads = [
-  {
-    title: 'Республиканская олимпиада РУз 2026',
-    subtitle: 'По математике для учащихся школ, лицеев и колледжей',
-    icon: Trophy,
-    iconClass: 'text-warning',
-    listTitle: 'Для технических направлений',
-    list: technicalDirections,
-    benefits: [
-      {
-        title: 'Технические направления',
-        description: 'Победители заключительного этапа принимаются без вступительных испытаний.',
-        type: 'info'
-      },
-      {
-        title: 'Экономика и Менеджмент',
-        description: 'Результат по математике засчитывается с наивысшим баллом 100. Русский и английский сдаются в обычном порядке.',
-        type: 'info'
-      }
-    ]
-  },
-  {
-    title: 'Губкинская предметная олимпиада 2026',
-    subtitle: 'По русскому языку и математике',
-    icon: Medal,
-    iconClass: 'text-primary',
-    listTitle: 'Технические направления',
-    list: technicalDirections,
-    benefits: [
-      {
-        title: 'Победители и призеры технических направлений',
-        description: 'Принимаются без вступительных испытаний.',
-        type: 'info'
-      },
-      {
-        title: 'Экономика и Менеджмент',
-        description: 'Победители поступают без вступительных испытаний, призерам русский язык и математика засчитываются по 100 баллов.',
-        type: 'info'
-      },
-      {
-        title: 'Участники',
-        description: 'При результате не менее 40 баллов по предмету эти результаты могут быть зачтены как вступительные испытания.',
-        type: 'warning'
-      }
-    ]
-  }
-]
+const olympiads = computed(() => props.sectionData?.olympiads || [])
+const conditions = computed(() => props.sectionData?.conditions || [])
+const sectionKicker = computed(() => props.sectionData?.kicker || 'Олимпиады')
+const sectionTitle = computed(() => props.sectionData?.title || 'Льготы для участников олимпиад')
+const sectionSubtitle = computed(() => props.sectionData?.subtitle || 'Особые условия поступления для победителей, призеров и участников олимпиад 2026 года.')
 </script>
 
 <style scoped>

@@ -4,13 +4,9 @@
       <div class="admission-container">
         <el-row :gutter="40" align="middle">
           <el-col :xs="24" :lg="14">
-            <el-tag class="hero-tag" effect="plain" size="large" round>Прием 2026/2027</el-tag>
-            <h1>Поступление в филиал Губкина в Ташкенте</h1>
-            <p class="hero-description">
-              Вся ключевая информация для абитуриентов: сроки приема, направления подготовки,
-              пакет документов, экзамены, льготы олимпиад и контакты приемной комиссии.
-            </p>
-
+            <el-tag class="hero-tag" effect="plain" size="large" round>{{ heroData.tag || 'Прием 2026/2027' }}</el-tag>
+            <h1>{{ heroData.title || 'Поступление в филиал Губкина в Ташкенте' }}</h1>
+            <p class="hero-description">{{ heroData.description || '' }}</p>
             <div class="hero-actions">
               <el-button type="primary" size="large" round @click="scrollToSection('documents')">
                 Подготовить документы
@@ -20,27 +16,18 @@
               </el-button>
             </div>
           </el-col>
-
           <el-col :xs="24" :lg="10">
             <el-card class="hero-card" shadow="never">
-              <el-statistic title="Общая квота" :value="330" suffix="мест" />
+              <el-statistic
+                :title="heroData.quota_title || 'Общая квота'"
+                :value="heroData.quota || 330"
+                :suffix="heroData.quota_suffix || 'мест'"
+              />
               <el-divider />
               <div class="hero-card-grid">
-                <div>
-                  <span>Прием документов</span>
-                  <strong>16 июня - 01 июля</strong>
-                </div>
-                <div>
-                  <span>Формат</span>
-                  <strong>online / offline</strong>
-                </div>
-                <div>
-                  <span>Конкурсные группы</span>
-                  <strong>до 3</strong>
-                </div>
-                <div>
-                  <span>Обучение</span>
-                  <strong>очное</strong>
+                <div v-for="item in (heroData.items || [])" :key="item.label">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
                 </div>
               </div>
             </el-card>
@@ -70,36 +57,37 @@
     </el-affix>
 
     <div id="admission-info">
-      <AdmissionInfo2025 />
+      <AdmissionInfo2025 :section-data="admissionInfoData" />
     </div>
 
     <div id="directions">
-      <Directions2025 />
+      <Directions2025 :section-data="directionsData" />
     </div>
 
     <div id="documents">
-      <DocumentsList2025 />
+      <DocumentsList2025 :section-data="documentsData" />
     </div>
 
     <div id="process">
-      <ApplicationProcess2025 />
+      <ApplicationProcess2025 :section-data="processData" />
     </div>
 
     <div id="exams">
-      <ExamSchedule2025 />
+      <ExamSchedule2025 :section-data="examsData" />
     </div>
 
     <div id="olympiad">
-      <OlympiadBenefits2025 />
+      <OlympiadBenefits2025 :section-data="olympiadData" />
     </div>
 
     <div id="contacts">
-      <ContactInfo2025 />
+      <ContactInfo2025 :section-data="contactsData" />
     </div>
   </main>
 </template>
 
 <script setup>
+import { ref, computed, onMounted } from 'vue'
 import AdmissionInfo2025 from '@/components/admission2025/AdmissionInfo2025.vue'
 import Directions2025 from '@/components/admission2025/Directions2025.vue'
 import DocumentsList2025 from '@/components/admission2025/DocumentsList2025.vue'
@@ -107,8 +95,28 @@ import ApplicationProcess2025 from '@/components/admission2025/ApplicationProces
 import ExamSchedule2025 from '@/components/admission2025/ExamSchedule2025.vue'
 import OlympiadBenefits2025 from '@/components/admission2025/OlympiadBenefits2025.vue'
 import ContactInfo2025 from '@/components/admission2025/ContactInfo2025.vue'
+import { fetchCmsPage, getSectionByAnchor } from '@/api/cms.js'
 
-const navItems = [
+const pageData = ref(null)
+const isLoading = ref(false)
+
+const sections = computed(() => pageData.value?.sections || [])
+
+function getSectionContent(anchor) {
+  const section = getSectionByAnchor(sections.value, anchor)
+  return section?.content || {}
+}
+
+const heroData = computed(() => getSectionContent('hero'))
+const admissionInfoData = computed(() => getSectionContent('admission-info'))
+const directionsData = computed(() => getSectionContent('directions'))
+const documentsData = computed(() => getSectionContent('documents'))
+const processData = computed(() => getSectionContent('process'))
+const examsData = computed(() => getSectionContent('exams'))
+const olympiadData = computed(() => getSectionContent('olympiad'))
+const contactsData = computed(() => getSectionContent('contacts'))
+
+const defaultNavItems = [
   { id: 'admission-info', label: 'Общая информация' },
   { id: 'directions', label: 'Направления' },
   { id: 'documents', label: 'Документы' },
@@ -118,18 +126,30 @@ const navItems = [
   { id: 'contacts', label: 'Контакты' }
 ]
 
+const navItems = computed(() => {
+  if (!sections.value.length) return defaultNavItems
+  return sections.value
+    .filter(s => s.is_published && s.anchor && s.anchor !== 'hero')
+    .map(s => ({ id: s.anchor, label: s.title || s.anchor }))
+})
+
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    pageData.value = await fetchCmsPage('admission2025')
+  } catch {
+    // fallback to default content if API unavailable
+  } finally {
+    isLoading.value = false
+  }
+})
+
 function scrollToSection(sectionId) {
   const targetElement = document.getElementById(sectionId)
-
   if (!targetElement) return
-
   const headerOffset = 136
   const top = targetElement.getBoundingClientRect().top + window.scrollY - headerOffset
-
-  window.scrollTo({
-    top: Math.max(0, top),
-    behavior: 'smooth'
-  })
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
 }
 </script>
 
@@ -153,76 +173,6 @@ function scrollToSection(sectionId) {
 .admission-container {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
-}
-
-.admission-hero {
-  padding: 76px 0 64px;
-  color: var(--admission-text);
-  background:
-    linear-gradient(180deg, rgba(232, 240, 249, 0.82) 0%, rgba(247, 249, 252, 0.88) 100%),
-    #f7f9fc;
-}
-
-.hero-tag {
-  border-color: rgba(18, 61, 112, 0.18);
-  background: rgba(18, 61, 112, 0.06);
-  color: var(--admission-primary);
-}
-
-.admission-hero h1 {
-  max-width: 760px;
-  margin: 18px 0;
-  color: var(--admission-text);
-  font-size: clamp(2.25rem, 4.4vw, 4.2rem);
-  font-weight: 700;
-  letter-spacing: -0.045em;
-  line-height: 1.08;
-}
-
-.hero-description {
-  max-width: 720px;
-  margin: 0;
-  color: var(--admission-muted);
-  font-size: 1.08rem;
-  line-height: 1.72;
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 32px;
-}
-
-.hero-card {
-  border: 1px solid var(--admission-border);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(18px);
-}
-
-.hero-card :deep(.el-card__body) {
-  padding: 28px;
-}
-
-.hero-card-grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.hero-card-grid span {
-  display: block;
-  color: var(--admission-muted);
-  font-size: 0.84rem;
-}
-
-.hero-card-grid strong {
-  display: block;
-  margin-top: 4px;
-  color: var(--admission-text);
-  font-size: 1rem;
-  font-weight: 650;
 }
 
 .admission-nav {
@@ -309,19 +259,5 @@ function scrollToSection(sectionId) {
 .admission-page :deep(.el-statistic__content) {
   color: var(--admission-primary);
   font-weight: 650;
-}
-
-@media (max-width: 767px) {
-  .admission-hero {
-    padding: 48px 0;
-  }
-
-  .hero-card {
-    margin-top: 32px;
-  }
-
-  .hero-card-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

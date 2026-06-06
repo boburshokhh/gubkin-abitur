@@ -35,6 +35,7 @@
         <InvitationsManagement v-else-if="currentTab === 'invitations'" />
         <EducationalProgramsManager v-else-if="currentTab === 'educational-programs'" />
         <ApplicationsManager v-else-if="currentTab === 'applications'" />
+        <ContentManager v-else-if="currentTab === 'content'" />
       </el-card>
     </el-main>
   </el-container>
@@ -49,6 +50,7 @@ import UsersManagement from './admin/UsersManagement.vue';
 import InvitationsManagement from './admin/InvitationsManagement.vue';
 import EducationalProgramsManager from './admin/educational-programs/EducationalProgramsManager.vue';
 import ApplicationsManager from '@/components/application/ApplicationsManager.vue';
+import ContentManager from './admin/content/ContentManager.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -61,6 +63,7 @@ const tabs = computed(() => {
   ];
   
   if (authStore.isAdmin && !authStore.isReviewer) {
+    baseTabs.push({ id: 'content', name: 'Контент сайта' });
     baseTabs.push({ id: 'users', name: 'Управление пользователями' });
     baseTabs.push({ id: 'invitations', name: 'Приглашения' });
   }

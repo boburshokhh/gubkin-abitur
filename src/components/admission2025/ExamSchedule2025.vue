@@ -2,9 +2,9 @@
   <section class="admission-section muted">
     <div class="admission-container narrow">
       <div class="section-heading">
-        <el-tag class="section-kicker" effect="plain" round>Экзамены</el-tag>
-        <h2>Расписание вступительных испытаний</h2>
-        <p>Экзамены проводятся в помещениях Филиала по адресу: ул. Дурмон йули, дом 34.</p>
+        <el-tag class="section-kicker" effect="plain" round>{{ sectionKicker }}</el-tag>
+        <h2>{{ sectionTitle }}</h2>
+        <p>{{ sectionSubtitle }}</p>
       </div>
 
       <el-row :gutter="20">
@@ -63,10 +63,10 @@
           <el-collapse-item title="Допуск на экзамен" name="admission">
             <el-descriptions :column="1" border>
               <el-descriptions-item label="Документы">
-                Экзаменационный лист и паспорт/ID-карта.
+                {{ rules.admission_docs || 'Экзаменационный лист и паспорт/ID-карта.' }}
               </el-descriptions-item>
               <el-descriptions-item label="Получение экзаменационного листа">
-                В день экзамена с 07:00 до 08:45.
+                {{ rules.admission_time || 'В день экзамена с 07:00 до 08:45.' }}
               </el-descriptions-item>
             </el-descriptions>
           </el-collapse-item>
@@ -76,34 +76,24 @@
               type="error"
               show-icon
               :closable="false"
-              title="За нарушение правил - удаление с экзамена и отстранение от конкурса"
+              :title="rules.penalty || 'За нарушение правил - удаление с экзамена и отстранение от конкурса'"
             >
               <ul class="plain-list">
-                <li>Проносить мобильные телефоны, микрокалькуляторы, компьютеры и средства связи.</li>
-                <li>Покидать аудиторию во время экзамена, кроме случаев плохого самочувствия.</li>
-                <li>Опаздывать к началу экзамена.</li>
+                <li v-for="item in (rules.forbidden || [])" :key="item">{{ item }}</li>
               </ul>
             </el-alert>
           </el-collapse-item>
 
           <el-collapse-item title="Результаты ЕГЭ" name="ege">
-            <p class="collapse-text">
-              Поступающие, сдавшие ЕГЭ, могут заявить результаты ЕГЭ по одному или нескольким
-              предметам. Баллы ЕГЭ включаются в общую сумму баллов.
-            </p>
+            <p class="collapse-text">{{ rules.ege_text || '' }}</p>
           </el-collapse-item>
         </el-collapse>
       </el-card>
 
-      <el-row :gutter="18" class="result-row">
-        <el-col :xs="24" :md="12">
+      <el-row v-if="results.length" :gutter="18" class="result-row">
+        <el-col v-for="r in results" :key="r.title" :xs="24" :md="12">
           <el-card shadow="hover" class="result-card">
-            <el-statistic title="Публикация рейтинговых списков" value="15 июля 2026" />
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :md="12">
-          <el-card shadow="hover" class="result-card">
-            <el-statistic title="Зачисление по конкурсу" value="20-25 июля 2026" />
+            <el-statistic :title="r.title" :value="r.value" />
           </el-card>
         </el-col>
       </el-row>
@@ -112,56 +102,21 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { WarningFilled } from '@element-plus/icons-vue'
+
+const props = defineProps({
+  sectionData: { type: Object, default: () => ({}) }
+})
 
 const activeRules = ref(['admission'])
 
-const exams = [
-  {
-    subject: 'Математика',
-    date: '03 июля',
-    time: '09:00',
-    format: 'Письменно',
-    duration: '2 часа',
-    type: 'primary',
-    scope: 'Для всех направлений',
-    description: 'Обязательный экзамен для всех специальностей. Результат оценивается по 100-балльной шкале.',
-    details: [
-      { label: 'Просмотр работ', value: '04-05 июля, 10:00-13:00' },
-      { label: 'Апелляция', value: '04-05 июля, 13:00-15:00' }
-    ]
-  },
-  {
-    subject: 'Русский язык',
-    date: '08 июля',
-    time: '09:00',
-    format: 'Письменно',
-    duration: '2 часа',
-    type: 'primary',
-    scope: 'Для всех направлений',
-    description: 'Обязательный экзамен для всех специальностей. Результат оценивается по 100-балльной шкале.',
-    details: [
-      { label: 'Просмотр работ', value: '09 июля, 10:00-13:00' },
-      { label: 'Апелляция', value: '09 июля, 13:00-15:00' }
-    ]
-  },
-  {
-    subject: 'Английский язык',
-    date: '11-12 июля',
-    time: '09:00',
-    format: 'Устно',
-    duration: '30-40 минут подготовки',
-    type: 'info',
-    scope: 'Только для направлений «Экономика» и «Менеджмент»',
-    description: 'Специальный экзамен для экономических направлений. Результат оценивается по 100-балльной шкале.',
-    details: [
-      { label: 'Содержание', value: 'Чтение, перевод, понимание текста, беседа по темам и профориентация' },
-      { label: 'Апелляция', value: 'Результаты устного экзамена не подлежат апелляции' }
-    ],
-    warning: 'Результаты устного экзамена не подлежат апелляции'
-  }
-]
+const exams = computed(() => props.sectionData?.exams || [])
+const results = computed(() => props.sectionData?.results || [])
+const rules = computed(() => props.sectionData?.rules || {})
+const sectionKicker = computed(() => props.sectionData?.kicker || 'Экзамены')
+const sectionTitle = computed(() => props.sectionData?.title || 'Расписание вступительных испытаний')
+const sectionSubtitle = computed(() => props.sectionData?.subtitle || 'Экзамены проводятся в помещениях Филиала по адресу: ул. Дурмон йули, дом 34.')
 </script>
 
 <style scoped>

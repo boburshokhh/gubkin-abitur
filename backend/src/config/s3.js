@@ -14,9 +14,10 @@ const s3Client = new S3Client({
 
 const BUCKET_DOCUMENTS = process.env.S3_BUCKET_DOCUMENTS || 'application-documents';
 const BUCKET_FILES = process.env.S3_BUCKET_FILES || 'application-files';
+const BUCKET_SITE_ASSETS = process.env.S3_BUCKET_SITE_ASSETS || 'site-assets';
 
 async function initBuckets() {
-  const buckets = [BUCKET_DOCUMENTS, BUCKET_FILES];
+  const buckets = [BUCKET_DOCUMENTS, BUCKET_FILES, BUCKET_SITE_ASSETS];
   for (const bucket of buckets) {
     try {
       await s3Client.send(new HeadBucketCommand({ Bucket: bucket }));
@@ -63,6 +64,7 @@ module.exports = {
   s3Client,
   BUCKET_DOCUMENTS,
   BUCKET_FILES,
+  BUCKET_SITE_ASSETS,
   uploadToS3,
   getPresignedDownloadUrl
 };

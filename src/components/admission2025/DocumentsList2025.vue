@@ -2,12 +2,9 @@
   <section class="admission-section white">
     <div class="admission-container narrow">
       <div class="section-heading">
-        <el-tag class="section-kicker" effect="plain" round>Документы</el-tag>
-        <h2>Необходимые документы</h2>
-        <p>
-          Документы предоставляются в электронном виде для очной off-line и дистанционной
-          on-line подачи.
-        </p>
+        <el-tag class="section-kicker" effect="plain" round>{{ sectionKicker }}</el-tag>
+        <h2>{{ sectionTitle }}</h2>
+        <p>{{ sectionSubtitle }}</p>
       </div>
 
       <el-space direction="vertical" fill size="large" class="documents-space">
@@ -15,8 +12,8 @@
           <template #header>
             <div class="document-header">
               <div class="document-title">
-                <el-icon :class="documentItem.iconClass" size="26">
-                  <component :is="documentItem.icon" />
+                <el-icon class="text-primary" size="26">
+                  <Document />
                 </el-icon>
                 <div>
                   <h3>{{ documentItem.title }}</h3>
@@ -44,11 +41,11 @@
         </el-card>
       </el-space>
 
-      <el-card class="summary-card" shadow="never">
+      <el-card v-if="summary" class="summary-card" shadow="never">
         <template #header>
           <div class="card-header">
             <el-icon color="#123d70" size="24"><Calendar /></el-icon>
-            <span>Сроки и режим работы</span>
+            <span>{{ summary.title || 'Сроки и режим работы' }}</span>
           </div>
         </template>
 
@@ -56,7 +53,7 @@
           <el-col :xs="24" :md="12">
             <el-alert
               title="Прием документов"
-              description="с 16 июня по 1 июля включительно 2026 года. Документы принимаются online 24 часа в сутки."
+              :description="summary.date_info"
               type="info"
               show-icon
               :closable="false"
@@ -64,14 +61,14 @@
           </el-col>
           <el-col :xs="24" :md="12">
             <el-descriptions :column="1" border>
-              <el-descriptions-item label="Адрес">
-                город Ташкент, Мирзо Улугбекский район, улица Дурмон йули, дом 34
+              <el-descriptions-item v-if="summary.address" label="Адрес">
+                {{ summary.address }}
               </el-descriptions-item>
-              <el-descriptions-item label="Call-центр">
-                <a href="tel:+998712000156">(+99871) 200-01-56</a>
+              <el-descriptions-item v-if="summary.phone_label" label="Call-центр">
+                <a :href="`tel:${summary.phone}`">{{ summary.phone_label }}</a>
               </el-descriptions-item>
-              <el-descriptions-item label="Ответственное лицо">
-                Копаненко Кристина Александровна
+              <el-descriptions-item v-if="summary.contact_person" label="Ответственное лицо">
+                {{ summary.contact_person }}
               </el-descriptions-item>
             </el-descriptions>
           </el-col>
@@ -82,72 +79,18 @@
 </template>
 
 <script setup>
-import { Calendar, Document, Edit, Files, Picture } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { Calendar, Document } from '@element-plus/icons-vue'
 
-const documents = [
-  {
-    number: '01',
-    title: 'Документ об образовании',
-    icon: Document,
-    iconClass: 'text-success',
-    description:
-      'Оригинал или копия документа государственного образца об образовании: аттестат о среднем образовании, диплом о среднем и профессиональном образовании.',
-    notes: [
-      {
-        title: 'Для участников Губкинской олимпиады',
-        description: 'Победители, призеры и участники 1-Губкинской предметной Олимпиады прилагают цветную копию диплома/сертификата.',
-        type: 'info'
-      },
-      {
-        title: 'Для второго высшего образования',
-        description: 'Лица, желающие получить второе высшее образование, представляют копию диплома о высшем образовании.',
-        type: 'info'
-      }
-    ]
-  },
-  {
-    number: '02',
-    title: 'Документы, удостоверяющие личность',
-    icon: Files,
-    iconClass: 'text-warning',
-    description:
-      'Отсканированная цветная копия первой страницы паспорта или ID-карты в формате PDF и копия нотариально заверенного перевода первой страницы паспорта/ID-карты или копия свидетельства о рождении на кириллице.',
-    notes: [
-      {
-        title: 'Важно',
-        description: 'Абитуриенты, которым исполнилось 16 лет и не имеющие паспорт или ID-карту, не будут допущены до экзаменов.',
-        type: 'warning'
-      }
-    ]
-  },
-  {
-    number: '03',
-    title: 'Фотография',
-    icon: Picture,
-    iconClass: 'text-purple',
-    description: 'Фотография 3х4 см: цветное фото, белый фон, протокольный вид.'
-  },
-  {
-    number: '04',
-    title: 'Подача документов',
-    icon: Edit,
-    iconClass: 'text-primary',
-    description:
-      'Абитуриент заполняет на официальном сайте Филиала gubkin.uz форму во вкладке «Абитуриенту / Онлайн подача документов» и отправляет необходимые документы в приемную комиссию.',
-    notes: [
-      {
-        title: 'SMS-подтверждение',
-        description: 'После проверки документов абитуриент получает SMS с регистрационным номером личного дела.',
-        type: 'info'
-      },
-      {
-        title: 'Выбор направлений',
-        description: 'В заявлении можно указать до 3 конкурсных групп с их приоритетом.',
-        type: 'info'
-      }
-    ]
-  }
-]
+const props = defineProps({
+  sectionData: { type: Object, default: () => ({}) }
+})
+
+const documents = computed(() => props.sectionData?.items || [])
+const summary = computed(() => props.sectionData?.summary || null)
+const sectionKicker = computed(() => props.sectionData?.kicker || 'Документы')
+const sectionTitle = computed(() => props.sectionData?.title || 'Необходимые документы')
+const sectionSubtitle = computed(() => props.sectionData?.subtitle || 'Документы предоставляются в электронном виде для очной off-line и дистанционной on-line подачи.')
 </script>
 
 <style scoped>

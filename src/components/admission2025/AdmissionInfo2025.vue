@@ -2,9 +2,9 @@
   <section class="admission-section white">
     <div class="admission-container">
       <div class="section-heading">
-        <el-tag class="section-kicker" effect="plain" round>Общая информация</el-tag>
-        <h2>Прием на 1-й курс 2026/2027 учебного года</h2>
-        <p>Основные условия поступления, сроки подачи документов и правила выбора направлений.</p>
+        <el-tag class="section-kicker" effect="plain" round>{{ sectionKicker }}</el-tag>
+        <h2>{{ sectionTitle }}</h2>
+        <p>{{ sectionSubtitle }}</p>
       </div>
 
       <el-row :gutter="24">
@@ -12,8 +12,8 @@
           <el-card class="info-card" shadow="hover">
             <template #header>
               <div class="card-header">
-                <el-icon :class="card.iconClass" size="28">
-                  <component :is="card.icon" />
+                <el-icon class="text-primary" size="28">
+                  <component :is="getIcon(card.icon_type || card.icon)" />
                 </el-icon>
                 <span>{{ card.title }}</span>
               </div>
@@ -25,7 +25,7 @@
                 :key="item.label"
                 :label="item.label"
               >
-                <strong v-if="item.accent" :class="card.iconClass">{{ item.value }}</strong>
+                <strong v-if="item.accent" class="text-primary">{{ item.value }}</strong>
                 <span v-else>{{ item.value }}</span>
               </el-descriptions-item>
             </el-descriptions>
@@ -47,58 +47,78 @@
 </template>
 
 <script setup>
-import { Calendar, DataAnalysis, OfficeBuilding, User } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { Calendar, DataAnalysis, OfficeBuilding, User, InfoFilled } from '@element-plus/icons-vue'
 
-const infoCards = [
-  {
-    title: 'Учебное заведение',
-    icon: OfficeBuilding,
-    iconClass: 'text-primary',
-    items: [
-      {
-        label: 'Название',
-        value: 'Филиал Российского государственного университета нефти и газа (НИУ) имени И.М. Губкина в г. Ташкенте'
-      },
-      { label: 'Программы', value: 'Бакалавриат и специалитет' },
-      { label: 'Форма обучения', value: 'Очная (дневная)' },
-      { label: 'Язык обучения', value: 'Русский' }
-    ]
-  },
-  {
-    title: 'Квота и условия',
-    icon: DataAnalysis,
-    iconClass: 'text-success',
-    items: [
-      { label: 'Общая квота на 2026 год', value: '330 человек', accent: true },
-      { label: 'Основа приема', value: 'Конкурсная основа по результатам вступительных испытаний или ЕГЭ' }
-    ],
-    note: {
-      title: 'Для бюджетников, граждан РУз',
-      description: 'Обязательство отработки не менее 3 лет на предприятиях нефтегазовой отрасли Узбекистана.',
-      type: 'info'
-    }
-  },
-  {
-    title: 'Сроки приема',
-    icon: Calendar,
-    iconClass: 'text-info',
-    items: [
-      { label: 'Сроки подачи документов', value: '16 июня - 01 июля 2026 включительно', accent: true },
-      { label: 'Формат приема', value: 'Очно (off-line) и дистанционно (on-line)' },
-      { label: 'Режим online', value: '24 часа в сутки' }
-    ]
-  },
-  {
-    title: 'Выбор направлений',
-    icon: User,
-    iconClass: 'text-purple',
-    items: [
-      { label: 'Максимум направлений', value: 'до 3 конкурсных групп', accent: true },
-      { label: 'Условие', value: 'Единый набор вступительных испытаний с указанием приоритета' },
-      { label: 'Вступительные испытания', value: 'Одинаковые для бюджетных и платных мест' }
-    ]
+const iconMap = {
+  'office-building': OfficeBuilding,
+  'data-analysis': DataAnalysis,
+  'calendar': Calendar,
+  'user': User
+}
+
+function getIcon(iconType) {
+  return iconMap[iconType] || InfoFilled
+}
+
+const props = defineProps({
+  sectionData: {
+    type: Object,
+    default: () => ({
+      kicker: 'Общая информация',
+      title: 'Прием на 1-й курс 2026/2027 учебного года',
+      subtitle: 'Основные условия поступления, сроки подачи документов и правила выбора направлений.',
+      cards: [
+        {
+          title: 'Учебное заведение',
+          icon_type: 'office-building',
+          items: [
+            { label: 'Название', value: 'Филиал Российского государственного университета нефти и газа (НИУ) имени И.М. Губкина в г. Ташкенте' },
+            { label: 'Программы', value: 'Бакалавриат и специалитет' },
+            { label: 'Форма обучения', value: 'Очная (дневная)' },
+            { label: 'Язык обучения', value: 'Русский' }
+          ],
+          note: null
+        },
+        {
+          title: 'Квота и условия',
+          icon_type: 'data-analysis',
+          items: [
+            { label: 'Общая квота на 2026 год', value: '330 человек', accent: true },
+            { label: 'Основа приема', value: 'Конкурсная основа по результатам вступительных испытаний или ЕГЭ' }
+          ],
+          note: { title: 'Для бюджетников, граждан РУз', description: 'Обязательство отработки не менее 3 лет на предприятиях нефтегазовой отрасли Узбекистана.', type: 'info' }
+        },
+        {
+          title: 'Сроки приема',
+          icon_type: 'calendar',
+          items: [
+            { label: 'Сроки подачи документов', value: '16 июня - 01 июля 2026 включительно', accent: true },
+            { label: 'Формат приема', value: 'Очно (off-line) и дистанционно (on-line)' },
+            { label: 'Режим online', value: '24 часа в сутки' }
+          ],
+          note: null
+        },
+        {
+          title: 'Выбор направлений',
+          icon_type: 'user',
+          items: [
+            { label: 'Максимум направлений', value: 'до 3 конкурсных групп', accent: true },
+            { label: 'Условие', value: 'Единый набор вступительных испытаний с указанием приоритета' },
+            { label: 'Вступительные испытания', value: 'Одинаковые для бюджетных и платных мест' }
+          ],
+          note: null
+        }
+      ]
+    })
   }
-]
+})
+
+const data = computed(() => props.sectionData || {})
+const infoCards = computed(() => data.value.cards || [])
+const sectionKicker = computed(() => data.value.kicker || 'Общая информация')
+const sectionTitle = computed(() => data.value.title || 'Прием на 1-й курс 2026/2027 учебного года')
+const sectionSubtitle = computed(() => data.value.subtitle || '')
 </script>
 
 <style scoped>

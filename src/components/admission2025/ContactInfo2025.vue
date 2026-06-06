@@ -2,9 +2,9 @@
   <section class="admission-section muted">
     <div class="admission-container">
       <div class="section-heading">
-        <el-tag class="section-kicker" effect="plain" round>Контакты</el-tag>
-        <h2>Контакты приемной комиссии</h2>
-        <p>Свяжитесь с нами для получения дополнительной информации и технической поддержки.</p>
+        <el-tag class="section-kicker" effect="plain" round>{{ sectionKicker }}</el-tag>
+        <h2>{{ sectionTitle }}</h2>
+        <p>{{ sectionSubtitle }}</p>
       </div>
 
       <el-row :gutter="24">
@@ -12,9 +12,7 @@
           <el-card class="contact-card" shadow="hover">
             <template #header>
               <div class="contact-header">
-                <el-icon :class="card.iconClass" size="28">
-                  <component :is="card.icon" />
-                </el-icon>
+                <el-icon class="text-primary" size="28"><Phone /></el-icon>
                 <span>{{ card.title }}</span>
               </div>
             </template>
@@ -41,7 +39,7 @@
         </el-col>
       </el-row>
 
-      <el-card class="map-card" shadow="hover">
+      <el-card v-if="mapEmbedUrl" class="map-card" shadow="hover">
         <template #header>
           <div class="contact-header">
             <el-icon color="#64748b" size="28"><MapLocation /></el-icon>
@@ -51,7 +49,7 @@
 
         <div class="map-frame">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2995.764941041147!2d69.3396315746695!3d41.335724471306484!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x38aef45c4a6715f1%3A0x1539ad8e2d2b776e!2z0KTQuNC70LjQsNC7INCg0JPQoyDQvdC10YTRgtC4INC4INCz0LDQt9CwINCyINCz0L7RgNC-0LTQtSDQotCw0YjQutC10L3RgtC1LCDQuNC80LXQvdC4INCT0YPQsdC60LjQvdCw!5e0!3m2!1sru!2s!4v1749582147213!5m2!1sru!2s"
+            :src="mapEmbedUrl"
             width="100%"
             height="420"
             style="border: 0"
@@ -61,84 +59,24 @@
             title="Карта расположения филиала Губкина в Ташкенте"
           />
         </div>
-
-        <el-alert
-          class="map-alert"
-          title="Адрес"
-          description="г. Ташкент, Мирзо Улугбекский район, ул. Дурмон йули, 34"
-          type="info"
-          show-icon
-          :closable="false"
-        />
       </el-card>
     </div>
   </section>
 </template>
 
 <script setup>
-import { Link, Location, MapLocation, Phone, Service } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { MapLocation, Phone } from '@element-plus/icons-vue'
 
-const contactCards = [
-  {
-    title: 'Адрес и местоположение',
-    icon: Location,
-    iconClass: 'text-primary',
-    items: [
-      {
-        label: 'Адрес',
-        value: 'Город Ташкент, Мирзо Улугбекский район, улица Дурмон йули, дом 34'
-      },
-      { label: 'Метро', value: 'станция «Буюк ипак йули»' },
-      { label: 'Транспорт', value: 'Остановка «Институт механики», автобус №25, 151, маршрутка №31м' },
-      { label: 'Ориентир', value: 'рядом с Институтом микробиологии Академии наук Республики Узбекистан' }
-    ]
-  },
-  {
-    title: 'Call-центр',
-    icon: Phone,
-    iconClass: 'text-success',
-    items: [
-      { label: 'Телефон', value: '(+99871) 200-01-56', href: 'tel:+998712000156' },
-      { label: 'Ответственное лицо', value: 'Гафурова Умида Ирмухаматовна' },
-      { label: 'Понедельник - пятница', value: '09:00 - 18:00' },
-      { label: 'Суббота', value: '09:00 - 17:00' },
-      { label: 'Технический перерыв', value: '13:00 - 14:00' }
-    ],
-    note: {
-      title: 'Воскресенье',
-      description: 'Выходной день.',
-      type: 'info'
-    }
-  },
-  {
-    title: 'Онлайн-ресурсы',
-    icon: Link,
-    iconClass: 'text-info',
-    items: [
-      { label: 'Официальный сайт', value: 'https://gubkin.uz', href: 'https://gubkin.uz' },
-      { label: 'Telegram-канал', value: 't.me/gubkin_uz', href: 'https://t.me/gubkin_uz' }
-    ],
-    note: {
-      title: 'Следите за обновлениями',
-      description: 'На официальных ресурсах публикуются расписание консультаций, экзаменов и важные объявления.',
-      type: 'info'
-    }
-  },
-  {
-    title: 'Техническая поддержка',
-    icon: Service,
-    iconClass: 'text-purple',
-    items: [
-      { label: 'Телефон поддержки', value: '(+99871) 200-01-56', href: 'tel:+998712000156' },
-      { label: 'Telegram', value: '@gubkin_uz', href: 'https://t.me/gubkin_uz' }
-    ],
-    note: {
-      title: 'Рекомендации',
-      description: 'Используйте актуальную версию браузера, проверьте интернет-соединение и подготовьте PDF-документы до 5 МБ.',
-      type: 'info'
-    }
-  }
-]
+const props = defineProps({
+  sectionData: { type: Object, default: () => ({}) }
+})
+
+const contactCards = computed(() => props.sectionData?.cards || [])
+const mapEmbedUrl = computed(() => props.sectionData?.map_embed_url || '')
+const sectionKicker = computed(() => props.sectionData?.kicker || 'Контакты')
+const sectionTitle = computed(() => props.sectionData?.title || 'Контакты приемной комиссии')
+const sectionSubtitle = computed(() => props.sectionData?.subtitle || 'Свяжитесь с нами для получения дополнительной информации и технической поддержки.')
 </script>
 
 <style scoped>

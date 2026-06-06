@@ -1354,4 +1354,347 @@ router.get('/public/stats/statuses', async (req, res) => {
   }
 });
 
+// ==========================================
+// CMS — Content Management System
+// ==========================================
+
+const { BUCKET_SITE_ASSETS } = s3;
+const uploadSiteAsset = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
+    cb(null, allowed.includes(file.mimetype));
+  }
+});
+
+// -- Public CMS endpoints --
+
+router.get('/cms/pages/:slug', async (req, res) => {
+  try {
+    const pageResult = await db.query(
+      `SELECT id, slug, title, status FROM cms_pages WHERE slug = $1 AND status = 'published'`,
+      [req.params.slug]
+    );
+    if (!pageResult.rows.length) return res.status(404).json({ error: 'Страница не найдена' });
+    const page = pageResult.rows[0];
+    const sectionsResult = await db.query(
+      `SELECT id, type, anchor, title, content, sort_order, is_published
+       FROM cms_sections
+       WHERE page_id = $1 AND is_published = true
+       ORDER BY sort_order ASC`,
+      [page.id]
+    );
+    res.json({ data: { ...page, sections: sectionsResult.rows } });
+  } catch (err) {
+    console.error('CMS page error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cms/news', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+  const offset = parseInt(req.query.offset) || 0;
+  try {
+    const result = await db.query(
+      `SELECT id, slug, title, summary, cover_asset_id, published_at, created_at
+       FROM news_posts WHERE status = 'published'
+       ORDER BY published_at DESC NULLS LAST, created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    const countResult = await db.query(`SELECT COUNT(*) FROM news_posts WHERE status = 'published'`);
+    res.json({ data: result.rows, total: parseInt(countResult.rows[0].count) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cms/news/:slug', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT n.*, a.url AS cover_url
+       FROM news_posts n
+       LEFT JOIN cms_assets a ON a.id = n.cover_asset_id
+       WHERE n.slug = $1 AND n.status = 'published'`,
+      [req.params.slug]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Новость не найдена' });
+    res.json({ data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cms/contacts', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT category, key, value, label, sort_order
+       FROM site_settings ORDER BY category, sort_order`
+    );
+    const grouped = result.rows.reduce((acc, row) => {
+      if (!acc[row.category]) acc[row.category] = {};
+      acc[row.category][row.key] = row.value;
+      return acc;
+    }, {});
+    res.json({ data: grouped });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -- Admin CMS endpoints --
+
+router.get('/admin/cms/pages', requireAdmin, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT p.id, p.slug, p.title, p.status, p.updated_at,
+              COUNT(s.id) AS section_count
+       FROM cms_pages p LEFT JOIN cms_sections s ON s.page_id = p.id
+       GROUP BY p.id ORDER BY p.id`
+    );
+    res.json({ data: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/admin/cms/pages/:slug/sections', requireAdmin, async (req, res) => {
+  try {
+    const pageResult = await db.query('SELECT id FROM cms_pages WHERE slug = $1', [req.params.slug]);
+    if (!pageResult.rows.length) return res.status(404).json({ error: 'Страница не найдена' });
+    const sections = await db.query(
+      `SELECT id, type, anchor, title, content, sort_order, is_published, updated_at
+       FROM cms_sections WHERE page_id = $1 ORDER BY sort_order ASC`,
+      [pageResult.rows[0].id]
+    );
+    res.json({ data: sections.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/cms/pages/:slug/sections', requireAdmin, async (req, res) => {
+  const { type, anchor, title, content, sort_order } = req.body;
+  if (!type || !content) return res.status(400).json({ error: 'type и content обязательны' });
+  try {
+    const pageResult = await db.query('SELECT id FROM cms_pages WHERE slug = $1', [req.params.slug]);
+    if (!pageResult.rows.length) return res.status(404).json({ error: 'Страница не найдена' });
+    const result = await db.query(
+      `INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+       RETURNING *`,
+      [pageResult.rows[0].id, type, anchor || null, title || null, JSON.stringify(content), sort_order || 0]
+    );
+    res.status(201).json({ data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/admin/cms/sections/:id', requireAdmin, async (req, res) => {
+  const { title, content, sort_order, is_published, anchor } = req.body;
+  try {
+    const result = await db.query(
+      `UPDATE cms_sections
+       SET title = COALESCE($2, title),
+           content = COALESCE($3::jsonb, content),
+           sort_order = COALESCE($4, sort_order),
+           is_published = COALESCE($5, is_published),
+           anchor = COALESCE($6, anchor),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id, title || null, content ? JSON.stringify(content) : null, sort_order ?? null, is_published ?? null, anchor || null]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Секция не найдена' });
+    res.json({ data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/admin/cms/sections/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.query('DELETE FROM cms_sections WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/cms/sections/reorder', requireAdmin, async (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items)) return res.status(400).json({ error: 'items должен быть массивом' });
+  try {
+    for (const item of items) {
+      await db.query('UPDATE cms_sections SET sort_order = $1 WHERE id = $2', [item.sort_order, item.id]);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin news
+router.get('/admin/cms/news', requireAdminOrReviewer, async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+  const offset = parseInt(req.query.offset) || 0;
+  try {
+    const result = await db.query(
+      `SELECT n.id, n.slug, n.title, n.summary, n.status, n.published_at, n.created_at, n.updated_at,
+              a.url AS cover_url
+       FROM news_posts n LEFT JOIN cms_assets a ON a.id = n.cover_asset_id
+       ORDER BY n.created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    const countResult = await db.query('SELECT COUNT(*) FROM news_posts');
+    res.json({ data: result.rows, total: parseInt(countResult.rows[0].count) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/cms/news', requireAdmin, async (req, res) => {
+  const { slug, title, summary, body, status, published_at, cover_asset_id } = req.body;
+  if (!slug || !title) return res.status(400).json({ error: 'slug и title обязательны' });
+  try {
+    const result = await db.query(
+      `INSERT INTO news_posts (slug, title, summary, body, status, published_at, cover_asset_id, created_by, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+       RETURNING *`,
+      [slug, title, summary || null, body || null, status || 'draft', published_at || null, cover_asset_id || null, req.user.id]
+    );
+    res.status(201).json({ data: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Новость с таким slug уже существует' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/admin/cms/news/:id', requireAdminOrReviewer, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT n.*, a.url AS cover_url FROM news_posts n
+       LEFT JOIN cms_assets a ON a.id = n.cover_asset_id WHERE n.id = $1`,
+      [req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Новость не найдена' });
+    res.json({ data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/admin/cms/news/:id', requireAdmin, async (req, res) => {
+  const { title, summary, body, status, published_at, cover_asset_id } = req.body;
+  try {
+    const result = await db.query(
+      `UPDATE news_posts
+       SET title = COALESCE($2, title),
+           summary = $3,
+           body = $4,
+           status = COALESCE($5, status),
+           published_at = $6,
+           cover_asset_id = $7,
+           updated_by = $8,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id, title || null, summary ?? null, body ?? null, status || null, published_at ?? null, cover_asset_id ?? null, req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Новость не найдена' });
+    res.json({ data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/admin/cms/news/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.query('DELETE FROM news_posts WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin site settings
+router.get('/admin/cms/settings', requireAdminOrReviewer, async (req, res) => {
+  try {
+    const result = await db.query(
+      'SELECT * FROM site_settings ORDER BY category, sort_order'
+    );
+    res.json({ data: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/admin/cms/settings', requireAdmin, async (req, res) => {
+  const { category, key, value, label } = req.body;
+  if (!category || !key) return res.status(400).json({ error: 'category и key обязательны' });
+  try {
+    const result = await db.query(
+      `INSERT INTO site_settings (category, key, value, label, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (category, key) DO UPDATE SET value = $3, label = COALESCE($4, site_settings.label), updated_at = NOW()
+       RETURNING *`,
+      [category, key, value ?? null, label || null]
+    );
+    res.json({ data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin assets
+router.get('/admin/cms/assets', requireAdminOrReviewer, async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+  const offset = parseInt(req.query.offset) || 0;
+  try {
+    const result = await db.query(
+      `SELECT id, bucket, object_key, url, mime_type, original_name, file_size_bytes, alt_text, created_at
+       FROM cms_assets ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    const countResult = await db.query('SELECT COUNT(*) FROM cms_assets');
+    res.json({ data: result.rows, total: parseInt(countResult.rows[0].count) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/cms/assets', requireAdmin, uploadSiteAsset.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Файл не передан или неподдерживаемый формат' });
+  const ext = req.file.originalname.split('.').pop().toLowerCase();
+  const objectKey = `cms/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  try {
+    await s3.uploadToS3(BUCKET_SITE_ASSETS, objectKey, req.file.buffer, req.file.mimetype);
+    const s3Endpoint = process.env.S3_ENDPOINT || 'http://minio:9000';
+    const publicBase = process.env.S3_PUBLIC_URL || s3Endpoint;
+    const url = `${publicBase}/${BUCKET_SITE_ASSETS}/${objectKey}`;
+    const result = await db.query(
+      `INSERT INTO cms_assets (bucket, object_key, url, mime_type, original_name, file_size_bytes, alt_text, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [BUCKET_SITE_ASSETS, objectKey, url, req.file.mimetype, req.file.originalname, req.file.size, req.body.alt_text || '', req.user.id]
+    );
+    res.status(201).json({ data: result.rows[0] });
+  } catch (err) {
+    console.error('Asset upload error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/admin/cms/assets/:id', requireAdmin, async (req, res) => {
+  try {
+    const result = await db.query('DELETE FROM cms_assets WHERE id = $1 RETURNING object_key, bucket', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Файл не найден' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

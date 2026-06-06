@@ -2,26 +2,24 @@
   <section class="admission-section white">
     <div class="admission-container narrow">
       <div class="section-heading">
-        <el-tag class="section-kicker" effect="plain" round>Подача заявления</el-tag>
-        <h2>Процесс подачи документов</h2>
-        <p>Пошаговая инструкция для абитуриентов 2026 года.</p>
+        <el-tag class="section-kicker" effect="plain" round>{{ sectionKicker }}</el-tag>
+        <h2>{{ sectionTitle }}</h2>
+        <p>{{ sectionSubtitle }}</p>
       </div>
 
       <el-timeline>
         <el-timeline-item
           v-for="step in steps"
           :key="step.title"
-          :timestamp="step.timestamp"
+          :timestamp="step.timestamp || step.step_label"
           placement="top"
-          :type="step.type"
+          type="primary"
           size="large"
         >
           <el-card class="step-card" shadow="hover">
             <template #header>
               <div class="step-header">
-                <el-icon size="24">
-                  <component :is="step.icon" />
-                </el-icon>
+                <el-icon size="24"><CircleCheck /></el-icon>
                 <span>{{ step.title }}</span>
               </div>
             </template>
@@ -52,21 +50,12 @@
         </el-timeline-item>
       </el-timeline>
 
-      <el-row :gutter="18" class="notice-row">
-        <el-col :xs="24" :md="12">
+      <el-row v-if="notices.length" :gutter="18" class="notice-row">
+        <el-col v-for="notice in notices" :key="notice.title" :xs="24" :md="12">
           <el-alert
-            title="Прием документов"
-            description="16 июня - 01 июля 2026 включительно."
-            type="info"
-            show-icon
-            :closable="false"
-          />
-        </el-col>
-        <el-col :xs="24" :md="12">
-          <el-alert
-            title="Для участников олимпиад"
-            description="Подтверждающие документы принимаются до 01 июля 2026."
-            type="warning"
+            :title="notice.title"
+            :description="notice.description"
+            :type="notice.type || 'info'"
             show-icon
             :closable="false"
           />
@@ -74,9 +63,10 @@
       </el-row>
 
       <el-alert
+        v-if="finalAlert"
         class="final-alert"
         title="Обратите внимание"
-        description="Лица, забравшие документы после завершения приема, выбывают из конкурса. Абитуриенты старше 16 лет без паспорта или ID-карты не допускаются до экзаменов."
+        :description="finalAlert"
         type="warning"
         show-icon
         :closable="false"
@@ -86,63 +76,19 @@
 </template>
 
 <script setup>
-import { CircleCheck, Document, EditPen, Finished } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { CircleCheck } from '@element-plus/icons-vue'
 
-const steps = [
-  {
-    timestamp: 'Шаг 1',
-    title: 'Выберите направления',
-    icon: CircleCheck,
-    type: 'primary',
-    description: 'Определитесь с конкурсными группами, на которые хотите поступить.',
-    note: {
-      title: 'Важно',
-      description: 'Можно выбрать максимум до 3 конкурсных групп, указав приоритет направлений.',
-      type: 'info'
-    }
-  },
-  {
-    timestamp: 'Шаг 2',
-    title: 'Подготовьте документы',
-    icon: Document,
-    type: 'primary',
-    description: 'Соберите необходимые документы в электронном виде: PDF или JPG.',
-    groups: [
-      {
-        title: 'Обязательные документы',
-        items: ['Документ об образовании', 'Паспорт/ID и нотариальный перевод', 'Фотография 3x4 см']
-      },
-      {
-        title: 'Для участников олимпиады',
-        items: ['Диплом или сертификат олимпиады', 'Цветная копия подтверждающего документа']
-      }
-    ]
-  },
-  {
-    timestamp: 'Шаг 3',
-    title: 'Заполните форму на сайте',
-    icon: EditPen,
-    type: 'primary',
-    description: 'Перейдите на gubkin.uz и заполните форму во вкладке «Абитуриенту / Онлайн подача документов».',
-    note: {
-      title: 'Режим online-приема',
-      description: '24 часа в сутки в период с 16 июня по 01 июля 2026 года.',
-      type: 'info'
-    }
-  },
-  {
-    timestamp: 'Шаг 4',
-    title: 'Получите подтверждение',
-    icon: Finished,
-    type: 'primary',
-    description: 'После проверки документов получите SMS-подтверждение о регистрации.',
-    note: {
-      title: 'SMS-уведомление',
-      description: 'Сообщение придет на номер телефона из заявления с регистрационным номером личного дела.',
-      type: 'info'
-    }
-  }
-]
+const props = defineProps({
+  sectionData: { type: Object, default: () => ({}) }
+})
+
+const steps = computed(() => (props.sectionData?.steps || []).map(s => ({ ...s, timestamp: s.step_label || s.timestamp })))
+const notices = computed(() => props.sectionData?.notices || [])
+const finalAlert = computed(() => props.sectionData?.final_alert || '')
+const sectionKicker = computed(() => props.sectionData?.kicker || 'Подача заявления')
+const sectionTitle = computed(() => props.sectionData?.title || 'Процесс подачи документов')
+const sectionSubtitle = computed(() => props.sectionData?.subtitle || 'Пошаговая инструкция для абитуриентов 2026 года.')
 </script>
 
 <style scoped>

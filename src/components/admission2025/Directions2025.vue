@@ -2,9 +2,9 @@
   <section class="admission-section muted">
     <div class="admission-container">
       <div class="section-heading">
-        <el-tag class="section-kicker" effect="plain" round>Направления подготовки</el-tag>
-        <h2>5 направлений, 11 специализаций, 330 мест</h2>
-        <p>Выберите до трех конкурсных групп с единым набором вступительных испытаний.</p>
+        <el-tag class="section-kicker" effect="plain" round>{{ sectionKicker }}</el-tag>
+        <h2>{{ sectionTitle }}</h2>
+        <p>{{ sectionSubtitle }}</p>
       </div>
 
       <el-row :gutter="24">
@@ -46,6 +46,16 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+
+const props = defineProps({
+  sectionData: { type: Object, default: () => ({}) }
+})
+
+const sectionKicker = computed(() => props.sectionData?.kicker || 'Направления подготовки')
+const sectionTitle = computed(() => props.sectionData?.title || '5 направлений, 11 специализаций, 330 мест')
+const sectionSubtitle = computed(() => props.sectionData?.subtitle || 'Выберите до трех конкурсных групп с единым набором вступительных испытаний.')
+
 const directions = [
   {
     code: '21.05.03',
