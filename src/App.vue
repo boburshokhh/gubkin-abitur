@@ -20,6 +20,9 @@
       @confirm="confirmLogout"
       @cancel="cancelLogout"
     />
+
+    <!-- Виджет обратной связи -->
+    <FeedbackWidget />
   </div>
 </template>
 
@@ -30,6 +33,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
 import ConfirmModal from '@/components/ui/ConfirmModal.vue';
 import MainLayout from '@/components/layout/MainLayout.vue';
+import FeedbackWidget from '@/components/feedback/feedback-widget.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();

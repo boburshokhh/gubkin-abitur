@@ -3,6 +3,10 @@ import axios from 'axios'
 // Инициализация Axios-клиента для работы с кастомным Express бэкендом
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
 let accessToken = null
+
+export function getAccessToken() {
+  return accessToken
+}
 let refreshSessionPromise = null
 
 export const apiClient = axios.create({
@@ -1186,3 +1190,94 @@ const triggerAuthChange = (event, session) => {
   window.dispatchEvent(customEvent)
 }
 export default appApi
+
+// ==========================================
+// FEEDBACK API
+// ==========================================
+const handleFeedbackError = (err) => {
+  console.error('Feedback API Error:', err)
+  const msg = err.response?.data?.error || err.message || 'Неизвестная ошибка'
+  return { data: null, error: new Error(msg) }
+}
+
+export const feedback = {
+  async getConversations() {
+    try {
+      const res = await apiClient.get('/feedback/conversations')
+      return { data: res.data.data, error: null }
+    } catch (err) {
+      return handleFeedbackError(err)
+    }
+  },
+
+  async getMessages(conversationId) {
+    try {
+      const res = await apiClient.get(`/feedback/messages/${conversationId}`)
+      return { data: res.data.data, error: null }
+    } catch (err) {
+      return handleFeedbackError(err)
+    }
+  },
+
+  async sendMessage({ conversationId, text, image }) {
+    try {
+      const formData = new FormData()
+      if (conversationId) formData.append('conversationId', conversationId)
+      if (text) formData.append('text', text)
+      if (image) formData.append('image', image)
+
+      const res = await apiClient.post('/feedback/messages', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      return { data: res.data.data, error: null }
+    } catch (err) {
+      return handleFeedbackError(err)
+    }
+  },
+
+  async getImageUrl(conversationId, key) {
+    try {
+      const res = await apiClient.get(`/feedback/messages/${conversationId}/image`, { params: { key } })
+      return { data: res.data.data, error: null }
+    } catch (err) {
+      return handleFeedbackError(err)
+    }
+  },
+
+  async getNotifications() {
+    try {
+      const res = await apiClient.get('/feedback/notifications')
+      return { data: res.data.data, error: null }
+    } catch (err) {
+      return handleFeedbackError(err)
+    }
+  },
+
+  async markNotificationRead(id) {
+    try {
+      const res = await apiClient.patch(`/feedback/notifications/${id}/read`)
+      return { data: res.data.data, error: null }
+    } catch (err) {
+      return handleFeedbackError(err)
+    }
+  },
+
+  async markAllNotificationsRead() {
+    try {
+      const res = await apiClient.patch('/feedback/notifications/read-all')
+      return { data: res.data.data, error: null }
+    } catch (err) {
+      return handleFeedbackError(err)
+    }
+  },
+
+  async closeConversation(conversationId) {
+    try {
+      const res = await apiClient.patch(`/feedback/conversations/${conversationId}/close`)
+      return { data: res.data.data, error: null }
+    } catch (err) {
+      return handleFeedbackError(err)
+    }
+  }
+}
+

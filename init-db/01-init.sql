@@ -268,6 +268,43 @@ CREATE TABLE IF NOT EXISTS auth_audit_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ==========================================
+-- СИСТЕМА ОБРАТНОЙ СВЯЗИ
+-- ==========================================
+
+-- Таблица: conversations (обращения)
+CREATE TABLE IF NOT EXISTS conversations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+  last_message_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Таблица: messages (сообщения)
+CREATE TABLE IF NOT EXISTS messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text TEXT,
+  image_url TEXT,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Таблица: notifications (уведомления)
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+  message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_users_status ON users (status);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions (user_id);
@@ -281,6 +318,18 @@ CREATE INDEX IF NOT EXISTS idx_invitations_token_hash ON invitations (token_hash
 CREATE INDEX IF NOT EXISTS idx_invitations_expires_at ON invitations (expires_at);
 CREATE INDEX IF NOT EXISTS idx_auth_audit_logs_user_id ON auth_audit_logs (user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_audit_logs_event ON auth_audit_logs (event);
+
+-- Индексы: система обратной связи
+CREATE INDEX IF NOT EXISTS idx_conversations_student_id ON conversations (student_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_assigned_to ON conversations (assigned_to);
+CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations (status);
+CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations (last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages (conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages (sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_is_read ON messages (is_read) WHERE is_read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications (user_id, is_read) WHERE is_read = FALSE;
 
 -- Наполнение справочников базовыми данными
 

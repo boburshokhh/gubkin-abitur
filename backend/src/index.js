@@ -1,16 +1,21 @@
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { Server: SocketIOServer } = require('socket.io');
 require('dotenv').config();
 
 const apiRouter = require('./routes/api');
 const authRouter = require('./routes/auth');
 const invitationsRouter = require('./routes/invitations');
+const feedbackRouter = require('./routes/feedback');
+const { initFeedbackSocket } = require('./socket/feedback');
 const { FRONTEND_ORIGIN } = require('./config/auth');
 
 const app = express();
+const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const APP_VERSION = process.env.APP_VERSION || 'local';
 const GIT_SHA = process.env.GIT_SHA || 'unknown';
@@ -46,7 +51,7 @@ app.use((req, res, next) => {
 app.use(cors({
   origin: FRONTEND_ORIGIN,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -65,6 +70,7 @@ const authRateLimit = rateLimit({
 // Маршруты API
 app.use('/api/auth', authRateLimit, authRouter);
 app.use('/api/invitations', authRateLimit, invitationsRouter);
+app.use('/api/feedback', feedbackRouter);
 app.use('/api', apiRouter);
 
 // Базовый эндпоинт для проверки здоровья (health check)
@@ -86,7 +92,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Внутренняя ошибка сервера', message: err.message });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+// Socket.IO
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: FRONTEND_ORIGIN,
+    credentials: true,
+    methods: ['GET', 'POST']
+  }
+});
+initFeedbackSocket(io);
+
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Сервер бэкенда успешно запущен на порту ${PORT}`);
   console.log(`Backend build: version=${APP_VERSION} gitSha=${GIT_SHA} buildDate=${BUILD_DATE}`);
 });
