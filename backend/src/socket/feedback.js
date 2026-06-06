@@ -146,6 +146,20 @@ function emitNotificationsRead({ userId, conversationId, notificationIds = [] })
   })
 }
 
+function emitApplicationUpdated({ applicationId, userId, action, status = null }) {
+  if (!io) return
+
+  const payload = {
+    applicationId,
+    userId,
+    action,
+    status
+  }
+
+  io.to('staff').emit('server:application_updated', payload)
+  if (userId) io.to(`user:${userId}`).emit('server:application_updated', payload)
+}
+
 module.exports = {
   initFeedbackSocket,
   getIo,
@@ -153,5 +167,6 @@ module.exports = {
   emitNotification,
   emitConversationStatus,
   emitMessageRead,
-  emitNotificationsRead
+  emitNotificationsRead,
+  emitApplicationUpdated
 }

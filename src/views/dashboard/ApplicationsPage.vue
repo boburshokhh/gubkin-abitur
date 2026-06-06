@@ -70,10 +70,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useApplicationStore } from '@/stores/application'
 import { useRoute } from 'vue-router'
 import { useAdmissionStatus } from '@/composables/useAdmissionStatus'
+import { subscribeApplicationUpdates } from '@/services/application-realtime'
 
 import EmptyState from '@/components/shared/EmptyState.vue'
 import ApplicationCard from '@/components/application/ApplicationCard.vue'
@@ -85,6 +86,7 @@ const { isAdmissionOpen } = useAdmissionStatus()
 const applications = ref([])
 const isLoading = ref(true)
 const error = ref('')
+let unsubscribeApplicationUpdates = null
 
 const isApplicationsRoute = computed(() => (
   route.path.includes('/dashboard/applications') && !route.params.id
@@ -102,6 +104,7 @@ onMounted(async () => {
     const success = await appStore.loadUserApplications()
     applications.value = success ? appStore.userApplications : []
     if (!success) error.value = appStore.error || 'Не удалось загрузить заявления'
+    unsubscribeApplicationUpdates = subscribeApplicationUpdates(handleRealtimeApplicationUpdate)
   } catch (err) {
     console.error('Ошибка при загрузке заявлений:', err)
     error.value = err.message || 'Произошла ошибка при загрузке заявлений'
@@ -109,6 +112,15 @@ onMounted(async () => {
     isLoading.value = false
   }
 })
+
+onBeforeUnmount(() => {
+  unsubscribeApplicationUpdates?.()
+})
+
+async function handleRealtimeApplicationUpdate() {
+  const success = await appStore.loadUserApplications()
+  if (success) applications.value = appStore.userApplications
+}
 </script>
 
 <style scoped>

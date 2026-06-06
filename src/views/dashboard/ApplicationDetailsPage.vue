@@ -823,11 +823,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onBeforeUnmount, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useApplicationStore } from '@/stores/application';
 import { appApi } from '@/api/app-api';
 import { useAdmissionStatus } from '@/composables/useAdmissionStatus';
+import { subscribeApplicationUpdates } from '@/services/application-realtime';
 
 const route = useRoute();
 const router = useRouter();
@@ -839,6 +840,7 @@ const isLoading = ref(true);
 const error = ref('');
 const isSubmitting = ref(false);
 const activeTab = ref('personal');
+let unsubscribeApplicationUpdates = null;
 
 // Получаем заявление из хранилища
 const application = computed(() => appStore.currentApplication);
@@ -908,6 +910,7 @@ onMounted(async () => {
     } else {
       // Инициализируем историю из уже загруженных данных
       loadApplicationHistory(applicationId);
+      unsubscribeApplicationUpdates = subscribeApplicationUpdates(handleRealtimeApplicationUpdate);
     }
   } catch (err) {
     console.error('Ошибка при загрузке заявления:', err);
@@ -916,6 +919,18 @@ onMounted(async () => {
     isLoading.value = false;
   }
 });
+
+onBeforeUnmount(() => {
+  unsubscribeApplicationUpdates?.();
+});
+
+async function handleRealtimeApplicationUpdate(event) {
+  const applicationId = route.params.id;
+  if (String(event.applicationId) !== String(applicationId)) return;
+
+  const success = await appStore.loadApplication(applicationId);
+  if (success) loadApplicationHistory(applicationId);
+}
 
 // Загрузка истории изменений статусов
 async function loadApplicationHistory(applicationId) {

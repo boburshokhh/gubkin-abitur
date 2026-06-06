@@ -46,10 +46,11 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted, watch } from 'vue';
+import { ref, computed, reactive, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '@/stores/auth';
 import { appApi, applications as applicationsApi, statistics } from '@/api/app-api';
+import { subscribeApplicationUpdates } from '@/services/application-realtime';
 
 // Импортируем компоненты
 import ApplicationFilters from './filters/ApplicationFilters.vue';
@@ -68,6 +69,7 @@ const isUpdating = ref(false);
 const toast = useToast();
 const authStore = useAuthStore();
 const totalApplications = ref(0);
+let unsubscribeApplicationUpdates = null;
 
 // Пагинация
 const pagination = reactive({
@@ -114,6 +116,11 @@ function handlePageSizeChange(size) {
 onMounted(async () => {
   await loadStatuses();
   await loadApplications();
+  unsubscribeApplicationUpdates = subscribeApplicationUpdates(handleRealtimeApplicationUpdate);
+});
+
+onBeforeUnmount(() => {
+  unsubscribeApplicationUpdates?.();
 });
 
 // Отслеживаем изменения фильтров для обновления данных с сервера
@@ -162,6 +169,15 @@ async function loadApplications() {
     toast.error('Не удалось загрузить список заявок');
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleRealtimeApplicationUpdate(event) {
+  await loadApplications();
+
+  if (String(selectedApplication.value?.id) === String(event.applicationId)) {
+    const { data: fullApplication, error } = await applicationsApi.getById(event.applicationId);
+    if (!error && fullApplication) selectedApplication.value = fullApplication;
   }
 }
 

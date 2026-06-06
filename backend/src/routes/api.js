@@ -7,6 +7,7 @@ const s3 = require('../config/s3');
 const { GetObjectCommand } = require('@aws-sdk/client-s3');
 const { JWT_SECRET, requireAuth, requireAdmin, requireAdminOrReviewer } = require('../middleware/auth');
 const { createNotification, createStaffNotifications } = require('../services/notification-service');
+const { emitApplicationUpdated } = require('../socket/feedback');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -1339,6 +1340,12 @@ router.post('/applications/:id/submit', requireAuth, async (req, res) => {
     );
 
     await client.query('COMMIT');
+    emitApplicationUpdated({
+      applicationId: result.rows[0].id,
+      userId: result.rows[0].user_id,
+      action: 'submitted',
+      status: { id: 2, name: 'Подано' }
+    });
     res.json({ data: result.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -1465,6 +1472,15 @@ router.put('/applications/:id/status', requireAdminOrReviewer, async (req, res) 
           comment: trimmedComment || null,
           changedBy: req.user.id
         }
+      });
+
+      emitApplicationUpdated({
+        applicationId: req.params.id,
+        userId: applicationResult.rows[0].user_id,
+        action: 'status_changed',
+        status: status
+          ? { id: status.id, name: status.name, color: status.color }
+          : { id: statusId, name: null, color: null }
       });
 
       res.json({ success: true });
