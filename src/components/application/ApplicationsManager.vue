@@ -21,6 +21,7 @@
       :statuses="statuses"
       :loading="loading"
       @view-application="openApplicationModal"
+      @quick-status-update="handleStatusUpdate"
     />
 
     <application-pagination

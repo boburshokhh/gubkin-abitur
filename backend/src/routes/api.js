@@ -901,7 +901,84 @@ router.get('/applications', requireAuth, async (req, res) => {
     );
 
     const count = result.rows.length > 0 ? result.rows[0].total_count : 0;
-    res.json({ data: result.rows, count });
+    const applicationIds = result.rows.map(row => row.id);
+
+    if (applicationIds.length === 0) {
+      return res.json({ data: [], count });
+    }
+
+    const documentsSummaryResult = await db.query(
+      `WITH application_ids AS (
+         SELECT unnest($1::uuid[]) AS id
+       ),
+       file_summary AS (
+         SELECT
+           application_id,
+           ARRAY_AGG(DISTINCT file_category) FILTER (WHERE file_category IS NOT NULL) AS file_categories,
+           COUNT(*)::INTEGER AS application_files_count
+         FROM application_files
+         WHERE application_id = ANY($1::uuid[])
+         GROUP BY application_id
+       ),
+       document_summary AS (
+         SELECT application_id, COUNT(*)::INTEGER AS documents_count
+         FROM documents
+         WHERE application_id = ANY($1::uuid[])
+         GROUP BY application_id
+       )
+       SELECT
+         application_ids.id AS application_id,
+         COALESCE(file_summary.file_categories, ARRAY[]::TEXT[]) AS file_categories,
+         COALESCE(file_summary.application_files_count, 0) AS application_files_count,
+         COALESCE(document_summary.documents_count, 0) AS documents_count
+       FROM application_ids
+       LEFT JOIN file_summary ON file_summary.application_id = application_ids.id
+       LEFT JOIN document_summary ON document_summary.application_id = application_ids.id`,
+      [applicationIds]
+    );
+
+    const requiredDocuments = [
+      { key: 'passport_scan', label: 'паспорт', aliases: ['passport_scan', 'passportScan'] },
+      { key: 'photo', label: 'фото', aliases: ['photo', 'photoFile'] },
+      { key: 'education_scan', label: 'образование', aliases: ['education_scan', 'educationScan'] }
+    ];
+    const documentsSummaryByApplicationId = new Map(
+      documentsSummaryResult.rows.map(summary => {
+        const categories = summary.file_categories || [];
+        const uploadedRequired = requiredDocuments.filter(item => (
+          item.aliases.some(alias => categories.includes(alias))
+        ));
+        const missingRequired = requiredDocuments.filter(item => (
+          !item.aliases.some(alias => categories.includes(alias))
+        ));
+
+        return [
+          summary.application_id,
+          {
+            required_total: requiredDocuments.length,
+            required_uploaded: uploadedRequired.length,
+            missing_required: missingRequired.map(item => item.label),
+            application_files_count: summary.application_files_count,
+            documents_count: summary.documents_count,
+            total_files_count: summary.application_files_count + summary.documents_count
+          }
+        ];
+      })
+    );
+
+    const enrichedRows = result.rows.map(row => ({
+      ...row,
+      document_summary: documentsSummaryByApplicationId.get(row.id) || {
+        required_total: requiredDocuments.length,
+        required_uploaded: 0,
+        missing_required: requiredDocuments.map(item => item.label),
+        application_files_count: 0,
+        documents_count: 0,
+        total_files_count: 0
+      }
+    }));
+
+    res.json({ data: enrichedRows, count });
   } catch (err) {
     console.error('Ошибка вызова get_filtered_applications:', err);
     res.status(500).json({ error: err.message });

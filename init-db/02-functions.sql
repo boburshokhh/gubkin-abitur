@@ -275,11 +275,22 @@ BEGIN
     AND (p_direction_id IS NULL OR d.id = p_direction_id)
     AND (p_profile_id IS NULL OR p.id = p_profile_id)
     AND (
-      p_search_query IS NULL 
-      OR u.first_name ILIKE '%' || p_search_query || '%' 
-      OR u.last_name ILIKE '%' || p_search_query || '%' 
-      OR u.middle_name ILIKE '%' || p_search_query || '%' 
-      OR u.email ILIKE '%' || p_search_query || '%'
+      NULLIF(TRIM(p_search_query), '') IS NULL
+      OR a.id::TEXT ILIKE '%' || TRIM(p_search_query) || '%'
+      OR u.first_name ILIKE '%' || TRIM(p_search_query) || '%'
+      OR u.last_name ILIKE '%' || TRIM(p_search_query) || '%'
+      OR u.middle_name ILIKE '%' || TRIM(p_search_query) || '%'
+      OR CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name) ILIKE '%' || TRIM(p_search_query) || '%'
+      OR u.email ILIKE '%' || TRIM(p_search_query) || '%'
+      OR u.phone ILIKE '%' || TRIM(p_search_query) || '%'
+      OR a.parent_phone ILIKE '%' || TRIM(p_search_query) || '%'
+      OR a.passport_series ILIKE '%' || TRIM(p_search_query) || '%'
+      OR a.passport_issued_by ILIKE '%' || TRIM(p_search_query) || '%'
+      OR a.document_number ILIKE '%' || TRIM(p_search_query) || '%'
+      OR a.education_document_number ILIKE '%' || TRIM(p_search_query) || '%'
+      OR p.name ILIKE '%' || TRIM(p_search_query) || '%'
+      OR d.name ILIKE '%' || TRIM(p_search_query) || '%'
+      OR d.code ILIKE '%' || TRIM(p_search_query) || '%'
     );
 
   RETURN QUERY
@@ -334,11 +345,22 @@ BEGIN
     AND (p_direction_id IS NULL OR d.id = p_direction_id)
     AND (p_profile_id IS NULL OR p.id = p_profile_id)
     AND (
-      p_search_query IS NULL 
-      OR u.first_name ILIKE '%' || p_search_query || '%' 
-      OR u.last_name ILIKE '%' || p_search_query || '%' 
-      OR u.middle_name ILIKE '%' || p_search_query || '%' 
-      OR u.email ILIKE '%' || p_search_query || '%'
+      NULLIF(TRIM(p_search_query), '') IS NULL
+      OR a.id::TEXT ILIKE '%' || TRIM(p_search_query) || '%'
+      OR u.first_name ILIKE '%' || TRIM(p_search_query) || '%'
+      OR u.last_name ILIKE '%' || TRIM(p_search_query) || '%'
+      OR u.middle_name ILIKE '%' || TRIM(p_search_query) || '%'
+      OR CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name) ILIKE '%' || TRIM(p_search_query) || '%'
+      OR u.email ILIKE '%' || TRIM(p_search_query) || '%'
+      OR u.phone ILIKE '%' || TRIM(p_search_query) || '%'
+      OR a.parent_phone ILIKE '%' || TRIM(p_search_query) || '%'
+      OR a.passport_series ILIKE '%' || TRIM(p_search_query) || '%'
+      OR a.passport_issued_by ILIKE '%' || TRIM(p_search_query) || '%'
+      OR a.document_number ILIKE '%' || TRIM(p_search_query) || '%'
+      OR a.education_document_number ILIKE '%' || TRIM(p_search_query) || '%'
+      OR p.name ILIKE '%' || TRIM(p_search_query) || '%'
+      OR d.name ILIKE '%' || TRIM(p_search_query) || '%'
+      OR d.code ILIKE '%' || TRIM(p_search_query) || '%'
     )
   ORDER BY a.created_at DESC
   LIMIT p_page_size
