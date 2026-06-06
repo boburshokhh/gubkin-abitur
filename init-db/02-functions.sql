@@ -744,18 +744,29 @@ DECLARE
   v_total_applications BIGINT;
   v_total_accepted BIGINT;
   v_total_pending BIGINT;
+  v_total_rejected BIGINT;
   v_total_applicants BIGINT;
+  v_accommodation_needed BIGINT;
+  v_olympiad_participants BIGINT;
 BEGIN
   SELECT COUNT(*) INTO v_total_applications FROM applications;
   SELECT COUNT(*) INTO v_total_accepted FROM applications WHERE status_id = 3;
   SELECT COUNT(*) INTO v_total_pending FROM applications WHERE status_id = 2;
+  SELECT COUNT(*) INTO v_total_rejected FROM applications WHERE status_id = 4;
   SELECT COUNT(DISTINCT user_id) INTO v_total_applicants FROM applications;
+  SELECT COUNT(*) INTO v_accommodation_needed FROM applications WHERE accommodation_needed = true;
+  SELECT COUNT(*) INTO v_olympiad_participants FROM applications WHERE olympiad_participant = true;
 
   RETURN jsonb_build_object(
     'total_applications', v_total_applications,
+    'accepted_applications', v_total_accepted,
+    'pending_applications', v_total_pending,
+    'rejected_applications', v_total_rejected,
+    'total_applicants', v_total_applicants,
+    'accommodation_needed', v_accommodation_needed,
+    'olympiad_participants', v_olympiad_participants,
     'total_accepted', v_total_accepted,
-    'total_pending', v_total_pending,
-    'total_applicants', v_total_applicants
+    'total_pending', v_total_pending
   );
 END;
 $$ LANGUAGE plpgsql;
@@ -769,12 +780,23 @@ BEGIN
     jsonb_agg(
       jsonb_build_object(
         'date', t.date_series::date,
-        'count', COALESCE(t.cnt, 0)
+        'count', COALESCE(t.new_applications, 0),
+        'new_applications', COALESCE(t.new_applications, 0),
+        'total_applications', COALESCE(t.total_applications, 0),
+        'accepted_applications', COALESCE(t.accepted_applications, 0),
+        'rejected_applications', COALESCE(t.rejected_applications, 0),
+        'pending_applications', COALESCE(t.pending_applications, 0)
       ) ORDER BY t.date_series
     ), '[]'::jsonb
   ) INTO v_result
   FROM (
-    SELECT gs.date_series, COUNT(a.id) AS cnt
+    SELECT
+      gs.date_series,
+      COUNT(a.id) AS new_applications,
+      COUNT(*) FILTER (WHERE a.status_id IS NOT NULL) AS total_applications,
+      COUNT(*) FILTER (WHERE a.status_id = 3) AS accepted_applications,
+      COUNT(*) FILTER (WHERE a.status_id = 4) AS rejected_applications,
+      COUNT(*) FILTER (WHERE a.status_id = 2) AS pending_applications
     FROM generate_series(CURRENT_DATE - (p_days_limit - 1) * INTERVAL '1 day', CURRENT_DATE, '1 day'::interval) gs(date_series)
     LEFT JOIN applications a ON a.created_at::date = gs.date_series::date
     GROUP BY gs.date_series
@@ -792,15 +814,31 @@ BEGIN
   SELECT COALESCE(
     jsonb_agg(
       jsonb_build_object(
-        'region_id', r.id,
-        'region_name', r.name,
-        'count', COUNT(a.id)
-      ) ORDER BY COUNT(a.id) DESC
+        'region_id', t.region_id,
+        'region_name', t.region_name,
+        'region_code', t.region_code,
+        'count', t.total_applications,
+        'total_applications', t.total_applications,
+        'accepted_applications', t.accepted_applications,
+        'rejected_applications', t.rejected_applications,
+        'pending_applications', t.pending_applications
+      ) ORDER BY t.applications_count DESC
     ), '[]'::jsonb
   ) INTO v_result
-  FROM regions r
-  JOIN applications a ON a.region_id = r.id
-  GROUP BY r.id, r.name;
+  FROM (
+    SELECT
+      r.id AS region_id,
+      r.name AS region_name,
+      r.code AS region_code,
+      COUNT(a.id) AS applications_count,
+      COUNT(a.id) AS total_applications,
+      COUNT(*) FILTER (WHERE a.status_id = 3) AS accepted_applications,
+      COUNT(*) FILTER (WHERE a.status_id = 4) AS rejected_applications,
+      COUNT(*) FILTER (WHERE a.status_id = 2) AS pending_applications
+    FROM regions r
+    LEFT JOIN applications a ON a.region_id = r.id
+    GROUP BY r.id, r.name, r.code
+  ) t;
 
   RETURN v_result;
 END;
@@ -814,17 +852,36 @@ BEGIN
   SELECT COALESCE(
     jsonb_agg(
       jsonb_build_object(
-        'profile_id', p.id,
-        'profile_name', p.name,
-        'direction_code', d.code,
-        'count', COUNT(ac.id)
-      ) ORDER BY COUNT(ac.id) DESC
+        'profile_id', t.profile_id,
+        'profile_name', t.profile_name,
+        'direction_code', t.direction_code,
+        'level_name', t.level_name,
+        'count', t.total_applications,
+        'total_applications', t.total_applications,
+        'accepted_applications', t.accepted_applications,
+        'rejected_applications', t.rejected_applications,
+        'pending_applications', t.pending_applications
+      ) ORDER BY t.applications_count DESC
     ), '[]'::jsonb
   ) INTO v_result
-  FROM profiles p
-  JOIN directions d ON d.id = p.direction_id
-  LEFT JOIN application_choices ac ON ac.profile_id = p.id AND ac.priority = 1
-  GROUP BY p.id, p.name, d.code;
+  FROM (
+    SELECT
+      p.id AS profile_id,
+      p.name AS profile_name,
+      d.code AS direction_code,
+      el.name AS level_name,
+      COUNT(ac.id) AS applications_count,
+      COUNT(ac.id) AS total_applications,
+      COUNT(ac.id) FILTER (WHERE a.status_id = 3) AS accepted_applications,
+      COUNT(ac.id) FILTER (WHERE a.status_id = 4) AS rejected_applications,
+      COUNT(ac.id) FILTER (WHERE a.status_id = 2) AS pending_applications
+    FROM profiles p
+    JOIN directions d ON d.id = p.direction_id
+    JOIN education_levels el ON el.id = d.level_id
+    LEFT JOIN application_choices ac ON ac.profile_id = p.id AND ac.priority = 1
+    LEFT JOIN applications a ON a.id = ac.application_id
+    GROUP BY p.id, p.name, d.code, el.name
+  ) t;
 
   RETURN v_result;
 END;
@@ -838,16 +895,23 @@ BEGIN
   SELECT COALESCE(
     jsonb_agg(
       jsonb_build_object(
-        'status_id', s.id,
-        'status_name', s.name,
-        'color', s.color,
-        'count', COUNT(a.id)
-      ) ORDER BY s.id
+        'status_id', t.status_id,
+        'status_name', t.status_name,
+        'color', t.color,
+        'count', t.applications_count
+      ) ORDER BY t.status_id
     ), '[]'::jsonb
   ) INTO v_result
-  FROM application_statuses s
-  LEFT JOIN applications a ON a.status_id = s.id
-  GROUP BY s.id, s.name, s.color;
+  FROM (
+    SELECT
+      s.id AS status_id,
+      s.name AS status_name,
+      s.color,
+      COUNT(a.id) AS applications_count
+    FROM application_statuses s
+    LEFT JOIN applications a ON a.status_id = s.id
+    GROUP BY s.id, s.name, s.color
+  ) t;
 
   RETURN v_result;
 END;

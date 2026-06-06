@@ -1316,7 +1316,9 @@ router.get('/public/stats/general', async (req, res) => {
 });
 
 router.get('/public/stats/daily', async (req, res) => {
-  const limit = req.query.daysLimit ? parseInt(req.query.daysLimit) : 30;
+  const limit = req.query.daysLimit || req.query.p_days_limit
+    ? parseInt(req.query.daysLimit || req.query.p_days_limit)
+    : 30;
   try {
     const result = await db.query('SELECT get_public_daily_stats($1) as stats', [limit]);
     res.json({ data: result.rows[0]?.stats || [] });
