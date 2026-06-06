@@ -28,7 +28,12 @@
         <el-card shadow="never" class="feedback-inbox__panel">
           <template #header>
             <div class="feedback-inbox__panel-header">
-              <el-text tag="strong">Список обращений</el-text>
+              <div>
+                <el-text tag="strong">Чаты</el-text>
+                <el-text size="small" type="info">
+                  {{ feedbackStore.conversations.length }} диалогов
+                </el-text>
+              </div>
               <el-tag type="info" effect="plain">{{ feedbackStore.conversations.length }}</el-tag>
             </div>
           </template>
@@ -106,12 +111,16 @@
                   aria-label="Назад к списку обращений"
                   @click="isMobileDialogOpen = false"
                 />
-                <div>
-                <el-text tag="strong">{{ getStudentName(feedbackStore.activeConversation) }}</el-text>
-                <br>
-                <el-text size="small" type="info">
-                  {{ feedbackStore.activeConversation.student_email || 'Без email' }}
-                </el-text>
+                <el-avatar size="small">
+                  {{ getInitials(feedbackStore.activeConversation) }}
+                </el-avatar>
+                <div class="feedback-inbox__dialog-user-info">
+                  <el-text tag="strong" truncated>
+                    {{ getStudentName(feedbackStore.activeConversation) }}
+                  </el-text>
+                  <el-text size="small" type="info" truncated>
+                    {{ feedbackStore.activeConversation.student_email || 'Без email' }}
+                  </el-text>
                 </div>
               </div>
 
@@ -462,6 +471,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .feedback-inbox {
   width: 100%;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #ffffff;
 }
 
 .feedback-inbox--compact {
@@ -497,6 +509,12 @@ onBeforeUnmount(() => {
 .feedback-inbox__layout {
   height: min(680px, calc(100vh - 230px));
   min-height: 520px;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+  overflow: hidden;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 18px;
+  background: #ffffff;
 }
 
 .feedback-inbox--compact .feedback-inbox__layout {
@@ -504,12 +522,35 @@ onBeforeUnmount(() => {
   min-height: 480px;
 }
 
+.feedback-inbox__conversations,
+.feedback-inbox__dialog {
+  min-height: 0;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
+
+.feedback-inbox__conversations {
+  flex: 0 0 340px;
+  max-width: 340px;
+}
+
+.feedback-inbox__dialog {
+  flex: 1 1 auto;
+  max-width: none;
+}
+
 .feedback-inbox__panel {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   height: 100%;
-  border-radius: 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.feedback-inbox__conversations .feedback-inbox__panel {
+  border-right: 1px solid var(--el-border-color-lighter);
 }
 
 .feedback-inbox__panel :deep(> .el-card__body) {
@@ -521,7 +562,20 @@ onBeforeUnmount(() => {
 }
 
 .feedback-inbox__panel :deep(.el-card__header) {
-  padding: 10px 12px;
+  flex: 0 0 auto;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  background: #ffffff;
+}
+
+.feedback-inbox__panel-header > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.feedback-inbox__panel-header .el-tag {
+  flex: 0 0 auto;
 }
 
 .feedback-inbox__conversation-scroll {
@@ -536,15 +590,25 @@ onBeforeUnmount(() => {
 
 .feedback-inbox__menu {
   border-right: none;
+  background: transparent;
 }
 
 .feedback-inbox__menu :deep(.el-menu-item) {
   height: auto;
-  min-height: 58px;
+  min-height: 64px;
+  margin: 3px 8px;
   padding: 8px 10px;
-  border-radius: 10px;
-  margin-bottom: 4px;
+  border-radius: 14px;
   white-space: normal;
+}
+
+.feedback-inbox__menu :deep(.el-menu-item.is-active) {
+  background: #e7f1ff;
+  color: var(--el-text-color-primary);
+}
+
+.feedback-inbox__menu :deep(.el-menu-item:hover) {
+  background: #f2f7ff;
 }
 
 .feedback-inbox__conversation {
@@ -560,6 +624,10 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
+.feedback-inbox__conversation-top {
+  line-height: 1.2;
+}
+
 .feedback-inbox__conversation-name {
   overflow: hidden;
   color: var(--el-text-color-primary);
@@ -573,6 +641,12 @@ onBeforeUnmount(() => {
   align-items: center;
   min-width: 0;
   gap: 8px;
+}
+
+.feedback-inbox__dialog-user-info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
 }
 
 .feedback-inbox__back {
@@ -593,11 +667,9 @@ onBeforeUnmount(() => {
 .feedback-inbox__messages {
   flex: 1;
   min-height: 0;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 12px;
   background:
-    radial-gradient(circle at 18px 18px, rgba(64, 158, 255, 0.07) 0 2px, transparent 2px 24px),
-    linear-gradient(180deg, #eef6ff 0%, #f8fbff 100%);
+    radial-gradient(circle at 18px 18px, rgba(64, 158, 255, 0.08) 0 2px, transparent 2px 24px),
+    linear-gradient(180deg, #eaf3fb 0%, #f6fbff 100%);
 }
 
 .feedback-inbox--compact .feedback-inbox__messages {
@@ -608,9 +680,9 @@ onBeforeUnmount(() => {
 .feedback-inbox__messages-inner {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-height: 100%;
-  padding: 12px;
+  padding: 16px 18px;
 }
 
 .feedback-inbox__message {
@@ -623,9 +695,9 @@ onBeforeUnmount(() => {
 }
 
 .feedback-inbox__bubble {
-  max-width: min(72%, 560px);
+  max-width: min(72%, 520px);
   border: 0;
-  border-radius: 16px 16px 16px 4px;
+  border-radius: 16px 16px 16px 6px;
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
@@ -635,8 +707,8 @@ onBeforeUnmount(() => {
 }
 
 .feedback-inbox__message--staff .feedback-inbox__bubble {
-  border-radius: 16px 16px 4px 16px;
-  background: #dff1ff;
+  border-radius: 16px 16px 6px 16px;
+  background: #d9fdd3;
 }
 
 .feedback-inbox__text {
@@ -693,12 +765,16 @@ onBeforeUnmount(() => {
 .feedback-inbox__closed,
 .feedback-inbox__composer {
   flex: 0 0 auto;
-  margin-top: 12px;
+}
+
+.feedback-inbox__closed {
+  margin: 12px;
 }
 
 .feedback-inbox__composer {
-  padding-top: 2px;
-  background: var(--el-bg-color);
+  padding: 10px 12px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  background: #ffffff;
 }
 
 .feedback-inbox__preview {
@@ -720,6 +796,13 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
+.feedback-inbox__composer-row :deep(.el-textarea__inner) {
+  min-height: 40px !important;
+  border-radius: 20px;
+  background: #f4f7fb;
+  box-shadow: none;
+}
+
 @media (max-width: 768px) {
   .feedback-inbox :deep(.el-card__body) {
     padding: 8px;
@@ -732,6 +815,12 @@ onBeforeUnmount(() => {
 
   .feedback-inbox__conversations--hidden-mobile {
     display: none;
+  }
+
+  .feedback-inbox__conversations,
+  .feedback-inbox__dialog {
+    flex: 0 0 100%;
+    max-width: 100%;
   }
 
   .feedback-inbox__dialog {
