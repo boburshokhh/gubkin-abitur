@@ -79,6 +79,10 @@ router.post('/auth/signup', async (req, res) => {
   }
 
   try {
+    if (!(await isAdmissionOpen())) {
+      return res.status(403).json({ error: 'Регистрация закрыта: прием документов сейчас не ведется' });
+    }
+
     // Проверяем, существует ли пользователь
     const checkUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
     if (checkUser.rows.length > 0) {
