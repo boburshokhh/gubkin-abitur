@@ -14,35 +14,7 @@
       </div>
     </el-card>
 
-    <el-card shadow="never" class="applications-page__nav-card">
-      <el-space wrap>
-        <router-link custom to="/dashboard/applications" v-slot="{ navigate }">
-          <el-button :type="isApplicationsRoute ? 'primary' : 'default'" @click="navigate">
-            <el-icon><Document /></el-icon>
-            Мои заявления
-          </el-button>
-        </router-link>
-
-        <router-link custom to="/dashboard/profile" v-slot="{ navigate }">
-          <el-button :type="route.path === '/dashboard/profile' ? 'primary' : 'default'" @click="navigate">
-            <el-icon><User /></el-icon>
-            Мой профиль
-          </el-button>
-        </router-link>
-
-        <router-link v-if="isAdmissionOpen" custom to="/register" v-slot="{ navigate }">
-          <el-button type="success" @click="navigate">
-            <el-icon><Plus /></el-icon>
-            Подать новое заявление
-          </el-button>
-        </router-link>
-
-        <el-button v-else type="info" disabled>
-          <el-icon><CircleClose /></el-icon>
-          Прием 2026 закрыт
-        </el-button>
-      </el-space>
-    </el-card>
+    <DashboardNavigation />
 
     <el-card v-if="isLoading" shadow="never" class="applications-page__state-card">
       <el-skeleton :rows="5" animated />
@@ -72,25 +44,18 @@
 <script setup>
 import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useApplicationStore } from '@/stores/application'
-import { useRoute } from 'vue-router'
-import { useAdmissionStatus } from '@/composables/useAdmissionStatus'
 import { subscribeApplicationUpdates } from '@/services/application-realtime'
 
 import EmptyState from '@/components/shared/EmptyState.vue'
 import ApplicationCard from '@/components/application/ApplicationCard.vue'
+import DashboardNavigation from '@/components/dashboard/DashboardNavigation.vue'
 
-const route = useRoute()
 const appStore = useApplicationStore()
-const { isAdmissionOpen } = useAdmissionStatus()
 
 const applications = ref([])
 const isLoading = ref(true)
 const error = ref('')
 let unsubscribeApplicationUpdates = null
-
-const isApplicationsRoute = computed(() => (
-  route.path.includes('/dashboard/applications') && !route.params.id
-))
 
 const applicationsCountLabel = computed(() => {
   const count = applications.value.length
@@ -131,7 +96,6 @@ async function handleRealtimeApplicationUpdate() {
 }
 
 .applications-page__header-card,
-.applications-page__nav-card,
 .applications-page__state-card,
 .applications-page__alert {
   margin-bottom: 24px;
@@ -160,10 +124,6 @@ async function handleRealtimeApplicationUpdate() {
 .applications-page__list {
   display: grid;
   gap: 16px;
-}
-
-:deep(.el-button .el-icon) {
-  margin-right: 6px;
 }
 
 @media (max-width: 640px) {

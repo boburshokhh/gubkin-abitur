@@ -1,1252 +1,684 @@
 <template>
-  <main class="container mx-auto px-4 py-6 md:py-8">
-    <h1 class="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Детали заявления</h1>
-
-    <!-- Навигационные кнопки -->
-    <div class="bg-white shadow rounded-lg mb-6 md:mb-8 p-3 md:p-4">
-      <div class="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4">
-        <router-link 
-          to="/dashboard/applications" 
-          class="px-3 md:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center sm:justify-start"
-          :class="[$route.path.includes('/dashboard/applications') && !$route.params.id ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200']"
-        >
-          <span class="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Мои заявления
-          </span>
-        </router-link>
-        
-        <router-link 
-          to="/dashboard/profile" 
-          class="px-3 md:px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center sm:justify-start"
-          :class="[$route.path === '/dashboard/profile' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200']"
-        >
-          <span class="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            Мой профиль
-          </span>
-        </router-link>
-        
-        <router-link 
-          v-if="isAdmissionOpen"
-          to="/register" 
-          class="px-3 md:px-4 py-2 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center justify-center sm:justify-start"
-        >
-          <span class="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Подать новое заявление
-          </span>
-        </router-link>
-        <span 
-          v-else
-          class="px-3 md:px-4 py-2 rounded-md text-sm font-medium bg-gray-400 text-gray-700 cursor-not-allowed flex items-center justify-center sm:justify-start"
-        >
-          <span class="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
-            Прием 2026 закрыт
-          </span>
-        </span>
-      </div>
-    </div>
-
-    <div v-if="isLoading" class="flex justify-center my-12">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-    </div>
-
-    <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-6 mb-8">
-      <div class="flex flex-col sm:flex-row sm:items-center">
-        <svg class="h-6 w-6 text-red-600 mr-3 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+  <main class="application-details-page">
+    <el-card shadow="never" class="application-details-page__header-card">
+      <div class="application-details-page__header">
         <div>
-          <h3 class="text-lg font-medium">Ошибка при загрузке данных</h3>
-          <p class="mt-1">{{ error }}</p>
+          <el-text tag="h1" class="application-details-page__title">
+            Заявление №{{ shortApplicationId }}
+          </el-text>
+          <el-text type="info" class="application-details-page__subtitle">
+            Подробная информация, документы, история изменений и комментарии приемной комиссии.
+          </el-text>
         </div>
+        <el-button @click="router.push('/dashboard/applications')">Вернуться к списку</el-button>
       </div>
-    </div>
+    </el-card>
 
-    <div v-else-if="application">
-      <!-- Уведомление о комментариях админа -->
-      <div v-if="sortedComments.length" class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-        <div class="flex items-start">
-          <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-            </svg>
+    <DashboardNavigation />
+
+    <el-card v-if="isLoading" shadow="never" class="application-details-page__state-card">
+      <el-skeleton :rows="8" animated />
+    </el-card>
+
+    <el-alert
+      v-else-if="error"
+      title="Ошибка при загрузке данных"
+      :description="error"
+      type="error"
+      show-icon
+      class="application-details-page__alert"
+    />
+
+    <template v-else-if="application">
+      <el-alert
+        v-if="latestComment"
+        :title="`Комментарий приемной комиссии от ${formatDate(latestComment.created_at)}`"
+        :description="latestComment.comment"
+        type="warning"
+        show-icon
+        class="application-details-page__alert"
+      >
+        <template #default>
+          <el-button class="mt-3" size="small" type="warning" @click="activeTab = 'comments'">
+            Все комментарии
+          </el-button>
+        </template>
+      </el-alert>
+
+      <el-card shadow="never" class="application-details-page__summary-card">
+        <div class="application-details-page__summary">
+          <div>
+            <el-text tag="h2" class="application-details-page__summary-title">
+              {{ applicantFullName }}
+            </el-text>
+            <el-text type="info" class="application-details-page__summary-subtitle">
+              {{ applicant.email || 'Email не указан' }}
+            </el-text>
           </div>
-                     <div class="ml-3 flex-1">
-             <h3 class="text-sm font-medium text-amber-800">
-               У вас {{ sortedComments.length }} {{ sortedComments.length === 1 ? 'новый комментарий' : sortedComments.length < 5 ? 'новых комментария' : 'новых комментариев' }}
-             </h3>
-             <p class="mt-1 text-sm text-amber-700">
-               <span v-if="latestComment">
-                 Последний комментарий ({{ formatDate(latestComment.created_at) }}): 
-                 <span class="font-medium">"{{ latestComment.comment.length > 100 ? latestComment.comment.substring(0, 100) + '...' : latestComment.comment }}"</span>
-               </span>
-               <span v-else>Приемная комиссия оставила комментарии к вашему заявлению.</span>
-               <button 
-                 @click="activeTab = 'comments'" 
-                 class="font-medium underline hover:no-underline ml-2"
-               >
-                 Просмотреть все комментарии
-               </button>
-             </p>
-           </div>
-          <div class="ml-auto flex-shrink-0">
-            <span class="bg-amber-100 text-amber-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-              {{ sortedComments.length }}
-            </span>
-          </div>
+          <el-tag :type="statusTagType" effect="light" size="large">{{ statusText }}</el-tag>
         </div>
-      </div>
 
-      <!-- Статус заявления -->
-      <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
-        <div class="bg-primary-600 px-4 py-3 md:px-6 md:py-4 flex flex-col sm:flex-row justify-between sm:items-center">
-          <h2 class="text-lg md:text-xl font-medium text-white mb-2 sm:mb-0">Заявление №{{ application.id }}</h2>
-          <span 
-            :class="[
-              'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium max-w-fit', 
-              getStatusClass(application.status_id)
-            ]"
-          >
-            {{ getStatusText(application.status_id) }}
-          </span>
-        </div>
-      </div>
+        <el-descriptions :column="3" border class="application-details-page__summary-descriptions">
+          <el-descriptions-item label="Дата подачи">{{ formatDate(application.created_at) }}</el-descriptions-item>
+          <el-descriptions-item label="Обновлено">{{ formatDate(application.updated_at) }}</el-descriptions-item>
+          <el-descriptions-item label="Учебный год">{{ application.academic_year || new Date().getFullYear() }}</el-descriptions-item>
+          <el-descriptions-item label="Выбрано профилей">{{ choices.length }}</el-descriptions-item>
+          <el-descriptions-item label="Документы">{{ normalizedDocuments.length }}</el-descriptions-item>
+          <el-descriptions-item label="Комментарии">{{ sortedComments.length }}</el-descriptions-item>
+        </el-descriptions>
+      </el-card>
 
-      <!-- Вкладки для переключения информации -->
-      <div class="bg-white shadow rounded-lg overflow-hidden mb-8">
-        <div class="border-b border-gray-200 overflow-x-auto">
-          <nav class="flex min-w-max">
-            <button 
-              @click="activeTab = 'personal'"
-              :class="[
-                'py-3 md:py-4 px-4 md:px-6 text-center font-medium text-xs sm:text-sm border-b-2 focus:outline-none whitespace-nowrap',
-                activeTab === 'personal' 
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              ]"
-            >
-              <span class="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Личные данные
-              </span>
-            </button>
-            <button 
-              @click="activeTab = 'details'"
-              :class="[
-                'py-3 md:py-4 px-4 md:px-6 text-center font-medium text-xs sm:text-sm border-b-2 focus:outline-none whitespace-nowrap',
-                activeTab === 'details' 
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              ]"
-            >
-              <span class="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Заявление и профили
-              </span>
-            </button>
-            <button 
-              @click="activeTab = 'documents'"
-              :class="[
-                'py-3 md:py-4 px-4 md:px-6 text-center font-medium text-xs sm:text-sm border-b-2 focus:outline-none whitespace-nowrap',
-                activeTab === 'documents' 
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              ]"
-            >
-              <span class="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                Документы
-                <span v-if="allDocuments.length" class="ml-1 sm:ml-2 bg-gray-100 text-gray-800 py-0.5 px-2 rounded-full text-xs">
-                  {{ allDocuments.length }}
-                </span>
-              </span>
-            </button>
-            <button 
-              @click="activeTab = 'history'"
-              :class="[
-                'py-3 md:py-4 px-4 md:px-6 text-center font-medium text-xs sm:text-sm border-b-2 focus:outline-none whitespace-nowrap',
-                activeTab === 'history' 
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              ]"
-            >
-              <span class="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                История изменений
-              </span>
-            </button>
-            <button 
-              @click="activeTab = 'comments'"
-              :class="[
-                'py-3 md:py-4 px-4 md:px-6 text-center font-medium text-xs sm:text-sm border-b-2 focus:outline-none whitespace-nowrap relative',
-                activeTab === 'comments' 
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              ]"
-            >
-              <span class="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                </svg>
-                Комментарии
-                <span v-if="sortedComments.length" class="ml-1 sm:ml-2 bg-orange-100 text-orange-800 py-0.5 px-2 rounded-full text-xs">
-                  {{ sortedComments.length }}
-                </span>
-              </span>
-              <!-- Индикатор новых комментариев -->
-              <span v-if="sortedComments.length && activeTab !== 'comments'" class="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse"></span>
-            </button>
-          </nav>
-        </div>
-        
-        <!-- Содержимое вкладок -->
-        <div class="p-4 md:p-6">
-          <!-- Вкладка с личными данными -->
-          <div v-if="activeTab === 'personal'">
-            <!-- Личная информация -->
-            <div class="mb-8">
-              <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Личная информация
-              </h3>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Фамилия</h4>
-                  <p class="text-gray-900">{{ application.last_name || application.users?.last_name || 'Не указана' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Имя</h4>
-                  <p class="text-gray-900">{{ application.first_name || application.users?.first_name || 'Не указано' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Отчество</h4>
-                  <p class="text-gray-900">{{ application.middle_name || application.users?.middle_name || 'Не указано' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Дата рождения</h4>
-                  <p class="text-gray-900">{{ formatDate(application.birth_date || application.users?.birth_date) }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Пол</h4>
-                  <p class="text-gray-900">{{ getGenderText(application.gender || application.users?.gender) }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Регион</h4>
-                  <p class="text-gray-900">{{ application.regions?.name || application.users?.regions?.name || 'Не указан' }}</p>
-                </div>
-                <div class="sm:col-span-2 lg:col-span-3">
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Полный адрес места проживания</h4>
-                  <p class="text-gray-900">{{ application.address || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Телефон</h4>
-                  <p class="text-gray-900">{{ application.phone || application.users?.phone || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Телефон родителей</h4>
-                  <p class="text-gray-900">{{ application.parent_phone || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Email</h4>
-                  <p class="text-gray-900">{{ application.email || application.users?.email || 'Не указан' }}</p>
-                </div>
+      <el-card shadow="never">
+        <el-tabs v-model="activeTab" class="application-details-page__tabs">
+          <el-tab-pane label="Личные данные" name="personal">
+            <section class="application-details-page__section">
+              <el-text tag="h3" class="application-details-page__section-title">Контакты и паспорт</el-text>
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="Фамилия">{{ applicant.last_name || 'Не указана' }}</el-descriptions-item>
+                <el-descriptions-item label="Имя">{{ applicant.first_name || 'Не указано' }}</el-descriptions-item>
+                <el-descriptions-item label="Отчество">{{ applicant.middle_name || 'Не указано' }}</el-descriptions-item>
+                <el-descriptions-item label="Дата рождения">{{ formatDate(applicant.birth_date) }}</el-descriptions-item>
+                <el-descriptions-item label="Пол">{{ getGenderText(applicant.gender) }}</el-descriptions-item>
+                <el-descriptions-item label="Регион">{{ regionName }}</el-descriptions-item>
+                <el-descriptions-item label="Адрес">{{ application.address || 'Не указан' }}</el-descriptions-item>
+                <el-descriptions-item label="Телефон">{{ applicant.phone || 'Не указан' }}</el-descriptions-item>
+                <el-descriptions-item label="Телефон родителя">{{ application.parent_phone || 'Не указан' }}</el-descriptions-item>
+                <el-descriptions-item label="Email">{{ applicant.email || 'Не указан' }}</el-descriptions-item>
+                <el-descriptions-item label="Паспорт">{{ application.passport_series || 'Не указан' }}</el-descriptions-item>
+                <el-descriptions-item label="Дата выдачи паспорта">{{ formatDate(application.passport_issue_date) }}</el-descriptions-item>
+                <el-descriptions-item label="Кем выдан" :span="2">
+                  {{ application.passport_issued_by || 'Не указан' }}
+                </el-descriptions-item>
+              </el-descriptions>
+            </section>
+
+            <section class="application-details-page__section">
+              <el-text tag="h3" class="application-details-page__section-title">Образование</el-text>
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="Уровень">{{ getEducationLevelText(application.education_level) }}</el-descriptions-item>
+                <el-descriptions-item label="Учебное заведение">{{ application.education_institution || 'Не указано' }}</el-descriptions-item>
+                <el-descriptions-item label="Год окончания">{{ application.education_graduation_year || 'Не указан' }}</el-descriptions-item>
+                <el-descriptions-item label="Номер документа">
+                  {{ application.education_document_number || application.document_number || 'Не указан' }}
+                </el-descriptions-item>
+                <el-descriptions-item label="Дата документа">{{ formatDate(application.education_document_date || application.document_date) }}</el-descriptions-item>
+              </el-descriptions>
+            </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="Заявление" name="details">
+            <section class="application-details-page__section">
+              <el-text tag="h3" class="application-details-page__section-title">Параметры заявления</el-text>
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="Статус">
+                  <el-tag :type="statusTagType" effect="light">{{ statusText }}</el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="Форма обучения">{{ getStudyFormText(application.study_form) }}</el-descriptions-item>
+                <el-descriptions-item label="Финансирование">{{ getFundingFormText(application.funding_form) }}</el-descriptions-item>
+                <el-descriptions-item label="Общежитие">{{ application.accommodation_needed ? 'Да' : 'Нет' }}</el-descriptions-item>
+                <el-descriptions-item label="Олимпиада">{{ application.olympiad_participant ? 'Да' : 'Нет' }}</el-descriptions-item>
+                <el-descriptions-item label="Комментарий администратора">{{ application.admin_comment || 'Нет' }}</el-descriptions-item>
+              </el-descriptions>
+            </section>
+
+            <section class="application-details-page__section">
+              <div class="application-details-page__section-header">
+                <el-text tag="h3" class="application-details-page__section-title">Выбранные профили</el-text>
+                <el-tag effect="light">{{ choices.length }}</el-tag>
               </div>
-            </div>
-
-            <!-- Паспортные данные -->
-            <div class="mb-8">
-              <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Паспортные данные
-              </h3>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Серия и номер</h4>
-                  <p class="text-gray-900">{{ application.passport_series || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Дата выдачи</h4>
-                  <p class="text-gray-900">{{ formatDate(application.passport_issue_date) }}</p>
-                </div>
-                <div class="sm:col-span-2 lg:col-span-1">
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Кем выдан</h4>
-                  <p class="text-gray-900">{{ application.passport_issued_by || 'Не указан' }}</p>
-                </div>
+              <div v-if="choices.length" class="application-details-page__choice-grid">
+                <el-card v-for="choice in sortedChoices" :key="choice.id || choice.priority" shadow="never">
+                  <el-tag type="primary" effect="light">Приоритет {{ choice.priority }}</el-tag>
+                  <h4 class="application-details-page__choice-title">{{ getChoiceProfile(choice).name || 'Профиль не указан' }}</h4>
+                  <p class="application-details-page__choice-meta">
+                    {{ getChoiceDirection(choice).name || 'Направление не указано' }}
+                    <span v-if="getChoiceDirection(choice).code">({{ getChoiceDirection(choice).code }})</span>
+                  </p>
+                </el-card>
               </div>
-            </div>
+              <el-empty v-else description="Профили не выбраны" />
+            </section>
 
-            <!-- Данные об образовании -->
-            <div class="mb-8">
-              <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                Образование
-              </h3>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Уровень образования</h4>
-                  <p class="text-gray-900">{{ getEducationLevelText(application.education_level) }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Учебное заведение</h4>
-                  <p class="text-gray-900">{{ application.education_institution || 'Не указано' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Год окончания</h4>
-                  <p class="text-gray-900">{{ application.education_graduation_year || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Номер документа</h4>
-                  <p class="text-gray-900">{{ application.education_document_number || application.document_number || 'Не указан' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Дата выдачи документа</h4>
-                  <p class="text-gray-900">{{ formatDate(application.education_document_date || application.document_date) }}</p>
-                </div>
-              </div>
+            <div class="application-details-page__actions">
+              <el-button
+                v-if="[1, 'draft'].includes(application.status_id)"
+                type="primary"
+                :loading="isSubmitting"
+                @click="submitApplication"
+              >
+                Отправить на рассмотрение
+              </el-button>
+              <el-button @click="router.push('/dashboard/applications')">Вернуться к списку</el-button>
             </div>
+          </el-tab-pane>
 
-            <!-- Дополнительная информация -->
-            <div class="mb-8">
-              <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Дополнительная информация
-              </h3>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Участник олимпиад</h4>
-                  <p class="text-gray-900">{{ application.olympiad_participant ? 'Да' : 'Нет' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Нуждается в общежитии</h4>
-                  <p class="text-gray-900">{{ application.accommodation_needed ? 'Да' : 'Нет' }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Учебный год</h4>
-                  <p class="text-gray-900">{{ application.academic_year || new Date().getFullYear() }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Вкладка с основными данными заявления -->
-          <div v-else-if="activeTab === 'details'">
-            <!-- Основная информация о заявлении -->
-            <div class="mb-8">
-              <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Информация о заявлении
-              </h3>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Номер заявления</h4>
-                  <p class="text-gray-900">{{ application.id }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Дата подачи</h4>
-                  <p class="text-gray-900">{{ formatDate(application.created_at) }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Последнее обновление</h4>
-                  <p class="text-gray-900">{{ formatDate(application.updated_at) }}</p>
-                </div>
-                <div>
-                  <h4 class="text-gray-500 text-sm font-medium mb-1">Статус заявления</h4>
-                  <span 
-                    :class="[
-                      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', 
-                      getStatusClass(application.status_id)
-                    ]"
-                  >
-                    {{ getStatusText(application.status_id) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Выбранные направления и профили -->
-            <div class="mb-8">
-              <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                Выбранные направления и профили
-                <span v-if="application.application_choices?.length" class="ml-2 bg-gray-100 text-gray-800 py-0.5 px-2 rounded-full text-xs">
-                  {{ application.application_choices.length }}
-                </span>
-              </h3>
-              <div v-if="application.application_choices?.length" class="space-y-4">
-                <div 
-                  v-for="(choice, index) in sortedChoices" 
-                  :key="choice.id" 
-                  class="border rounded-lg p-4 hover:bg-gray-50"
-                >
-                  <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                      <div class="flex items-center mb-2">
-                        <span class="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded-full mr-2">
-                          Приоритет {{ choice.priority }}
-                        </span>
-                      </div>
-                      <h4 class="text-lg font-medium text-gray-900 mb-1">
-                        {{ choice.profiles?.name || 'Название профиля не указано' }}
-                      </h4>
-                      <p class="text-sm text-gray-600 mb-2">
-                        <span class="font-medium">Направление:</span> 
-                        {{ choice.profiles?.directions?.name || 'Не указано' }}
-                        <span v-if="choice.profiles?.directions?.code" class="text-gray-500 ml-1">
-                          ({{ choice.profiles?.directions?.code }})
-                        </span>
+          <el-tab-pane name="documents">
+            <template #label>
+              <span>Документы <el-tag v-if="normalizedDocuments.length" size="small" effect="plain">{{ normalizedDocuments.length }}</el-tag></span>
+            </template>
+            <div v-if="normalizedDocuments.length" class="application-details-page__document-list">
+              <el-card v-for="document in normalizedDocuments" :key="document.key" shadow="never">
+                <div class="application-details-page__document-row">
+                  <div class="application-details-page__document-info">
+                    <el-icon size="30"><Document /></el-icon>
+                    <div>
+                      <h4 class="application-details-page__document-title">{{ document.title }}</h4>
+                      <p class="application-details-page__document-meta">
+                        {{ document.fileName }}
+                        <el-tag size="small" effect="plain">{{ getFileExtension(document.fileName) || 'FILE' }}</el-tag>
+                        <span>{{ formatFileSize(document.fileSize) }}</span>
                       </p>
                     </div>
                   </div>
+                  <el-space>
+                    <el-button size="small" @click="openFile(document.url)">Просмотреть</el-button>
+                    <el-button size="small" type="primary" plain @click="openFile(document.url)">Скачать</el-button>
+                  </el-space>
                 </div>
-              </div>
-              <div v-else class="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-                <svg class="h-12 w-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <h4 class="text-gray-900 font-medium">Направления не выбраны</h4>
-                <p class="text-gray-500 mt-1">К этому заявлению не прикреплены выборы направлений</p>
-              </div>
+              </el-card>
             </div>
-            
-            <!-- Показываем уведомления в зависимости от статуса -->
-            <div v-if="application.status_id === 'additional_info'" class="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
-              <div class="flex flex-col sm:flex-row">
-                <svg class="h-5 w-5 text-yellow-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <div>
-                  <h4 class="text-sm font-medium text-yellow-800">Требуется дополнительная информация</h4>
-                  <p class="mt-1 text-sm text-yellow-700">{{ application.admin_comment || 'Пожалуйста, свяжитесь с приемной комиссией для уточнения деталей.' }}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div v-if="[4, 'rejected'].includes(application.status_id)" class="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-              <div class="flex flex-col sm:flex-row">
-                <svg class="h-5 w-5 text-red-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <h4 class="text-sm font-medium text-red-800">Заявление отклонено</h4>
-                  <p class="mt-1 text-sm text-red-700">{{ application.admin_comment || 'Причина отклонения не указана. Свяжитесь с приемной комиссией для получения дополнительной информации.' }}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div v-if="[3, 'approved'].includes(application.status_id)" class="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
-              <div class="flex flex-col sm:flex-row">
-                <svg class="h-5 w-5 text-green-400 mr-2 mb-2 sm:mb-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                <div>
-                  <h4 class="text-sm font-medium text-green-800">Заявление одобрено</h4>
-                  <p class="mt-1 text-sm text-green-700">{{ application.admin_comment || 'Поздравляем! Ваше заявление принято. Ожидайте дальнейших инструкций от приемной комиссии.' }}</p>
-                </div>
-              </div>
-            </div>
+            <el-empty v-else description="Нет загруженных документов" />
+          </el-tab-pane>
 
-            <!-- Кнопки действий -->
-            <div class="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-4">
-              <button 
-                v-if="[1, 'draft'].includes(application.status_id)"
-                @click="submitApplication"
-                class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                :disabled="isSubmitting"
+          <el-tab-pane label="История" name="history">
+            <el-skeleton v-if="isHistoryLoading" :rows="4" animated />
+            <el-timeline v-else-if="sortedHistory.length">
+              <el-timeline-item
+                v-for="historyItem in sortedHistory"
+                :key="historyItem.id"
+                :timestamp="formatDate(historyItem.created_at)"
+                :type="getTimelineType(historyItem.status_id)"
               >
-                <svg v-if="isSubmitting" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                {{ isSubmitting ? 'Отправка...' : 'Отправить на рассмотрение' }}
-              </button>
-              
-              <router-link 
-                to="/dashboard/applications" 
-                class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                <strong>{{ getHistoryStatusText(historyItem) }}</strong>
+                <p v-if="historyItem.comment" class="application-details-page__timeline-comment">
+                  {{ historyItem.comment }}
+                </p>
+              </el-timeline-item>
+            </el-timeline>
+            <el-empty v-else description="История изменений пуста" />
+          </el-tab-pane>
+
+          <el-tab-pane name="comments">
+            <template #label>
+              <span>Комментарии <el-tag v-if="sortedComments.length" size="small" type="warning" effect="plain">{{ sortedComments.length }}</el-tag></span>
+            </template>
+            <el-timeline v-if="sortedComments.length">
+              <el-timeline-item
+                v-for="comment in sortedComments"
+                :key="comment.id"
+                :timestamp="formatDate(comment.created_at)"
+                type="warning"
               >
-                Вернуться к списку
-              </router-link>
-            </div>
-          </div>
-
-          <!-- Вкладка с документами -->
-          <div v-else-if="activeTab === 'documents'">
-            <div v-if="allDocuments.length" class="space-y-6">
-              <!-- Основные документы -->
-              <div v-if="application.documents?.length" class="mb-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Документы
-                  <span class="ml-2 bg-gray-100 text-gray-800 py-0.5 px-2 rounded-full text-xs">
-                    {{ application.documents.length }}
-                  </span>
-                </h3>
-                <div class="space-y-3">
-                  <div 
-                    v-for="document in application.documents" 
-                    :key="`doc-${document.id}`" 
-                    class="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 md:p-4 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div class="flex items-center mb-3 sm:mb-0">
-                      <div class="flex-shrink-0 mr-3">
-                        <div class="h-10 w-10 flex items-center justify-center rounded-lg bg-opacity-10" :class="getFileIconBgColor(document.file_name)">
-                          <svg v-if="getFileType(document.file_name) === 'pdf'" class="h-6 w-6" :class="getFileIconColor(document.file_name)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
-                          <svg v-else-if="getFileType(document.file_name) === 'image'" class="h-6 w-6" :class="getFileIconColor(document.file_name)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <svg v-else class="h-6 w-6" :class="getFileIconColor(document.file_name)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div class="min-w-0 flex-1">
-                        <h4 class="text-sm font-medium text-gray-900 truncate">{{ document.document_type?.name || 'Документ' }}</h4>
-                        <div class="flex items-center mt-1">
-                          <p class="text-xs text-gray-500 truncate mr-2 max-w-[180px] sm:max-w-[240px]">
-                            {{ getFileName(document.file_name) }}
-                          </p>
-                          <span class="text-xs px-1.5 py-0.5 rounded" :class="getFileExtensionClass(document.file_name)">
-                            {{ getFileExtension(document.file_name) }}
-                          </span>
-                          <span class="ml-2 text-xs text-gray-500 font-medium">
-                            {{ formatFileSize(document.file_size) }}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="flex items-center space-x-2 sm:ml-4">
-                      <a 
-                        :href="getDocumentUrl(document)" 
-                        target="_blank" 
-                        download
-                        class="flex-1 sm:flex-none inline-flex justify-center items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Скачать
-                      </a>
-                      <a 
-                        :href="getDocumentUrl(document)" 
-                        target="_blank" 
-                        class="flex-1 sm:flex-none inline-flex justify-center items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Просмотреть
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Файлы приложений -->
-              <div v-if="application.application_files?.length" class="mb-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                  </svg>
-                  Дополнительные файлы
-                  <span class="ml-2 bg-blue-100 text-blue-800 py-0.5 px-2 rounded-full text-xs">
-                    {{ application.application_files.length }}
-                  </span>
-                </h3>
-                <div class="space-y-3">
-                  <div 
-                    v-for="file in application.application_files" 
-                    :key="`file-${file.id}`" 
-                    class="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 md:p-4 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div class="flex items-center mb-3 sm:mb-0">
-                      <div class="flex-shrink-0 mr-3">
-                        <div class="h-10 w-10 flex items-center justify-center rounded-lg bg-opacity-10" :class="getFileIconBgColor(file.file_name)">
-                          <svg v-if="getFileType(file.file_name) === 'image'" class="h-6 w-6" :class="getFileIconColor(file.file_name)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <svg v-else class="h-6 w-6" :class="getFileIconColor(file.file_name)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div class="min-w-0 flex-1">
-                        <h4 class="text-sm font-medium text-gray-900 truncate">{{ getFileDisplayName(file) }}</h4>
-                        <div class="flex items-center mt-1">
-                          <p class="text-xs text-gray-500 truncate mr-2 max-w-[180px] sm:max-w-[240px]">
-                            {{ getFileName(file.file_name) }}
-                          </p>
-                          <span class="text-xs px-1.5 py-0.5 rounded" :class="getFileExtensionClass(file.file_name)">
-                            {{ getFileExtension(file.file_name) }}
-                          </span>
-                          <span class="ml-2 text-xs text-gray-500 font-medium">
-                            {{ formatFileSize(file.file_size) }}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="flex items-center space-x-2 sm:ml-4">
-                      <a 
-                        :href="getApplicationFileUrl(file)" 
-                        target="_blank" 
-                        download
-                        class="flex-1 sm:flex-none inline-flex justify-center items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Скачать
-                      </a>
-                      <a 
-                        :href="getApplicationFileUrl(file)" 
-                        target="_blank" 
-                        class="flex-1 sm:flex-none inline-flex justify-center items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Просмотреть
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Сертификаты олимпиад -->
-              <div v-if="application.olympiad_certificates?.length" class="mb-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                  </svg>
-                  Сертификаты олимпиад
-                  <span class="ml-2 bg-amber-100 text-amber-800 py-0.5 px-2 rounded-full text-xs">
-                    {{ application.olympiad_certificates.length }}
-                  </span>
-                </h3>
-                <div class="space-y-3">
-                  <div 
-                    v-for="cert in application.olympiad_certificates" 
-                    :key="`cert-${cert.id}`" 
-                    class="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 md:p-4 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div class="flex items-center mb-3 sm:mb-0">
-                      <div class="flex-shrink-0 mr-3">
-                        <div class="h-10 w-10 flex items-center justify-center rounded-lg bg-amber-100">
-                          <svg class="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div class="min-w-0 flex-1">
-                        <h4 class="text-sm font-medium text-gray-900 truncate">{{ cert.name || 'Сертификат олимпиады' }}</h4>
-                        <div class="flex items-center mt-1">
-                          <p class="text-xs text-gray-500 truncate mr-2 max-w-[180px] sm:max-w-[240px]">
-                            {{ getFileName(cert.file_name) }}
-                          </p>
-                          <span class="text-xs px-1.5 py-0.5 rounded" :class="getFileExtensionClass(cert.file_name)">
-                            {{ getFileExtension(cert.file_name) }}
-                          </span>
-                          <span class="ml-2 text-xs text-gray-500 font-medium">
-                            {{ formatFileSize(cert.file_size) }}
-                          </span>
-                          <span v-if="cert.year" class="ml-2 text-xs text-gray-500">
-                            {{ cert.year }} год
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="flex items-center space-x-2 sm:ml-4">
-                      <a 
-                        :href="getOlympiadCertificateUrl(cert)" 
-                        target="_blank" 
-                        download
-                        class="flex-1 sm:flex-none inline-flex justify-center items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Скачать
-                      </a>
-                      <a 
-                        :href="getOlympiadCertificateUrl(cert)" 
-                        target="_blank" 
-                        class="flex-1 sm:flex-none inline-flex justify-center items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Просмотреть
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="text-center py-8">
-              <svg class="h-12 w-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-              </svg>
-              <h3 class="text-gray-900 font-medium">Нет загруженных документов</h3>
-              <p class="text-gray-500 mt-1">К этому заявлению еще не прикреплены документы</p>
-            </div>
-          </div>
-
-          <!-- Вкладка с историей изменений -->
-          <div v-else-if="activeTab === 'history'">
-            <div class="relative">
-              <div class="absolute top-0 bottom-0 left-3 w-0.5 bg-gray-200"></div>
-              <div v-if="isHistoryLoading" class="flex justify-center py-8">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-              </div>
-              <div v-else-if="applicationHistory.length" class="space-y-6 relative z-10">
-                <div 
-                  v-for="historyItem in sortedHistory" 
-                  :key="historyItem.id" 
-                  class="flex items-start"
-                >
-                  <div 
-                    :class="[
-                      'flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-1 -ml-3', 
-                      getHistoryStatusColor(historyItem.status_id)
-                    ]"
-                  >
-                    <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div class="ml-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center">
-                      <h4 class="text-sm font-medium text-gray-900">{{ getStatusText(historyItem.status_id) }}</h4>
-                      <span class="sm:ml-2 text-xs text-gray-500">{{ formatDate(historyItem.created_at) }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="flex justify-center py-12">
-                <div class="text-center">
-                  <svg class="h-12 w-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <h3 class="text-gray-900 font-medium">История изменений пуста</h3>
-                  <p class="text-gray-500 mt-1">Пока нет записей об изменении статуса заявления</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Вкладка с комментариями -->
-          <div v-else-if="activeTab === 'comments'">
-            <div v-if="sortedComments.length" class="space-y-4">
-              <div 
-                v-for="historyItem in sortedComments" 
-                :key="historyItem.id" 
-                class="rounded-lg border border-gray-200 p-4 hover:bg-gray-50 transition-colors duration-200"
-              >
-                <div class="flex flex-col sm:flex-row">
-                  <div class="flex items-start">
-                    <div 
-                      :class="[
-                        'flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-3', 
-                        getHistoryStatusColor(historyItem.status_id)
-                      ]"
-                    >
-                      <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div class="flex items-center mb-1">
-                        <h4 class="text-sm font-medium text-gray-800">{{ getStatusText(historyItem.status_id) }}</h4>
-                        <span class="mx-2 text-gray-300">•</span>
-                        <span class="text-xs text-gray-500">{{ formatDate(historyItem.created_at) }}</span>
-                      </div>
-                      <p class="text-sm text-gray-600">{{ historyItem.comment }}</p>
-                      <div v-if="historyItem.created_by_user" class="mt-2 text-xs text-gray-500">
-                        Комментарий от: {{ historyItem.created_by_user.first_name }} {{ historyItem.created_by_user.last_name }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="flex justify-center py-12">
-              <div class="text-center">
-                <svg class="h-12 w-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                </svg>
-                <h3 class="text-gray-900 font-medium">Комментариев нет</h3>
-                <p class="text-gray-500 mt-1">К этому заявлению пока не оставлено комментариев</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+                <el-card shadow="never">
+                  <p>{{ comment.comment }}</p>
+                  <el-text v-if="comment.created_by_user" type="info" size="small">
+                    {{ getCommentAuthor(comment) }}
+                  </el-text>
+                </el-card>
+              </el-timeline-item>
+            </el-timeline>
+            <el-empty v-else description="Комментариев нет" />
+          </el-tab-pane>
+        </el-tabs>
+      </el-card>
+    </template>
   </main>
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useApplicationStore } from '@/stores/application';
-import { appApi } from '@/api/app-api';
-import { useAdmissionStatus } from '@/composables/useAdmissionStatus';
-import { subscribeApplicationUpdates } from '@/services/application-realtime';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { Document } from '@element-plus/icons-vue'
+import { appApi } from '@/api/app-api'
+import { useApplicationStore } from '@/stores/application'
+import { subscribeApplicationUpdates } from '@/services/application-realtime'
+import DashboardNavigation from '@/components/dashboard/DashboardNavigation.vue'
 
-const route = useRoute();
-const router = useRouter();
-const appStore = useApplicationStore();
+const route = useRoute()
+const router = useRouter()
+const appStore = useApplicationStore()
 
-const { isAdmissionOpen } = useAdmissionStatus();
+const isLoading = ref(true)
+const error = ref('')
+const isSubmitting = ref(false)
+const activeTab = ref('personal')
+const applicationHistory = ref([])
+const isHistoryLoading = ref(false)
+let unsubscribeApplicationUpdates = null
 
-const isLoading = ref(true);
-const error = ref('');
-const isSubmitting = ref(false);
-const activeTab = ref('personal');
-let unsubscribeApplicationUpdates = null;
+const application = computed(() => appStore.currentApplication)
 
-// Получаем заявление из хранилища
-const application = computed(() => appStore.currentApplication);
+const applicant = computed(() => application.value?.user || application.value?.users || {})
+const choices = computed(() => application.value?.choices || application.value?.application_choices || [])
+const sortedChoices = computed(() => [...choices.value].sort((a, b) => (a.priority || 0) - (b.priority || 0)))
+const sortedHistory = computed(() => [...applicationHistory.value].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)))
+const sortedComments = computed(() => sortedHistory.value.filter(item => item.comment?.trim()))
+const latestComment = computed(() => sortedComments.value[0] || null)
 
-// История изменений статусов
-const applicationHistory = ref([]);
-const isHistoryLoading = ref(false);
+const shortApplicationId = computed(() => application.value?.id?.slice(-8) || route.params.id?.slice?.(-8) || 'N/A')
+const applicantFullName = computed(() => {
+  const parts = [applicant.value.last_name, applicant.value.first_name, applicant.value.middle_name].filter(Boolean)
+  return parts.length ? parts.join(' ') : 'Абитуриент'
+})
+const statusId = computed(() => application.value?.status?.id || application.value?.status_id)
+const statusText = computed(() => application.value?.status?.name || getStatusText(statusId.value))
+const statusTagType = computed(() => getStatusTagType(statusId.value))
+const regionName = computed(() => application.value?.region?.name || application.value?.regions?.name || applicant.value?.region?.name || applicant.value?.regions?.name || 'Не указан')
 
-// Добавляем computed свойства для сортировки истории и комментариев
-const sortedHistory = computed(() => {
-  return [...applicationHistory.value].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-});
+const normalizedDocuments = computed(() => {
+  const app = application.value
+  if (!app) return []
 
-const sortedComments = computed(() => {
-  return [...applicationHistory.value]
-    .filter(item => item.comment && item.comment.trim() !== '')
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-});
+  const documents = (app.documents || []).map(document => ({
+    key: `document-${document.id}`,
+    title: document.document_type?.name || document.document_types?.name || 'Документ',
+    fileName: document.file_name || getFileNameFromPath(document.file_path),
+    fileSize: document.file_size,
+    url: getStorageUrl('application_documents', document.file_path)
+  }))
 
-// Computed для получения последнего комментария
-const latestComment = computed(() => {
-  return sortedComments.value.length > 0 ? sortedComments.value[0] : null;
-});
+  const applicationFiles = (app.application_files || []).map(file => ({
+    key: `application-file-${file.id}`,
+    title: getFileDisplayName(file),
+    fileName: file.file_name || getFileNameFromPath(file.file_path),
+    fileSize: file.file_size,
+    url: getStorageUrl('application_files', file.file_path)
+  }))
 
-// Добавляем computed для сортировки выборов направлений
-const sortedChoices = computed(() => {
-  if (!application.value?.application_choices) return [];
-  return [...application.value.application_choices].sort((a, b) => a.priority - b.priority);
-});
+  const olympiadCertificates = (app.olympiad_certificates || []).map(certificate => ({
+    key: `olympiad-${certificate.id}`,
+    title: certificate.name || 'Сертификат олимпиады',
+    fileName: certificate.file_name || getFileNameFromPath(certificate.file_path),
+    fileSize: certificate.file_size,
+    url: getStorageUrl('application_files', certificate.file_path)
+  }))
 
-// Computed для объединения всех документов
-const allDocuments = computed(() => {
-  const docs = [];
-  
-  // Основные документы
-  if (application.value?.documents?.length) {
-    docs.push(...application.value.documents);
-  }
-  
-  // Файлы приложений
-  if (application.value?.application_files?.length) {
-    docs.push(...application.value.application_files);
-  }
-  
-  // Сертификаты олимпиад
-  if (application.value?.olympiad_certificates?.length) {
-    docs.push(...application.value.olympiad_certificates);
-  }
-  
-  return docs;
-});
+  return [...documents, ...applicationFiles, ...olympiadCertificates]
+})
 
-// Загрузка данных при монтировании компонента
 onMounted(async () => {
-  const applicationId = route.params.id;
+  const applicationId = route.params.id
   if (!applicationId) {
-    router.push('/dashboard/applications');
-    return;
+    router.push('/dashboard/applications')
+    return
   }
-  
-  isLoading.value = true;
+
+  isLoading.value = true
   try {
-    // Загружаем данные заявления
-    const success = await appStore.loadApplication(applicationId);
+    const success = await appStore.loadApplication(applicationId)
     if (!success) {
-      error.value = appStore.error || 'Не удалось загрузить данные заявления';
-    } else {
-      // Инициализируем историю из уже загруженных данных
-      loadApplicationHistory(applicationId);
-      unsubscribeApplicationUpdates = subscribeApplicationUpdates(handleRealtimeApplicationUpdate);
+      error.value = appStore.error || 'Не удалось загрузить данные заявления'
+      return
     }
+
+    loadApplicationHistory()
+    unsubscribeApplicationUpdates = subscribeApplicationUpdates(handleRealtimeApplicationUpdate)
   } catch (err) {
-    console.error('Ошибка при загрузке заявления:', err);
-    error.value = err.message || 'Произошла ошибка при загрузке заявления';
+    console.error('Ошибка при загрузке заявления:', err)
+    error.value = err.message || 'Произошла ошибка при загрузке заявления'
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
-});
+})
 
 onBeforeUnmount(() => {
-  unsubscribeApplicationUpdates?.();
-});
+  unsubscribeApplicationUpdates?.()
+})
 
 async function handleRealtimeApplicationUpdate(event) {
-  const applicationId = route.params.id;
-  if (String(event.applicationId) !== String(applicationId)) return;
+  const applicationId = route.params.id
+  if (String(event.applicationId) !== String(applicationId)) return
 
-  const success = await appStore.loadApplication(applicationId);
-  if (success) loadApplicationHistory(applicationId);
+  const success = await appStore.loadApplication(applicationId)
+  if (success) loadApplicationHistory()
 }
 
-// Загрузка истории изменений статусов
-async function loadApplicationHistory(applicationId) {
-  isHistoryLoading.value = true;
+function loadApplicationHistory() {
+  isHistoryLoading.value = true
   try {
-    // Используем уже загруженные данные из store вместо повторного API вызова
-    if (application.value && application.value.application_history && application.value.application_history.length > 0) {
-      applicationHistory.value = application.value.application_history;
-    } else {
-      // Если истории нет, добавляем исходное создание заявки
-      if (application.value) {
-        applicationHistory.value = [{
-          id: 'initial',
-          status_id: application.value.status_id,
-          created_at: application.value.created_at,
-          application_id: application.value.id,
-          comment: 'Заявление создано'
-        }];
-      }
+    if (application.value?.application_history?.length) {
+      applicationHistory.value = application.value.application_history
+      return
     }
-  } catch (err) {
-    console.error('Ошибка при загрузке истории:', err);
+
+    if (application.value) {
+      applicationHistory.value = [{
+        id: 'initial',
+        status_id: application.value.status_id,
+        created_at: application.value.created_at,
+        application_id: application.value.id,
+        comment: 'Заявление создано'
+      }]
+    }
   } finally {
-    isHistoryLoading.value = false;
+    isHistoryLoading.value = false
   }
 }
 
-// Отправка заявления на рассмотрение
 async function submitApplication() {
-  if (!application.value || ![1, 'draft'].includes(application.value.status_id)) return;
-  
-  isSubmitting.value = true;
+  if (!application.value || ![1, 'draft'].includes(application.value.status_id)) return
+
+  isSubmitting.value = true
+  error.value = ''
   try {
-    const result = await appStore.submitApplication(application.value.id);
-    if (!result.success) {
-      throw new Error(result.error || 'Не удалось отправить заявление');
-    }
-    
-    // После успешной отправки заявления, перезагружаем данные заявления
-    await appStore.loadApplication(application.value.id);
-    // Обновляем историю из уже загруженных данных
-    loadApplicationHistory(application.value.id);
+    const result = await appStore.submitApplication(application.value.id)
+    if (!result.success) throw new Error(result.error || 'Не удалось отправить заявление')
+
+    await appStore.loadApplication(application.value.id)
+    loadApplicationHistory()
+    ElMessage.success('Заявление отправлено на рассмотрение')
   } catch (err) {
-    console.error('Ошибка при отправке заявления:', err);
-    error.value = err.message;
+    console.error('Ошибка при отправке заявления:', err)
+    error.value = err.message
   } finally {
-    isSubmitting.value = false;
+    isSubmitting.value = false
   }
 }
 
-// Получение URL документа
-function getDocumentUrl(document) {
+function getChoiceProfile(choice) {
+  return choice.profile || choice.profiles || {}
+}
+
+function getChoiceDirection(choice) {
+  const profile = getChoiceProfile(choice)
+  return profile.direction || profile.directions || {}
+}
+
+function getStorageUrl(bucket, filePath) {
+  if (!filePath) return '#'
+
   try {
-    if (!document.file_path) {
-      console.error('Отсутствует путь к файлу:', document);
-      return '#';
-    }
-    
-    const { data } = appApi.storage
-      .from('application_documents')
-      .getPublicUrl(document.file_path);
-    
-    return data?.publicUrl || '#';
-  } catch (error) {
-    console.error('Ошибка при получении URL документа:', error);
-    return '#';
+    const { data } = appApi.storage.from(bucket).getPublicUrl(filePath)
+    return data?.publicUrl || '#'
+  } catch (err) {
+    console.error('Ошибка получения URL файла:', err)
+    return '#'
   }
 }
 
-// Форматирование размера файла
-function formatFileSize(bytes) {
-  if (!bytes) return '0 Байт';
-  const k = 1024;
-  const sizes = ['Байт', 'КБ', 'МБ', 'ГБ'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+function openFile(url) {
+  if (!url || url === '#') return
+  window.open(url, '_blank')
 }
 
-// Форматирование даты
 function formatDate(dateString) {
-  if (!dateString) return 'Не указана';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ru-RU', { 
-    day: '2-digit', 
-    month: '2-digit', 
+  if (!dateString) return 'Не указана'
+  return new Date(dateString).toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
-  });
+  })
 }
 
-// Получение текста для статуса заявления
-function getStatusText(statusId) {
-  const statusMap = {
+function formatFileSize(bytes) {
+  if (!bytes) return '0 Байт'
+  const k = 1024
+  const sizes = ['Байт', 'КБ', 'МБ', 'ГБ']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
+}
+
+function getStatusText(id) {
+  const statuses = {
     1: 'Черновик',
-    2: 'Подано',
-    3: 'Принято',
+    2: 'На рассмотрении',
+    3: 'Одобрено',
     4: 'Отклонено',
-    5: 'Отозвано',
     draft: 'Черновик',
-    submitted: 'Подано',
-    approved: 'Принято',
+    submitted: 'На рассмотрении',
+    approved: 'Одобрено',
     rejected: 'Отклонено',
     additional_info: 'Требует доработки'
-  };
-  return statusMap[statusId] || 'Неизвестный статус';
+  }
+  return statuses[id] || 'Неизвестный статус'
 }
 
-// Получение класса для отображения статуса
-function getStatusClass(statusId) {
-  const classMap = {
-    1: 'bg-gray-100 text-gray-800',
-    2: 'bg-blue-100 text-blue-800',
-    3: 'bg-green-100 text-green-800',
-    4: 'bg-red-100 text-red-800',
-    5: 'bg-gray-100 text-gray-800',
-    draft: 'bg-gray-100 text-gray-800',
-    submitted: 'bg-blue-100 text-blue-800',
-    approved: 'bg-green-100 text-green-800',
-    rejected: 'bg-red-100 text-red-800',
-    additional_info: 'bg-yellow-100 text-yellow-800'
-  };
-  return classMap[statusId] || 'bg-gray-100 text-gray-800';
+function getStatusTagType(id) {
+  const types = {
+    1: 'info',
+    2: 'warning',
+    3: 'success',
+    4: 'danger',
+    draft: 'info',
+    submitted: 'warning',
+    approved: 'success',
+    rejected: 'danger',
+    additional_info: 'warning'
+  }
+  return types[id] || 'info'
 }
 
-// Получение цвета для истории изменений
-function getHistoryStatusColor(statusId) {
-  const colorMap = {
-    1: 'bg-gray-500',
-    2: 'bg-blue-500',
-    3: 'bg-green-500',
-    4: 'bg-red-500',
-    5: 'bg-gray-500',
-    draft: 'bg-gray-500',
-    submitted: 'bg-blue-500',
-    approved: 'bg-green-500',
-    rejected: 'bg-red-500',
-    additional_info: 'bg-yellow-500'
-  };
-  return colorMap[statusId] || 'bg-gray-500';
+function getTimelineType(id) {
+  const types = {
+    1: 'info',
+    2: 'primary',
+    3: 'success',
+    4: 'danger',
+    draft: 'info',
+    submitted: 'primary',
+    approved: 'success',
+    rejected: 'danger'
+  }
+  return types[id] || 'info'
 }
 
-// Получение текста для формы обучения
+function getHistoryStatusText(historyItem) {
+  return historyItem.status?.name || historyItem.status_name || historyItem.new_status?.name || getStatusText(historyItem.status_id)
+}
+
 function getStudyFormText(form) {
-  const formMap = {
+  const forms = {
     'full-time': 'Очная',
     'part-time': 'Заочная',
-    'distance': 'Дистанционная'
-  };
-  return formMap[form] || 'Не указана';
+    distance: 'Дистанционная'
+  }
+  return forms[form] || 'Не указана'
 }
 
-// Получение текста для типа финансирования
 function getFundingFormText(form) {
-  const formMap = {
-    'budget': 'Бюджет',
-    'contract': 'Контракт'
-  };
-  return formMap[form] || 'Не указан';
-}
-
-// Получение имени файла без расширения
-function getFileName(filename) {
-  if (!filename) return '';
-  const lastDotIndex = filename.lastIndexOf('.');
-  return lastDotIndex !== -1 ? filename.substring(0, lastDotIndex) : filename;
-}
-
-// Получение расширения файла
-function getFileExtension(filename) {
-  if (!filename) return '';
-  const lastDotIndex = filename.lastIndexOf('.');
-  return lastDotIndex !== -1 ? filename.substring(lastDotIndex + 1).toUpperCase() : '';
-}
-
-// Получение типа файла на основе расширения
-function getFileType(filename) {
-  if (!filename) return 'other';
-  
-  const extension = getFileExtension(filename).toLowerCase();
-  
-  if (['pdf'].includes(extension)) {
-    return 'pdf';
-  } else if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(extension)) {
-    return 'image';
-  } else if (['doc', 'docx', 'rtf', 'txt'].includes(extension)) {
-    return 'doc';
-  } else if (['xls', 'xlsx', 'csv'].includes(extension)) {
-    return 'sheet';
-  } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
-    return 'archive';
+  const forms = {
+    budget: 'Бюджет',
+    contract: 'Контракт'
   }
-  
-  return 'other';
+  return forms[form] || 'Не указан'
 }
 
-// Получение цвета иконки в зависимости от типа файла
-function getFileIconColor(filename) {
-  const type = getFileType(filename);
-  
-  const colorMap = {
-    'pdf': 'text-red-500',
-    'image': 'text-blue-500',
-    'doc': 'text-indigo-500',
-    'sheet': 'text-green-500',
-    'archive': 'text-amber-500',
-    'other': 'text-gray-500'
-  };
-  
-  return colorMap[type] || 'text-gray-500';
-}
-
-// Получение цвета фона для иконки в зависимости от типа файла
-function getFileIconBgColor(filename) {
-  const type = getFileType(filename);
-  
-  const bgColorMap = {
-    'pdf': 'bg-red-500',
-    'image': 'bg-blue-500',
-    'doc': 'bg-indigo-500',
-    'sheet': 'bg-green-500',
-    'archive': 'bg-amber-500',
-    'other': 'bg-gray-500'
-  };
-  
-  return bgColorMap[type] || 'bg-gray-500';
-}
-
-// Получение класса для отображения расширения файла
-function getFileExtensionClass(filename) {
-  const type = getFileType(filename);
-  
-  const classMap = {
-    'pdf': 'bg-red-100 text-red-800',
-    'image': 'bg-blue-100 text-blue-800',
-    'doc': 'bg-indigo-100 text-indigo-800',
-    'sheet': 'bg-green-100 text-green-800',
-    'archive': 'bg-amber-100 text-amber-800',
-    'other': 'bg-gray-100 text-gray-800'
-  };
-  
-  return classMap[type] || 'bg-gray-100 text-gray-800';
-}
-
-// Получение текста для пола
 function getGenderText(gender) {
-  const genderMap = {
-    'male': 'Мужской',
-    'female': 'Женский'
-  };
-  return genderMap[gender] || 'Не указан';
+  const genders = {
+    male: 'Мужской',
+    female: 'Женский'
+  }
+  return genders[gender] || 'Не указан'
 }
 
-// Получение текста для уровня образования
 function getEducationLevelText(level) {
-  const levelMap = {
+  const levels = {
     'high-school': 'Среднее общее',
-    'vocational': 'Среднее профессиональное',
-    'bachelor': 'Высшее (бакалавриат)',
-    'master': 'Высшее (магистратура)',
-    'specialist': 'Высшее (специалитет)'
-  };
-  return levelMap[level] || 'Не указан';
-}
-
-// Функции для работы с разными типами файлов
-function getApplicationFileUrl(file) {
-  try {
-    if (!file.file_path) {
-      console.error('Отсутствует путь к файлу приложения:', file);
-      return '#';
-    }
-    
-    const { data } = appApi.storage
-      .from('application_files')
-      .getPublicUrl(file.file_path);
-    
-    return data?.publicUrl || '#';
-  } catch (error) {
-    console.error('Ошибка при получении URL файла приложения:', error);
-    return '#';
+    college: 'Среднее профессиональное',
+    vocational: 'Среднее профессиональное',
+    bachelor: 'Высшее - бакалавриат',
+    master: 'Высшее - магистратура',
+    specialist: 'Высшее - специалитет'
   }
-}
-
-function getOlympiadCertificateUrl(cert) {
-  try {
-    if (!cert.file_path) {
-      console.error('Отсутствует путь к файлу сертификата:', cert);
-      return '#';
-    }
-    
-    // Согласно коду из appApi.js, сертификаты хранятся в application_files bucket
-    const { data } = appApi.storage
-      .from('application_files')
-      .getPublicUrl(cert.file_path);
-    
-    return data?.publicUrl || '#';
-  } catch (error) {
-    console.error('Ошибка при получении URL сертификата олимпиады:', error);
-    return '#';
-  }
+  return levels[level] || 'Не указан'
 }
 
 function getFileDisplayName(file) {
-  // Определяем тип файла по названию или категории
-  if (file.file_category === 'photo' || (file.file_path && file.file_path.includes('photo'))) {
-    return 'Фотография 3×4';
-  } else if (file.file_category === 'education_scan' || (file.file_path && file.file_path.includes('education'))) {
-    return 'Документ об образовании';
-  } else if (file.file_category === 'passport_scan' || (file.file_path && file.file_path.includes('passport') && !file.file_path.includes('translation'))) {
-    return 'Паспорт';
-  } else if (file.file_category === 'passport_translation' || (file.file_path && file.file_path.includes('passport') && file.file_path.includes('translation'))) {
-    return 'Нотариально заверенный перевод паспорта';
-  } else if (file.file_path && file.file_path.includes('additional')) {
-    return 'Дополнительный документ';
+  const names = {
+    photo: 'Фотография 3x4',
+    education_scan: 'Документ об образовании',
+    passport_scan: 'Паспорт',
+    passport_translation: 'Нотариально заверенный перевод паспорта'
   }
-  return file.file_name || 'Файл';
+  return names[file.file_category] || file.file_name || 'Файл'
 }
-</script> 
+
+function getFileNameFromPath(filePath) {
+  if (!filePath) return ''
+  return filePath.split('/').pop() || filePath
+}
+
+function getFileExtension(filename) {
+  if (!filename) return ''
+  const lastDotIndex = filename.lastIndexOf('.')
+  return lastDotIndex !== -1 ? filename.substring(lastDotIndex + 1).toUpperCase() : ''
+}
+
+function getCommentAuthor(comment) {
+  const user = comment.created_by_user
+  if (!user) return ''
+  return [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email || ''
+}
+</script>
+
+<style scoped>
+.application-details-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.application-details-page__header-card,
+.application-details-page__state-card,
+.application-details-page__alert,
+.application-details-page__summary-card {
+  margin-bottom: 24px;
+}
+
+.application-details-page__header,
+.application-details-page__summary,
+.application-details-page__section-header,
+.application-details-page__document-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.application-details-page__title {
+  display: block;
+  margin: 0 0 8px;
+  color: var(--el-text-color-primary);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.application-details-page__subtitle,
+.application-details-page__summary-subtitle {
+  display: block;
+}
+
+.application-details-page__summary-title {
+  display: block;
+  margin: 0 0 6px;
+  color: var(--el-text-color-primary);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.application-details-page__summary-descriptions {
+  margin-top: 18px;
+}
+
+.application-details-page__section {
+  margin-bottom: 28px;
+}
+
+.application-details-page__section:last-child {
+  margin-bottom: 0;
+}
+
+.application-details-page__section-title {
+  display: block;
+  margin: 0 0 14px;
+  color: var(--el-text-color-primary);
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.application-details-page__choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.application-details-page__choice-title {
+  margin: 12px 0 6px;
+  color: var(--el-text-color-primary);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.application-details-page__choice-meta,
+.application-details-page__document-meta,
+.application-details-page__timeline-comment {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.application-details-page__document-list {
+  display: grid;
+  gap: 12px;
+}
+
+.application-details-page__document-info {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.application-details-page__document-title {
+  margin: 0 0 4px;
+  color: var(--el-text-color-primary);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.application-details-page__document-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.application-details-page__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .application-details-page__choice-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .application-details-page {
+    padding: 16px 12px;
+  }
+
+  .application-details-page__header,
+  .application-details-page__summary,
+  .application-details-page__section-header,
+  .application-details-page__document-row {
+    flex-direction: column;
+  }
+
+  .application-details-page__title {
+    font-size: 24px;
+  }
+
+  .application-details-page__actions,
+  .application-details-page__actions .el-button,
+  .application-details-page__document-row .el-space {
+    width: 100%;
+  }
+}
+</style>

@@ -2,21 +2,29 @@
   <el-card shadow="never" class="application-card">
     <template #header>
       <div class="application-card__header">
-        <el-text tag="h2" class="application-card__title">
-          Заявление №{{ shortId }}
-        </el-text>
+        <div>
+          <el-text tag="h2" class="application-card__title">
+            Заявление №{{ shortId }}
+          </el-text>
+          <el-text type="info" class="application-card__subtitle">
+            Учебный год: {{ application.academic_year || new Date().getFullYear() }}
+          </el-text>
+        </div>
         <el-tag :type="statusTagType" effect="light">
-          {{ application.status?.name || 'Неизвестный статус' }}
+          {{ statusName }}
         </el-tag>
       </div>
     </template>
 
-    <el-descriptions :column="2" border class="application-card__descriptions">
+    <el-descriptions :column="descriptionColumns" border class="application-card__descriptions">
       <el-descriptions-item label="Дата подачи">
         {{ formatDate(application.created_at) }}
       </el-descriptions-item>
       <el-descriptions-item label="Последнее обновление">
         {{ formatDate(application.updated_at) }}
+      </el-descriptions-item>
+      <el-descriptions-item v-if="documentSummaryLabel" label="Документы">
+        {{ documentSummaryLabel }}
       </el-descriptions-item>
     </el-descriptions>
 
@@ -41,17 +49,45 @@ const props = defineProps({
 // Computed
 const shortId = computed(() => props.application.id?.slice(-8) || 'N/A')
 
+const statusId = computed(() => props.application.status?.id || props.application.status_id)
+
+const statusName = computed(() => props.application.status?.name || getStatusText(statusId.value))
+
 const statusTagType = computed(() => {
   const statusTypes = {
-    10: 'primary',
-    11: 'success',
-    12: 'danger'
+    1: 'info',
+    2: 'warning',
+    3: 'success',
+    4: 'danger'
   }
-  return statusTypes[props.application.status?.id] || 'info'
+  return statusTypes[statusId.value] || 'info'
 })
 
-// Утилиты
-const formatDate = (dateString) => {
+const documentSummaryLabel = computed(() => {
+  const summary = props.application.document_summary
+  if (!summary) return ''
+
+  const uploaded = summary.uploaded || summary.uploaded_count || summary.total_uploaded || 0
+  const required = summary.required || summary.required_count || summary.total_required || 0
+
+  if (required) return `${uploaded} из ${required} обязательных`
+  if (uploaded) return `${uploaded} загружено`
+  return ''
+})
+
+const descriptionColumns = computed(() => documentSummaryLabel.value ? 3 : 2)
+
+function getStatusText(id) {
+  const statuses = {
+    1: 'Черновик',
+    2: 'На рассмотрении',
+    3: 'Одобрено',
+    4: 'Отклонено'
+  }
+  return statuses[id] || 'Неизвестный статус'
+}
+
+function formatDate(dateString) {
   if (!dateString) return 'Не указана'
   return new Date(dateString).toLocaleDateString('ru-RU', { 
     day: '2-digit', 
@@ -70,9 +106,15 @@ const formatDate = (dateString) => {
 }
 
 .application-card__title {
+  display: block;
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+}
+
+.application-card__subtitle {
+  display: block;
+  margin-top: 4px;
 }
 
 .application-card__actions {

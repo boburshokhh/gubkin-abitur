@@ -92,6 +92,20 @@ function isStaffUser(user) {
   return user?.role_id === 2 || user?.role_id === 3;
 }
 
+async function canAccessApplication(user, applicationId) {
+  if (isStaffUser(user)) return true;
+
+  const access = await db.query('SELECT user_id FROM applications WHERE id = $1', [applicationId]);
+  return access.rows.length > 0 && access.rows[0].user_id === user.id;
+}
+
+async function ensureApplicationAccess(req, res, applicationId) {
+  if (await canAccessApplication(req.user, applicationId)) return true;
+
+  res.status(403).json({ error: 'Доступ запрещен' });
+  return false;
+}
+
 async function getApplicationHistory(applicationId) {
   const result = await db.query(
     `WITH ordered_history AS (
@@ -1507,6 +1521,8 @@ router.put('/applications/:id/status', requireAdminOrReviewer, async (req, res) 
 // Совместимые профили
 router.get('/applications/:id/compatibles', requireAuth, async (req, res) => {
   try {
+    if (!(await ensureApplicationAccess(req, res, req.params.id))) return;
+
     const rpcResult = await db.query('SELECT * FROM get_compatible_profiles($1, $2, $3, $4)', [
       req.params.id,
       req.query.search || null,
@@ -1588,6 +1604,8 @@ router.get('/files/document-types', async (req, res) => {
 // Получить документы по ID заявления
 router.get('/files/documents/:appId', requireAuth, async (req, res) => {
   try {
+    if (!(await ensureApplicationAccess(req, res, req.params.appId))) return;
+
     const result = await db.query('SELECT get_application_documents($1) as documents', [req.params.appId]);
     res.json({ data: result.rows[0]?.documents || [] });
   } catch (err) {
@@ -1606,6 +1624,8 @@ router.post('/files/documents/:appId', requireAuth, upload.single('file'), async
   }
 
   try {
+    if (!(await ensureApplicationAccess(req, res, appId))) return;
+
     const fileExt = file.originalname.split('.').pop();
     const fileId = crypto.randomUUID ? crypto.randomUUID() : require('crypto').randomUUID();
     const s3Key = `${appId}/${fileId}.${fileExt}`;
@@ -1633,10 +1653,11 @@ router.post('/files/documents/:appId', requireAuth, upload.single('file'), async
 // Подписанный URL документа
 router.get('/files/signed-url/document/:docId', requireAuth, async (req, res) => {
   try {
-    const result = await db.query('SELECT file_path FROM documents WHERE id = $1', [req.params.docId]);
+    const result = await db.query('SELECT application_id, file_path FROM documents WHERE id = $1', [req.params.docId]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Документ не найден' });
     }
+    if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
     const signedUrl = await s3.getPresignedDownloadUrl(s3.BUCKET_DOCUMENTS, result.rows[0].file_path);
     res.json({ data: { signedUrl } });
@@ -1649,6 +1670,12 @@ router.get('/files/signed-url/document/:docId', requireAuth, async (req, res) =>
 router.put('/files/documents/:docId', requireAuth, async (req, res) => {
   const { document_type_id } = req.body;
   try {
+    const access = await db.query('SELECT application_id FROM documents WHERE id = $1', [req.params.docId]);
+    if (access.rows.length === 0) {
+      return res.status(404).json({ error: 'Документ не найден' });
+    }
+    if (!(await ensureApplicationAccess(req, res, access.rows[0].application_id))) return;
+
     const result = await db.query(
       'UPDATE documents SET document_type_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
       [document_type_id, req.params.docId]
@@ -1670,6 +1697,8 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
   }
 
   try {
+    if (!(await ensureApplicationAccess(req, res, appId))) return;
+
     const fileExt = file.originalname.split('.').pop();
     const category = fileCategory || 'general';
     const s3Key = `${appId}/${category}/${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
@@ -1696,6 +1725,8 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
 // Получить файлы заявления
 router.get('/files/application-files/:appId', requireAuth, async (req, res) => {
   try {
+    if (!(await ensureApplicationAccess(req, res, req.params.appId))) return;
+
     const result = await db.query('SELECT * FROM application_files WHERE application_id = $1 ORDER BY created_at DESC', [req.params.appId]);
     res.json({ data: result.rows });
   } catch (err) {
@@ -1706,10 +1737,11 @@ router.get('/files/application-files/:appId', requireAuth, async (req, res) => {
 // Подписанный URL файла заявления
 router.get('/files/signed-url/file/:fileId', requireAuth, async (req, res) => {
   try {
-    const result = await db.query('SELECT file_path FROM application_files WHERE id = $1', [req.params.fileId]);
+    const result = await db.query('SELECT application_id, file_path FROM application_files WHERE id = $1', [req.params.fileId]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Файл не найден' });
     }
+    if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
     const signedUrl = await s3.getPresignedDownloadUrl(s3.BUCKET_FILES, result.rows[0].file_path);
     res.json({ data: { signedUrl } });
@@ -1728,6 +1760,8 @@ router.post('/files/olympiad-certificates/:appId', requireAuth, upload.single('f
   }
 
   try {
+    if (!(await ensureApplicationAccess(req, res, appId))) return;
+
     const fileExt = file.originalname.split('.').pop();
     const s3Key = `${appId}/olympiad_${Date.now()}.${fileExt}`;
 
@@ -1751,6 +1785,8 @@ router.post('/files/olympiad-certificates/:appId', requireAuth, upload.single('f
 // Получить сертификаты олимпиады
 router.get('/files/olympiad-certificates/:appId', requireAuth, async (req, res) => {
   try {
+    if (!(await ensureApplicationAccess(req, res, req.params.appId))) return;
+
     const result = await db.query('SELECT * FROM olympiad_certificates WHERE application_id = $1 ORDER BY created_at DESC', [req.params.appId]);
     res.json({ data: result.rows });
   } catch (err) {
@@ -1761,10 +1797,11 @@ router.get('/files/olympiad-certificates/:appId', requireAuth, async (req, res) 
 // Подписанный URL сертификата олимпиады
 router.get('/files/signed-url/certificate/:certId', requireAuth, async (req, res) => {
   try {
-    const result = await db.query('SELECT file_path FROM olympiad_certificates WHERE id = $1', [req.params.certId]);
+    const result = await db.query('SELECT application_id, file_path FROM olympiad_certificates WHERE id = $1', [req.params.certId]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Сертификат не найден' });
     }
+    if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
     const signedUrl = await s3.getPresignedDownloadUrl(s3.BUCKET_FILES, result.rows[0].file_path);
     res.json({ data: { signedUrl } });
