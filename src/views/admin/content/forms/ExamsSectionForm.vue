@@ -58,10 +58,11 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { nextTick, reactive, ref, watch } from 'vue'
 
 const props = defineProps({ modelValue: { type: Object, default: () => ({}) } })
 const emit = defineEmits(['update:modelValue'])
+const isSyncingFromModel = ref(false)
 
 const local = reactive({
   kicker: props.modelValue?.kicker || '',
@@ -77,19 +78,26 @@ function removeExam(idx) { local.exams.splice(idx, 1) }
 function addResult() { local.results.push({ title: '', value: '' }) }
 function removeResult(idx) { local.results.splice(idx, 1) }
 
-watch(local, () => emit('update:modelValue', {
-  ...local,
-  exams: local.exams.map(e => ({ ...e })),
-  results: local.results.map(r => ({ ...r }))
-}), { deep: true })
+watch(local, () => {
+  if (isSyncingFromModel.value) return
 
-watch(() => props.modelValue, (v) => {
+  emit('update:modelValue', {
+    ...local,
+    exams: local.exams.map(e => ({ ...e })),
+    results: local.results.map(r => ({ ...r }))
+  })
+}, { deep: true })
+
+watch(() => props.modelValue, async (v) => {
+  isSyncingFromModel.value = true
   local.kicker = v?.kicker || ''
   local.title = v?.title || ''
   local.subtitle = v?.subtitle || ''
   local.exams = (v?.exams || []).map(e => ({ ...e }))
   local.results = (v?.results || []).map(r => ({ ...r }))
   local.rules = { ...(v?.rules || {}) }
+  await nextTick()
+  isSyncingFromModel.value = false
 }, { deep: true })
 </script>
 

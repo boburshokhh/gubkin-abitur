@@ -43,10 +43,11 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { nextTick, reactive, ref, watch } from 'vue'
 
 const props = defineProps({ modelValue: { type: Object, default: () => ({}) } })
 const emit = defineEmits(['update:modelValue'])
+const isSyncingFromModel = ref(false)
 
 const local = reactive({
   kicker: props.modelValue?.kicker || '',
@@ -61,17 +62,24 @@ function removeCard(idx) { local.cards.splice(idx, 1) }
 function addCardItem(card) { card.items = [...(card.items || []), { label: '', value: '', href: null }] }
 function removeCardItem(card, idx) { card.items.splice(idx, 1) }
 
-watch(local, () => emit('update:modelValue', {
-  ...local,
-  cards: local.cards.map(c => ({ ...c, items: (c.items || []).map(i => ({ ...i })) }))
-}), { deep: true })
+watch(local, () => {
+  if (isSyncingFromModel.value) return
 
-watch(() => props.modelValue, (v) => {
+  emit('update:modelValue', {
+    ...local,
+    cards: local.cards.map(c => ({ ...c, items: (c.items || []).map(i => ({ ...i })) }))
+  })
+}, { deep: true })
+
+watch(() => props.modelValue, async (v) => {
+  isSyncingFromModel.value = true
   local.kicker = v?.kicker || ''
   local.title = v?.title || ''
   local.subtitle = v?.subtitle || ''
   local.map_embed_url = v?.map_embed_url || ''
   local.cards = (v?.cards || []).map(c => ({ ...c, items: (c.items || []).map(i => ({ ...i })) }))
+  await nextTick()
+  isSyncingFromModel.value = false
 }, { deep: true })
 </script>
 

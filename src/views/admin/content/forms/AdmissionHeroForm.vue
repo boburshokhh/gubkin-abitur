@@ -42,10 +42,11 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { nextTick, reactive, ref, watch } from 'vue'
 
 const props = defineProps({ modelValue: { type: Object, default: () => ({}) } })
 const emit = defineEmits(['update:modelValue'])
+const isSyncingFromModel = ref(false)
 
 const local = reactive({
   tag: props.modelValue?.tag || '',
@@ -60,9 +61,16 @@ const local = reactive({
 function addItem() { local.items.push({ label: '', value: '' }) }
 function removeItem(idx) { local.items.splice(idx, 1) }
 
-watch(local, () => emit('update:modelValue', { ...local, items: local.items.map(i => ({ ...i })) }), { deep: true })
-watch(() => props.modelValue, (v) => {
+watch(local, () => {
+  if (isSyncingFromModel.value) return
+  emit('update:modelValue', { ...local, items: local.items.map(i => ({ ...i })) })
+}, { deep: true })
+
+watch(() => props.modelValue, async (v) => {
+  isSyncingFromModel.value = true
   Object.assign(local, { ...v, items: (v?.items || []).map(i => ({ ...i })) })
+  await nextTick()
+  isSyncingFromModel.value = false
 }, { deep: true })
 </script>
 

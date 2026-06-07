@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { nextTick, reactive, ref, watch } from 'vue'
 
 const props = defineProps({ modelValue: { type: Object, default: () => ({}) } })
 const emit = defineEmits(['update:modelValue'])
@@ -46,6 +46,7 @@ const jsonText = ref(JSON.stringify(local, null, 2))
 const jsonError = ref('')
 const isEditingJson = ref(false)
 const isSyncingJson = ref(false)
+const isSyncingFromModel = ref(false)
 
 function replaceLocal(nextValue) {
   Object.keys(local).forEach((key) => delete local[key])
@@ -53,6 +54,8 @@ function replaceLocal(nextValue) {
 }
 
 watch(local, () => {
+  if (isSyncingFromModel.value) return
+
   if (!isSyncingJson.value) emit('update:modelValue', { ...local })
   if (!isEditingJson.value) jsonText.value = JSON.stringify(local, null, 2)
 }, { deep: true })
@@ -73,9 +76,12 @@ watch(jsonText, (value) => {
   }
 })
 
-watch(() => props.modelValue, (value) => {
+watch(() => props.modelValue, async (value) => {
+  isSyncingFromModel.value = true
   replaceLocal(value)
   if (!isEditingJson.value) jsonText.value = JSON.stringify(value || {}, null, 2)
+  await nextTick()
+  isSyncingFromModel.value = false
 }, { deep: true })
 </script>
 
