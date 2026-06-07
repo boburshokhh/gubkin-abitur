@@ -52,11 +52,13 @@ function replaceLocal(nextValue) {
   Object.keys(local).forEach((key) => delete local[key])
   Object.assign(local, nextValue || {})
 }
+function getLocalValue() { return { ...local } }
+function isSameValue(value) { return JSON.stringify(value || {}) === JSON.stringify(getLocalValue()) }
 
 watch(local, () => {
   if (isSyncingFromModel.value) return
 
-  if (!isSyncingJson.value) emit('update:modelValue', { ...local })
+  if (!isSyncingJson.value) emit('update:modelValue', getLocalValue())
   if (!isEditingJson.value) jsonText.value = JSON.stringify(local, null, 2)
 }, { deep: true })
 
@@ -77,6 +79,8 @@ watch(jsonText, (value) => {
 })
 
 watch(() => props.modelValue, async (value) => {
+  if (isSameValue(value)) return
+
   isSyncingFromModel.value = true
   replaceLocal(value)
   if (!isEditingJson.value) jsonText.value = JSON.stringify(value || {}, null, 2)

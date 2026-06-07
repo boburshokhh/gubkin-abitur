@@ -213,13 +213,22 @@ function onSecondProfileChange() {
 
 function onThirdProfileChange() {}
 
-watch(selectedProfiles, (newSelectedProfiles) => {
-  const validChoices = newSelectedProfiles
+function getChoicesFromSelectedProfiles(selectedProfileIds) {
+  return selectedProfileIds
     .filter(profileId => profileId !== null && profileId !== undefined && profileId !== '')
     .map((profileId, index) => ({
       profile_id: profileId,
       priority: index + 1
     }));
+}
+
+function areChoicesEqual(nextChoices) {
+  return JSON.stringify(props.modelValue.choices || []) === JSON.stringify(nextChoices);
+}
+
+watch(selectedProfiles, (newSelectedProfiles) => {
+  const validChoices = getChoicesFromSelectedProfiles(newSelectedProfiles);
+  if (areChoicesEqual(validChoices)) return;
 
   emit('update:modelValue', { ...props.modelValue, choices: validChoices });
 }, { deep: true });

@@ -61,17 +61,23 @@ function addCard() { local.cards.push({ title: '', icon_type: 'phone', items: []
 function removeCard(idx) { local.cards.splice(idx, 1) }
 function addCardItem(card) { card.items = [...(card.items || []), { label: '', value: '', href: null }] }
 function removeCardItem(card, idx) { card.items.splice(idx, 1) }
+function getLocalValue() {
+  return {
+    ...local,
+    cards: local.cards.map(c => ({ ...c, items: (c.items || []).map(i => ({ ...i })) }))
+  }
+}
+function isSameValue(value) { return JSON.stringify(value || {}) === JSON.stringify(getLocalValue()) }
 
 watch(local, () => {
   if (isSyncingFromModel.value) return
 
-  emit('update:modelValue', {
-    ...local,
-    cards: local.cards.map(c => ({ ...c, items: (c.items || []).map(i => ({ ...i })) }))
-  })
+  emit('update:modelValue', getLocalValue())
 }, { deep: true })
 
 watch(() => props.modelValue, async (v) => {
+  if (isSameValue(v)) return
+
   isSyncingFromModel.value = true
   local.kicker = v?.kicker || ''
   local.title = v?.title || ''

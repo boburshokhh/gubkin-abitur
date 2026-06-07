@@ -77,18 +77,24 @@ function addExam() { local.exams.push({ subject: '', date: '', time: '09:00', fo
 function removeExam(idx) { local.exams.splice(idx, 1) }
 function addResult() { local.results.push({ title: '', value: '' }) }
 function removeResult(idx) { local.results.splice(idx, 1) }
+function getLocalValue() {
+  return {
+    ...local,
+    exams: local.exams.map(e => ({ ...e })),
+    results: local.results.map(r => ({ ...r }))
+  }
+}
+function isSameValue(value) { return JSON.stringify(value || {}) === JSON.stringify(getLocalValue()) }
 
 watch(local, () => {
   if (isSyncingFromModel.value) return
 
-  emit('update:modelValue', {
-    ...local,
-    exams: local.exams.map(e => ({ ...e })),
-    results: local.results.map(r => ({ ...r }))
-  })
+  emit('update:modelValue', getLocalValue())
 }, { deep: true })
 
 watch(() => props.modelValue, async (v) => {
+  if (isSameValue(v)) return
+
   isSyncingFromModel.value = true
   local.kicker = v?.kicker || ''
   local.title = v?.title || ''

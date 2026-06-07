@@ -6,26 +6,27 @@
   <el-form v-else label-position="top" class="register-step-form">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <el-form-item label="Фамилия" required :error="errors.lastName">
-        <el-input v-model="modelValue.lastName" placeholder="Введите фамилию" clearable />
+        <el-input :model-value="modelValue.lastName" placeholder="Введите фамилию" clearable @update:model-value="updateField('lastName', $event)" />
       </el-form-item>
 
       <el-form-item label="Имя" required :error="errors.firstName">
-        <el-input v-model="modelValue.firstName" placeholder="Введите имя" clearable />
+        <el-input :model-value="modelValue.firstName" placeholder="Введите имя" clearable @update:model-value="updateField('firstName', $event)" />
       </el-form-item>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <el-form-item label="Отчество">
-        <el-input v-model="modelValue.middleName" placeholder="Введите отчество (если есть)" clearable />
+        <el-input :model-value="modelValue.middleName" placeholder="Введите отчество (если есть)" clearable @update:model-value="updateField('middleName', $event)" />
       </el-form-item>
 
       <el-form-item label="Дата рождения" required :error="errors.birthDate">
         <el-date-picker
-          v-model="modelValue.birthDate"
+          :model-value="modelValue.birthDate"
           class="w-full"
           type="date"
           value-format="YYYY-MM-DD"
           placeholder="Выберите дату"
+          @update:model-value="updateField('birthDate', $event)"
         />
       </el-form-item>
     </div>
@@ -45,9 +46,10 @@
 
       <el-form-item label="Полный адрес места проживания" required :error="errors.address">
         <el-input
-          v-model="modelValue.address"
+          :model-value="modelValue.address"
           :placeholder="modelValue.isForeignResidence ? 'Страна, город/регион, полный адрес' : 'Укажите полный адрес'"
           clearable
+          @update:model-value="updateField('address', $event)"
         />
       </el-form-item>
     </div>
@@ -63,18 +65,20 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <el-form-item label="Телефон" required :error="errors.phone">
         <el-input
-          v-model="modelValue.phone"
+          :model-value="modelValue.phone"
           :placeholder="modelValue.isForeignResidence ? '+71234567890' : '+998 90 123 45 67'"
           clearable
+          @update:model-value="updateField('phone', $event)"
           @input="() => emit('phone-format', 'phone')"
         />
       </el-form-item>
 
       <el-form-item label="Телефон одного из родителей" required :error="errors.parentPhone">
         <el-input
-          v-model="modelValue.parentPhone"
+          :model-value="modelValue.parentPhone"
           :placeholder="modelValue.isForeignResidence ? '+71234567890' : '+998 90 123 45 67'"
           clearable
+          @update:model-value="updateField('parentPhone', $event)"
           @input="() => emit('phone-format', 'parentPhone')"
         />
       </el-form-item>
@@ -82,11 +86,11 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <el-form-item label="Email" required :error="errors.email">
-        <el-input v-model="modelValue.email" type="email" placeholder="example@mail.com" clearable />
+        <el-input :model-value="modelValue.email" type="email" placeholder="example@mail.com" clearable @update:model-value="updateField('email', $event)" />
       </el-form-item>
 
       <el-form-item label="Пол" required :error="errors.gender">
-        <el-radio-group v-model="modelValue.gender">
+        <el-radio-group :model-value="modelValue.gender" @update:model-value="updateField('gender', $event)">
           <el-radio value="male">Мужской</el-radio>
           <el-radio value="female">Женский</el-radio>
         </el-radio-group>
@@ -128,13 +132,29 @@ const localRegions = computed(() => {
   return regionsData.value?.filter(region => region.code !== 'FOREIGN') || [];
 });
 
+function updateField(key, value) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    [key]: value
+  });
+}
+
+function updateFields(fields) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    ...fields
+  });
+}
+
 const residenceRegion = computed({
   get() {
     return props.modelValue.isForeignResidence ? 'foreign' : props.modelValue.region_id;
   },
   set(value) {
-    props.modelValue.isForeignResidence = value === 'foreign';
-    props.modelValue.region_id = value === 'foreign' ? null : value;
+    updateFields({
+      isForeignResidence: value === 'foreign',
+      region_id: value === 'foreign' ? null : value
+    });
     emit('phone-format', 'phone');
     emit('phone-format', 'parentPhone');
   }

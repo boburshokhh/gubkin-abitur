@@ -21,10 +21,11 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { nextTick, reactive, ref, watch } from 'vue'
 
 const props = defineProps({ modelValue: { type: Object, default: () => ({}) } })
 const emit = defineEmits(['update:modelValue'])
+const isSyncingFromModel = ref(false)
 
 const local = reactive({
   title: props.modelValue?.title || '',
@@ -33,11 +34,22 @@ const local = reactive({
 
 function addItem() { local.items.push({ icon_type: 'building', title: '', description: '' }) }
 function removeItem(idx) { local.items.splice(idx, 1) }
+function getLocalValue() { return { ...local, items: local.items.map(i => ({ ...i })) } }
+function isSameValue(value) { return JSON.stringify(value || {}) === JSON.stringify(getLocalValue()) }
 
-watch(local, () => emit('update:modelValue', { ...local, items: local.items.map(i => ({ ...i })) }), { deep: true })
-watch(() => props.modelValue, (v) => {
+watch(local, () => {
+  if (isSyncingFromModel.value) return
+  emit('update:modelValue', getLocalValue())
+}, { deep: true })
+
+watch(() => props.modelValue, async (v) => {
+  if (isSameValue(v)) return
+
+  isSyncingFromModel.value = true
   local.title = v?.title || ''
   local.items = (v?.items || []).map(i => ({ ...i }))
+  await nextTick()
+  isSyncingFromModel.value = false
 }, { deep: true })
 </script>
 

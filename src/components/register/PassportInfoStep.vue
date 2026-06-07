@@ -12,29 +12,32 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <el-form-item label="Серия и номер паспорта" required :error="errors.passport_series">
         <el-input
-          v-model="modelValue.passport_series"
+          :model-value="modelValue.passport_series"
           :placeholder="isForeignResidence ? 'A12345678' : 'AA 1234567'"
           clearable
+          @update:model-value="updateField('passport_series', $event)"
           @input="() => emit('passport-format')"
         />
       </el-form-item>
 
       <el-form-item label="Дата выдачи" required :error="errors.passport_issue_date">
         <el-date-picker
-          v-model="modelValue.passport_issue_date"
+          :model-value="modelValue.passport_issue_date"
           class="w-full"
           type="date"
           value-format="YYYY-MM-DD"
           placeholder="Выберите дату"
+          @update:model-value="updateField('passport_issue_date', $event)"
         />
       </el-form-item>
     </div>
 
     <el-form-item label="Кем выдан" required :error="errors.passport_issued_by">
       <el-input
-        v-model="modelValue.passport_issued_by"
+        :model-value="modelValue.passport_issued_by"
         placeholder="Укажите орган, выдавший паспорт"
         clearable
+        @update:model-value="updateField('passport_issued_by', $event)"
       />
     </el-form-item>
 
@@ -76,7 +79,7 @@
 <script setup>
 import FileUploadField from './FileUploadField.vue';
 
-defineProps({
+const props = defineProps({
   modelValue: {
     type: Object,
     required: true
@@ -100,6 +103,13 @@ defineProps({
 });
 
 const emit = defineEmits(['update:modelValue', 'passport-format', 'file-change', 'file-view', 'file-reset']);
+
+function updateField(key, value) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    [key]: value
+  });
+}
 </script>
 
 <style scoped>

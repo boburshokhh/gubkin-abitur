@@ -59,8 +59,16 @@
         <span class="font-medium">Дополнительные параметры</span>
       </template>
       <div class="space-y-4">
-        <el-checkbox v-model="modelValue.accommodation_needed">Нуждаюсь в общежитии</el-checkbox>
-        <el-checkbox v-model="modelValue.olympiad_participant">
+        <el-checkbox
+          :model-value="modelValue.accommodation_needed"
+          @update:model-value="updateField('accommodation_needed', $event)"
+        >
+          Нуждаюсь в общежитии
+        </el-checkbox>
+        <el-checkbox
+          :model-value="modelValue.olympiad_participant"
+          @update:model-value="updateField('olympiad_participant', $event)"
+        >
           Участвовал в Республиканской олимпиаде по математике / Губкинской предметной олимпиаде
         </el-checkbox>
         <el-alert
@@ -127,6 +135,13 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'file-change', 'file-view', 'file-reset']);
 
 const appStore = useApplicationStore();
+
+function updateField(key, value) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    [key]: value
+  });
+}
 
 const allRegions = computed(() => {
   const regionsMap = new Map();

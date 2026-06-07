@@ -117,6 +117,7 @@ const allDirections = ref([]);
 const allProfiles = ref([]);
 const activeQuickFilterId = ref('all');
 let emitTimeout = null;
+let lastEmittedFiltersSignature = JSON.stringify(props.initialFilters || {});
 
 onMounted(async () => {
   try {
@@ -140,7 +141,12 @@ watch(localFilters, (newFilters) => {
   activeQuickFilterId.value = getActiveQuickFilterId(newFilters);
   window.clearTimeout(emitTimeout);
   emitTimeout = window.setTimeout(() => {
-    emit('update:filters', { ...newFilters });
+    const nextFilters = { ...newFilters };
+    const nextFiltersSignature = JSON.stringify(nextFilters);
+    if (nextFiltersSignature === lastEmittedFiltersSignature) return;
+
+    lastEmittedFiltersSignature = nextFiltersSignature;
+    emit('update:filters', nextFilters);
   }, 350);
 }, { deep: true });
 

@@ -60,13 +60,17 @@ const local = reactive({
 
 function addItem() { local.items.push({ label: '', value: '' }) }
 function removeItem(idx) { local.items.splice(idx, 1) }
+function getLocalValue() { return { ...local, items: local.items.map(i => ({ ...i })) } }
+function isSameValue(value) { return JSON.stringify(value || {}) === JSON.stringify(getLocalValue()) }
 
 watch(local, () => {
   if (isSyncingFromModel.value) return
-  emit('update:modelValue', { ...local, items: local.items.map(i => ({ ...i })) })
+  emit('update:modelValue', getLocalValue())
 }, { deep: true })
 
 watch(() => props.modelValue, async (v) => {
+  if (isSameValue(v)) return
+
   isSyncingFromModel.value = true
   Object.assign(local, { ...v, items: (v?.items || []).map(i => ({ ...i })) })
   await nextTick()

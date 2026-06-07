@@ -34,13 +34,27 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { nextTick, reactive, ref, watch } from 'vue'
 
 const props = defineProps({ modelValue: { type: Object, default: () => ({}) } })
 const emit = defineEmits(['update:modelValue'])
+const isSyncingFromModel = ref(false)
 
 const local = reactive({ ...props.modelValue })
+function getLocalValue() { return { ...local } }
+function isSameValue(value) { return JSON.stringify(value || {}) === JSON.stringify(getLocalValue()) }
 
-watch(local, () => emit('update:modelValue', { ...local }), { deep: true })
-watch(() => props.modelValue, (v) => Object.assign(local, v), { deep: true })
+watch(local, () => {
+  if (isSyncingFromModel.value) return
+  emit('update:modelValue', getLocalValue())
+}, { deep: true })
+
+watch(() => props.modelValue, async (v) => {
+  if (isSameValue(v)) return
+
+  isSyncingFromModel.value = true
+  Object.assign(local, v)
+  await nextTick()
+  isSyncingFromModel.value = false
+}, { deep: true })
 </script>

@@ -10,7 +10,12 @@
 
     <div class="space-y-4">
       <el-form-item label="Уровень образования" required :error="errors.education_level">
-        <el-select v-model="modelValue.education_level" class="w-full" placeholder="Выберите уровень образования">
+        <el-select
+          :model-value="modelValue.education_level"
+          class="w-full"
+          placeholder="Выберите уровень образования"
+          @update:model-value="updateField('education_level', $event)"
+        >
           <el-option value="high-school" label="Среднее общее (11 классов)" />
           <el-option value="college" label="Среднее профессиональное (колледж, техникум, лицей)" />
           <el-option value="bachelor" label="Высшее - бакалавриат" />
@@ -20,19 +25,21 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <el-form-item label="Учебное заведение" required :error="errors.education_institution">
           <el-input
-            v-model="modelValue.education_institution"
+            :model-value="modelValue.education_institution"
             placeholder="Полное название школы/колледжа/лицея"
             clearable
+            @update:model-value="updateField('education_institution', $event)"
           />
         </el-form-item>
 
         <el-form-item label="Год окончания" required :error="errors.education_graduation_year">
           <el-input-number
-            v-model="modelValue.education_graduation_year"
+            :model-value="modelValue.education_graduation_year"
             class="w-full"
             :min="1950"
             :max="new Date().getFullYear() + 1"
             controls-position="right"
+            @update:model-value="updateField('education_graduation_year', $event)"
           />
         </el-form-item>
       </div>
@@ -40,19 +47,21 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <el-form-item label="Номер документа об образовании" required :error="errors.education_document_number">
           <el-input
-            v-model="modelValue.education_document_number"
+            :model-value="modelValue.education_document_number"
             placeholder="Номер аттестата/диплома"
             clearable
+            @update:model-value="updateField('education_document_number', $event)"
           />
         </el-form-item>
 
         <el-form-item label="Дата выдачи документа" required :error="errors.education_document_date">
           <el-date-picker
-            v-model="modelValue.education_document_date"
+            :model-value="modelValue.education_document_date"
             class="w-full"
             type="date"
             value-format="YYYY-MM-DD"
             placeholder="Выберите дату"
+            @update:model-value="updateField('education_document_date', $event)"
           />
         </el-form-item>
       </div>
@@ -116,7 +125,7 @@
 <script setup>
 import FileUploadField from './FileUploadField.vue';
 
-defineProps({
+const props = defineProps({
   modelValue: {
     type: Object,
     required: true
@@ -136,6 +145,13 @@ defineProps({
 });
 
 const emit = defineEmits(['update:modelValue', 'file-change', 'file-view', 'file-reset']);
+
+function updateField(key, value) {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    [key]: value
+  });
+}
 </script>
 
 <style scoped>
