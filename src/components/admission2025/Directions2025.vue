@@ -38,6 +38,9 @@
                     <el-tag class="places-tag" effect="plain" round>{{ profile.places }} мест</el-tag>
                   </div>
                   <p v-if="profile.description" class="profile-description">{{ profile.description }}</p>
+                    <div v-if="profile.durationYears" class="profile-meta">
+                      <span>Срок обучения: {{ profile.durationYears }}</span>
+                    </div>
                   <div v-if="profile.exams.length" class="profile-exams">
                     <el-tag
                       v-for="exam in profile.exams"
@@ -99,6 +102,7 @@ const directions = computed(() => {
       id: profile.id,
       name: getProfileName(profile.name),
       description: profile.description || '',
+      durationYears: getDurationYears(profile.duration_years),
       exams: profile.profile_exams || [],
       sortOrder: Number(profile.sort_order) || 0,
       places
@@ -145,6 +149,24 @@ function getProfilePlaces(profile) {
 function getProfileName(name = '') {
   if (props.sectionData?.show_profile_codes) return name
   return name.replace(/\s*\([^)]*\)\s*$/, '')
+}
+
+function getDurationYears(durationYears) {
+  if (!durationYears) return ''
+  const numericDuration = Number(durationYears)
+  if (!Number.isFinite(numericDuration)) return String(durationYears)
+
+  return `${numericDuration.toLocaleString('ru-RU')} ${getYearWord(numericDuration)}`
+}
+
+function getYearWord(value) {
+  if (value % 1 !== 0) return 'года'
+  const lastDigit = value % 10
+  const lastTwoDigits = value % 100
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return 'лет'
+  if (lastDigit === 1) return 'год'
+  if (lastDigit >= 2 && lastDigit <= 4) return 'года'
+  return 'лет'
 }
 
 function getProfileTitle(levelName, profilesCount) {
@@ -273,6 +295,13 @@ function getProfileColumnSpan(profilesCount) {
   color: #64748b;
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+.profile-meta {
+  margin-top: 10px;
+  color: #475569;
+  font-size: 0.88rem;
+  font-weight: 550;
 }
 
 .profile-exams {
