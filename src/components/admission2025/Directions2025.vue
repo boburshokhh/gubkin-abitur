@@ -154,8 +154,7 @@ function getProfileTitle(levelName, profilesCount) {
 
 function getProfileColumnSpan(profilesCount) {
   if (profilesCount <= 1) return 24
-  if (profilesCount === 2) return 12
-  return 8
+  return 12
 }
 </script>
 
