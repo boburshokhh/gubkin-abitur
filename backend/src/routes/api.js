@@ -2013,6 +2013,31 @@ const uploadSiteAsset = multer({
   }
 });
 
+const defaultCmsPages = {
+  faq: {
+    title: 'Часто задаваемые вопросы',
+    status: 'published'
+  }
+};
+
+async function getOrCreateDefaultCmsPage(slug) {
+  const pageResult = await db.query('SELECT id FROM cms_pages WHERE slug = $1', [slug]);
+  if (pageResult.rows.length) return pageResult.rows[0];
+
+  const defaultPage = defaultCmsPages[slug];
+  if (!defaultPage) return null;
+
+  const createdPage = await db.query(
+    `INSERT INTO cms_pages (slug, title, status)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (slug) DO UPDATE SET title = EXCLUDED.title
+     RETURNING id`,
+    [slug, defaultPage.title, defaultPage.status]
+  );
+
+  return createdPage.rows[0];
+}
+
 // -- Public CMS endpoints --
 
 router.get('/cms/pages/:slug', async (req, res) => {
@@ -2122,12 +2147,12 @@ router.get('/admin/cms/pages', requireAdmin, async (req, res) => {
 
 router.get('/admin/cms/pages/:slug/sections', requireAdmin, async (req, res) => {
   try {
-    const pageResult = await db.query('SELECT id FROM cms_pages WHERE slug = $1', [req.params.slug]);
-    if (!pageResult.rows.length) return res.status(404).json({ error: 'Страница не найдена' });
+    const page = await getOrCreateDefaultCmsPage(req.params.slug);
+    if (!page) return res.status(404).json({ error: 'Страница не найдена' });
     const sections = await db.query(
       `SELECT id, type, anchor, title, content, sort_order, is_published, updated_at
        FROM cms_sections WHERE page_id = $1 ORDER BY sort_order ASC`,
-      [pageResult.rows[0].id]
+      [page.id]
     );
     res.json({ data: sections.rows });
   } catch (err) {
@@ -2139,13 +2164,13 @@ router.post('/admin/cms/pages/:slug/sections', requireAdmin, async (req, res) =>
   const { type, anchor, title, content, sort_order } = req.body;
   if (!type || !content) return res.status(400).json({ error: 'type и content обязательны' });
   try {
-    const pageResult = await db.query('SELECT id FROM cms_pages WHERE slug = $1', [req.params.slug]);
-    if (!pageResult.rows.length) return res.status(404).json({ error: 'Страница не найдена' });
+    const page = await getOrCreateDefaultCmsPage(req.params.slug);
+    if (!page) return res.status(404).json({ error: 'Страница не найдена' });
     const result = await db.query(
       `INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order)
        VALUES ($1, $2, $3, $4, $5::jsonb, $6)
        RETURNING *`,
-      [pageResult.rows[0].id, type, anchor || null, title || null, JSON.stringify(content), sort_order || 0]
+      [page.id, type, anchor || null, title || null, JSON.stringify(content), sort_order || 0]
     );
     res.status(201).json({ data: result.rows[0] });
   } catch (err) {

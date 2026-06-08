@@ -184,7 +184,7 @@ const statsItems = computed(() => statsContent.value.items || [])
 const timelineTitle = computed(() => timelineContent.value.title || 'Важные даты приемной кампании')
 const timelineItems = computed(() => timelineContent.value.items || [])
 const faqTitle = computed(() => faqContent.value.title || 'Частые вопросы абитуриентов')
-const faqs = computed(() => faqContent.value.items || [])
+const faqs = computed(() => (faqContent.value.items || []).filter(faq => faq.is_published !== false))
 
 onMounted(async () => {
   try {

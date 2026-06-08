@@ -5,10 +5,10 @@
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
         <div class="max-w-4xl mx-auto">
           <h1 class="text-3xl md:text-4xl font-bold mb-4">
-            Часто задаваемые вопросы
+            {{ pageTitle }}
           </h1>
           <p class="text-lg opacity-90">
-            Ответы на вопросы абитуриентов о поступлении в Филиал РГУ нефти и газа (НИУ) имени И.М. Губкина в городе Ташкенте
+            {{ pageSubtitle }}
           </p>
         </div>
       </div>
@@ -38,7 +38,15 @@
           </div>
           
           <!-- Вопросы и ответы -->
-          <div class="space-y-6">
+          <div v-if="isLoading" class="bg-white p-8 rounded-lg border border-gray-200 text-center text-gray-600">
+            Загрузка вопросов...
+          </div>
+
+          <div v-else-if="!filteredFaqs.length" class="bg-white p-8 rounded-lg border border-gray-200 text-center text-gray-600">
+            В выбранной категории пока нет опубликованных вопросов.
+          </div>
+
+          <div v-else class="space-y-6">
             <BaseCard 
               v-for="faq in filteredFaqs" 
               :key="faq.id"
@@ -72,7 +80,7 @@
                 v-show="openFaqId === faq.id" 
                 class="mt-4 text-gray-600"
               >
-                <p v-if="!faq.hasLists && !faq.answerIntro">{{ faq.answer }}</p>
+                <p v-if="!faq.hasLists && getFaqAnswer(faq)" class="whitespace-pre-line">{{ getFaqAnswer(faq) }}</p>
                 <div v-else-if="faq.answerIntro && !faq.hasLists">
                   <p class="mb-2">{{ faq.answerIntro }}</p>
                   <p v-if="faq.answerOutro">{{ faq.answerOutro }}</p>
@@ -126,207 +134,67 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { BaseCard } from '@/components/ui';
+import { ref, computed, onMounted } from 'vue'
+import { BaseCard } from '@/components/ui'
+import { fetchCmsPage, getSectionByAnchor } from '@/api/cms.js'
+import { allFaqCategory, defaultFaqCategories, defaultFaqContent, defaultFaqs } from '@/content/default-faq.js'
 
-// Категории вопросов
-const categories = [
-  { id: 'all', name: 'Все вопросы' },
-  { id: 'general', name: 'Общие вопросы' },
-  { id: 'application', name: 'Подача документов' },
-  { id: 'exams', name: 'Вступительные испытания' },
-  { id: 'study', name: 'Обучение' },
-  { id: 'dormitory', name: 'Общежитие' },
-  { id: 'documents', name: 'Документы' }
-];
+const pageData = ref(null)
+const isLoading = ref(false)
+const selectedCategory = ref('all')
+const openFaqId = ref(null)
 
-// Текущая выбранная категория
-const selectedCategory = ref('all');
+const faqContent = computed(() => {
+  const section = getSectionByAnchor(pageData.value?.sections || [], 'faq')
+  const content = section?.content || {}
+  const hasManagedItems = Array.isArray(content.items) && content.items.length > 0
 
-// ID открытого вопроса 
-const openFaqId = ref(null);
+  if (hasManagedItems) return content
+  return defaultFaqContent
+})
 
-// Функция для открытия/закрытия вопроса
-const toggleFaq = (id) => {
-  if (openFaqId.value === id) {
-    openFaqId.value = null;
-  } else {
-    openFaqId.value = id;
-  }
-};
+const pageTitle = computed(() => faqContent.value.title || defaultFaqContent.title)
+const pageSubtitle = computed(() => faqContent.value.subtitle || defaultFaqContent.subtitle)
 
-// Список всех вопросов с ответами
-const faqs = [
-  {
-    id: 1,
-    question: 'Является ли информация на официальном сайте Филиала www.gubkin.uz достоверной?',
-    answer: 'Да, информация на официальном сайте и в телеграм канале Филиала является достоверной.',
-    category: 'general',
-    hasLists: false
-  },
-  {
-    id: 2,
-    question: 'С какого числа начинается прием документов для приема на 1-й курс Филиала в 2026 году?',
-    answer: 'Приемная комиссия принимает документы от абитуриентов с 16 июня по 1 июля 2026 года (включительно) в очном «off-line» и дистанционном «on-line» формате.',
-    category: 'application',
-    hasLists: false
-  },
-  {
-    id: 3,
-    question: 'Экзамены будут в виде тестов?',
-    answerIntro: 'Экзамены проводятся в письменной (математика, русский язык) и устной (английский язык) форме.',
-    answerOutro: 'С образцами билетов вступительных экзаменов можно ознакомиться по ссылке: https://gubkin.ru/info/enrollee/admission_board/postupayushchim-v-bakalavriat/priyem-na-ochnuyu-formu-obucheniya/programmy-i-obraztsy-biletov-vstupitelnykh-ispytaniy.php',
-    category: 'exams',
-    hasLists: false
-  },
-  {
-    id: 4,
-    question: 'Сколько стоит обучение?',
-    answer: 'Стоимость обучения с 1 марта 2020 года составляет 28 размеров МРОТ.',
-    category: 'study',
-    hasLists: false
-  },
-  {
-    id: 5,
-    question: 'Кому предоставляют места в Доме для проживания студентов?',
-    answer: 'Места в Домах для проживания студентов предоставляются на период обучения иногородним студентам.',
-    category: 'dormitory',
-    hasLists: false
-  },
-  {
-    id: 6,
-    question: 'Как мне получить общежитие?',
-    answer: 'При подаче документов вам необходимо указать в заявлении, что вы нуждаетесь в общежитии и представить заявление после решения мандатной комиссии о рекомендации Вас к зачислению.',
-    category: 'dormitory',
-    hasLists: false
-  },
-  {
-    id: 7,
-    question: 'На сколько профилей подготовки (специальностей) можно подать заявление?',
-    answer: 'Абитуриенты в своем заявлении могут указать до 3 конкурсных групп с указанием их приоритета с единым набором вступительных испытаний.',
-    category: 'application',
-    hasLists: false
-  },
-  {
-    id: 8,
-    question: 'Обязательно ли предъявление подлинника документа об образовании при поступлении в Филиал?',
-    answerIntro: 'В соответствии с Правилами приёма в Филиал при подаче заявления о приеме в вуз абитуриент представляет оригинал и ксерокопию документа государственного образца об образовании.',
-    answerOutro: 'В случае подачи документов в форме on-line, все документы предоставляются в отсканированной цветной форме в формате pdf или jpg и отправляются на электронную почту приёмной комиссии.',
-    category: 'application',
-    hasLists: false
-  },
-  {
-    id: 9,
-    question: 'Сроки подачи документов?',
-    answer: 'За сроками начала и окончания приёмной кампании следите за новостями на официальном телеграм-канале t.me/gubkin_uz и на странице официального сайта Филиала https://gubkin.uz/ru/sveden/priemnaya-komissiya',
-    category: 'application',
-    hasLists: false
-  },
-  {
-    id: 10,
-    question: 'Нужно ли представлять в приемную комиссию медицинскую справку?',
-    answer: 'Медицинская справка (по форме 086-У) с указанием полученных прививок предоставляется после поступления в Филиал.',
-    category: 'documents',
-    hasLists: false
-  },
-  {
-    id: 11,
-    question: 'Какой период действительна медицинская справка формы 0-86?',
-    answer: 'Медицинская справка формы 0-86 действительна в течение 6 месяцев.',
-    category: 'documents',
-    hasLists: false
-  },
-  {
-    id: 12,
-    question: 'Есть ли в вузе военная кафедра и кому предоставляется отсрочка от службы в армии?',
-    answer: 'Военной кафедры в Филиале нет, на время обучения предоставляется отсрочка от службы в армии для студентов, обучающихся в Филиале.',
-    category: 'general',
-    hasLists: false
-  },
-  {
-    id: 13,
-    question: 'Предоставляется ли общежитие абитуриентам на время сдачи вступительных экзаменов в вузе?',
-    answer: 'На время сдачи вступительных испытаний абитуриентам общежитие не предоставляется.',
-    category: 'dormitory',
-    hasLists: false
-  },
-  {
-    id: 14,
-    question: 'Что значит степень бакалавра?',
-    answer: 'Это первая академическая ступень в трехуровневой структуре высшего образования. Степень «бакалавр» – это базовое высшее образование. Нормативный срок обучения составляет 4 года. Диплом бакалавра дает право на работу по направлению и (или) поступление в магистратуру. Эта степень включена в международную классификацию, она понятна за рубежом.',
-    category: 'study',
-    hasLists: false
-  },
-  {
-    id: 15,
-    question: 'Какие документы необходимо представить в приемную комиссию?',
-    answer: 'Пакет необходимых документов вы можете посмотреть на странице официального сайта Филиала https://gubkin.uz/ru/sveden/neobhodimye-dokumenty',
-    category: 'application',
-    hasLists: false
-  },
-  {
-    id: 16,
-    question: 'Нужно ли нотариально заверять копии документов?',
-    answer: 'При подаче документов в Филиал Вы предоставляете нотариально заверенный перевод 1-й страницы паспорта на русский язык.',
-    category: 'application',
-    hasLists: false
-  },
-  {
-    id: 17,
-    question: 'В каких случаях мои документы не примут?',
-    answer: 'Если вы предоставили не полный пакет документов. При успешном приеме документов Вас об этом уведомит ответственный сотрудник приемной комиссии. В обратном случае рекомендуется обратиться в call-центр Филиала.',
-    category: 'application',
-    hasLists: false
-  },
-  {
-    id: 18,
-    question: 'По итогам результатов мандатной комиссии, обязательно ли одному из родителей присутствовать при заключении договора на обучение на платно-контрактной основе?',
-    answer: 'Да, обязательно.',
-    category: 'application',
-    hasLists: false
-  },
-  {
-    id: 19,
-    question: 'Может ли один из родителей заключить договор без меня?',
-    answer: 'Родитель или опекун сможет заключить договор без вашего присутствия, но только в том случае, если у него на руках будет нотариально заверенная доверенность от вас.',
-    category: 'application',
-    hasLists: false
-  },
-  {
-    id: 20,
-    question: 'Можно ли гражданину Республики Узбекистан, являющегося студентом Российского ВУЗа оформить перевод в Филиал РГУ нефти и газа (НИУ) им.И.М.Губкина в г.Ташкенте на контрактной основе?',
-    answer: 'Филиал РГУ нефти и газа (НИУ) имени И.М. Губкина в г.Ташкенте является структурным подразделением головного университета, т.е. РГУ нефти и газа (НИУ) имени И.М. Губкина в г.Москве. Все вопросы, связанные с переводом студентов из одного вуза в другой вуз Российской Федерации, регламентируется Порядком перевода обучающихся в другую организацию, осуществляющую образовательную деятельность по образовательным программа среднего профессионального и (или) высшего образования, утвержденного приказом министерства образования и науки Российской Федерации от 10 февраля 2017 г. N 124.',
-    category: 'study',
-    hasLists: false
-  },
-  {
-    id: 21,
-    question: 'Можно ли члену сборной Узбекистана по спорту поступать в ваш ВУЗ и возможно ли совмещение спортивной и учебной деятельности?',
-    answer: 'В филиале РГУ нефти и газа имени И.М. Губкина в г. Ташкенте обучается ряд студентов, являющихся членами сборных команд республики по слалому, восточным единоборствам и другим видам спорта. Все они успешно сочетают учебу и занятия спортом.',
-    category: 'study',
-    hasLists: false
-  },
-  {
-    id: 22,
-    question: 'Можно ли студенту ВУЗа Республики Узбекистан поступать в магистратуру вашего Филиала?',
-    answer: 'В филиале РГУ нефти и газа (НИУ) имени И.М. Губкина в г.Ташкенте обучение по программам магистратуры не осуществляется.',
-    category: 'study',
-    hasLists: false
-  },
-  {
-    id: 23,
-    question: 'Есть ли для абитуриентов, имеющих инвалидность, льготы при поступлении в Филиал РГУ нефти и газа (НИУ) имени И.М.Губкина в г.Ташкенте?',
-    answer: 'В филиале РГУ нефти и газа имени И.М. Губкина в г.Ташкенте льгот при поступлении для людей, имеющих инвалидность, не предусмотрены.',
-    category: 'application',
-    hasLists: false
-  }
-];
+const categories = computed(() => {
+  const managedCategories = Array.isArray(faqContent.value.categories)
+    ? faqContent.value.categories.filter(category => category.id && category.name)
+    : []
 
-// Отфильтрованные вопросы по категории
+  return [allFaqCategory, ...(managedCategories.length ? managedCategories : defaultFaqCategories)]
+})
+
+const faqs = computed(() => {
+  const items = Array.isArray(faqContent.value.items) && faqContent.value.items.length
+    ? faqContent.value.items
+    : defaultFaqs
+
+  return items.filter(faq => faq.is_published !== false)
+})
+
 const filteredFaqs = computed(() => {
-  if (selectedCategory.value === 'all') {
-    return faqs;
+  if (selectedCategory.value === 'all') return faqs.value
+  return faqs.value.filter(faq => faq.category === selectedCategory.value)
+})
+
+function getFaqAnswer(faq) {
+  if (faq.answer) return faq.answer
+  if (faq.answerIntro && faq.answerOutro) return `${faq.answerIntro}\n\n${faq.answerOutro}`
+  return faq.answerIntro || ''
+}
+
+function toggleFaq(id) {
+  openFaqId.value = openFaqId.value === id ? null : id
+}
+
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    pageData.value = await fetchCmsPage('faq')
+  } catch {
+    pageData.value = null
+  } finally {
+    isLoading.value = false
   }
-  return faqs.filter(faq => faq.category === selectedCategory.value);
-});
-</script> 
+})
+</script>

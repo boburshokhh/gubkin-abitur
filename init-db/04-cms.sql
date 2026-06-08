@@ -117,10 +117,11 @@ CREATE INDEX IF NOT EXISTS idx_cms_assets_created ON cms_assets(created_at DESC)
 -- Pages
 INSERT INTO cms_pages (id, slug, title, status) VALUES
   (1, 'home', 'Главная страница', 'published'),
-  (2, 'admission2025', 'Информация о приеме 2025/2026', 'published')
+  (2, 'admission2025', 'Информация о приеме 2025/2026', 'published'),
+  (3, 'faq', 'Часто задаваемые вопросы', 'published')
 ON CONFLICT (slug) DO NOTHING;
 
-SELECT setval('cms_pages_id_seq', GREATEST((SELECT MAX(id) FROM cms_pages), 2));
+SELECT setval('cms_pages_id_seq', GREATEST((SELECT MAX(id) FROM cms_pages), 3));
 
 -- ==========================================
 -- HOME PAGE SECTIONS
