@@ -32,12 +32,12 @@ export const directions = {
     return { data, error };
   },
   async create(directionData) {
-    const { data, error } = await appApi.from('directions').insert(directionData).select().single();
+    const { data, error } = await appApi.from('directions').insert(normalizeDirectionPayload(directionData)).select().single();
     if (error) console.error('Error creating direction:', error);
     return { data, error };
   },
   async update(id, directionData) {
-    const { data, error } = await appApi.from('directions').update(directionData).eq('id', id).select().single();
+    const { data, error } = await appApi.from('directions').update(normalizeDirectionPayload(directionData)).eq('id', id).select().single();
     if (error) console.error('Error updating direction:', error);
     return { data, error };
   },
@@ -229,12 +229,29 @@ function normalizeProfilePayload(profileData) {
     direction_id: profileData.direction_id,
     name: profileData.name,
     description: profileData.description || null,
+    places: Number(profileData.places) || 0,
+    sort_order: Number(profileData.sort_order) || null,
+    is_published: profileData.is_published !== false,
+    duration_years: profileData.duration_years || null,
+    tuition_fee: profileData.tuition_fee || null,
+    career_info: profileData.career_info || null,
+    internship_info: profileData.internship_info || null,
     exams: (profileData.exams || [])
       .filter(exam => exam.subject_id)
       .map((exam, index) => ({
         subject_id: exam.subject_id,
         priority: exam.priority || index + 1
       }))
+  };
+}
+
+function normalizeDirectionPayload(directionData) {
+  return {
+    level_id: directionData.level_id,
+    code: directionData.code,
+    name: directionData.name,
+    sort_order: Number(directionData.sort_order) || null,
+    is_published: directionData.is_published !== false
   };
 }
 

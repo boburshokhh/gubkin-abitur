@@ -602,6 +602,18 @@ router.get('/users', requireAdmin, async (req, res) => {
 // 3. СПРАВОЧНИКИ ОБРАЗОВАНИЯ (Education)
 // ==========================================
 
+function normalizeBoolean(value, fallback = true) {
+  if (typeof value === 'boolean') return value;
+  if (value === 'false') return false;
+  if (value === 'true') return true;
+  return fallback;
+}
+
+function normalizeInteger(value, fallback = null) {
+  const parsedValue = Number.parseInt(value, 10);
+  return Number.isFinite(parsedValue) ? parsedValue : fallback;
+}
+
 // Уровни образования
 router.get('/education/levels', async (req, res) => {
   try {
@@ -628,13 +640,13 @@ router.get('/education/directions', async (req, res) => {
   try {
     let result;
     if (levelId) {
-      result = await db.query('SELECT * FROM directions WHERE level_id = $1 ORDER BY name', [levelId]);
+      result = await db.query('SELECT * FROM directions WHERE level_id = $1 ORDER BY sort_order NULLS LAST, code, name', [levelId]);
     } else {
       result = await db.query(
         `SELECT d.*, el.name as level_name 
          FROM directions d 
          JOIN education_levels el ON el.id = d.level_id 
-         ORDER BY d.name`
+         ORDER BY d.sort_order NULLS LAST, d.code, d.name`
       );
     }
     res.json({ data: result.rows });
@@ -646,10 +658,14 @@ router.get('/education/directions', async (req, res) => {
 // Создать направление (Админ)
 router.post('/education/directions', requireAdmin, async (req, res) => {
   const { level_id, code, name } = req.body;
+  const sortOrder = normalizeInteger(req.body.sort_order);
+  const isPublished = normalizeBoolean(req.body.is_published);
   try {
     const result = await db.query(
-      'INSERT INTO directions (level_id, code, name) VALUES ($1, $2, $3) RETURNING *',
-      [level_id, code, name]
+      `INSERT INTO directions (level_id, code, name, sort_order, is_published)
+       VALUES ($1, $2, $3, COALESCE($4, (SELECT COALESCE(MAX(sort_order), 0) + 10 FROM directions)), $5)
+       RETURNING *`,
+      [level_id, code, name, sortOrder, isPublished]
     );
     res.json({ data: result.rows[0] });
   } catch (err) {
@@ -660,10 +676,19 @@ router.post('/education/directions', requireAdmin, async (req, res) => {
 // Обновить направление (Админ)
 router.put('/education/directions/:id', requireAdmin, async (req, res) => {
   const { level_id, code, name } = req.body;
+  const sortOrder = normalizeInteger(req.body.sort_order);
+  const isPublished = normalizeBoolean(req.body.is_published);
   try {
     const result = await db.query(
-      'UPDATE directions SET level_id = $1, code = $2, name = $3 WHERE id = $4 RETURNING *',
-      [level_id, code, name, req.params.id]
+      `UPDATE directions
+       SET level_id = $1,
+           code = $2,
+           name = $3,
+           sort_order = $4,
+           is_published = $5
+       WHERE id = $6
+       RETURNING *`,
+      [level_id, code, name, sortOrder, isPublished, req.params.id]
     );
     res.json({ data: result.rows[0] });
   } catch (err) {
@@ -689,7 +714,9 @@ router.get('/education/profiles/details', async (req, res) => {
              jsonb_build_object(
                'name', d.name,
                'code', d.code,
-               'level', jsonb_build_object('name', el.name)
+               'sort_order', d.sort_order,
+               'is_published', d.is_published,
+               'level', jsonb_build_object('id', el.id, 'name', el.name)
              ) as direction,
              COALESCE(
                (
@@ -708,7 +735,7 @@ router.get('/education/profiles/details', async (req, res) => {
       FROM profiles p
       JOIN directions d ON d.id = p.direction_id
       JOIN education_levels el ON el.id = d.level_id
-      ORDER BY p.name`;
+      ORDER BY d.sort_order NULLS LAST, d.code, p.sort_order NULLS LAST, p.name`;
     const result = await db.query(queryText);
     res.json({ data: result.rows });
   } catch (err) {
@@ -735,6 +762,9 @@ async function saveProfileExams(client, profileId, exams = []) {
 router.post('/education/profiles', requireAdmin, async (req, res) => {
   const { exams = [], ...profileData } = req.body;
   const client = await db.pool.connect();
+  const places = normalizeInteger(profileData.places, 30);
+  const sortOrder = normalizeInteger(profileData.sort_order);
+  const isPublished = normalizeBoolean(profileData.is_published);
 
   try {
     await client.query('BEGIN');
@@ -744,16 +774,57 @@ router.post('/education/profiles', requireAdmin, async (req, res) => {
         `UPDATE profiles
          SET direction_id = $1,
              name = $2,
-             description = $3
-         WHERE id = $4
+             description = $3,
+             places = $4,
+             sort_order = $5,
+             is_published = $6,
+             duration_years = $7,
+             tuition_fee = $8,
+             career_info = $9,
+             internship_info = $10
+         WHERE id = $11
          RETURNING *`,
-        [profileData.direction_id, profileData.name, profileData.description || null, profileData.id]
+        [
+          profileData.direction_id,
+          profileData.name,
+          profileData.description || null,
+          places,
+          sortOrder,
+          isPublished,
+          profileData.duration_years || null,
+          profileData.tuition_fee || null,
+          profileData.career_info || null,
+          profileData.internship_info || null,
+          profileData.id
+        ]
       )
       : await client.query(
-        `INSERT INTO profiles (direction_id, name, description)
-         VALUES ($1, $2, $3)
+        `INSERT INTO profiles (
+           direction_id,
+           name,
+           description,
+           places,
+           sort_order,
+           is_published,
+           duration_years,
+           tuition_fee,
+           career_info,
+           internship_info
+         )
+         VALUES ($1, $2, $3, $4, COALESCE($5, (SELECT COALESCE(MAX(sort_order), 0) + 10 FROM profiles WHERE direction_id = $1)), $6, $7, $8, $9, $10)
          RETURNING *`,
-        [profileData.direction_id, profileData.name, profileData.description || null]
+        [
+          profileData.direction_id,
+          profileData.name,
+          profileData.description || null,
+          places,
+          sortOrder,
+          isPublished,
+          profileData.duration_years || null,
+          profileData.tuition_fee || null,
+          profileData.career_info || null,
+          profileData.internship_info || null
+        ]
       );
 
     if (result.rows.length === 0) {
@@ -777,6 +848,9 @@ router.post('/education/profiles', requireAdmin, async (req, res) => {
 router.put('/education/profiles/:id', requireAdmin, async (req, res) => {
   const { exams = [], ...profileData } = req.body;
   const client = await db.pool.connect();
+  const places = normalizeInteger(profileData.places, 30);
+  const sortOrder = normalizeInteger(profileData.sort_order);
+  const isPublished = normalizeBoolean(profileData.is_published);
 
   try {
     await client.query('BEGIN');
@@ -785,10 +859,29 @@ router.put('/education/profiles/:id', requireAdmin, async (req, res) => {
       `UPDATE profiles
        SET direction_id = $1,
            name = $2,
-           description = $3
-       WHERE id = $4
+           description = $3,
+           places = $4,
+           sort_order = $5,
+           is_published = $6,
+           duration_years = $7,
+           tuition_fee = $8,
+           career_info = $9,
+           internship_info = $10
+       WHERE id = $11
        RETURNING *`,
-      [profileData.direction_id, profileData.name, profileData.description || null, req.params.id]
+      [
+        profileData.direction_id,
+        profileData.name,
+        profileData.description || null,
+        places,
+        sortOrder,
+        isPublished,
+        profileData.duration_years || null,
+        profileData.tuition_fee || null,
+        profileData.career_info || null,
+        profileData.internship_info || null,
+        req.params.id
+      ]
     );
 
     if (result.rows.length === 0) {
@@ -898,7 +991,7 @@ router.get('/education/profiles', async (req, res) => {
   try {
     let result;
     if (directionId) {
-      result = await db.query('SELECT * FROM profiles WHERE direction_id = $1 ORDER BY name', [directionId]);
+      result = await db.query('SELECT * FROM profiles WHERE direction_id = $1 ORDER BY sort_order NULLS LAST, name', [directionId]);
       return res.json({ data: result.rows });
     } else {
       // Использовать функцию get_profiles

@@ -58,6 +58,10 @@
           v-if="editingSection.anchor === 'hero'"
           v-model="editForm"
         />
+        <AdmissionInfoSectionForm
+          v-else-if="editingSection.type === 'admission_info'"
+          v-model="editForm"
+        />
         <ExamsSectionForm
           v-else-if="editingSection.type === 'exams'"
           v-model="editForm"
@@ -86,6 +90,7 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { adminGetSections, adminUpdateSection } from '@/api/cms.js'
 import AdmissionHeroForm from './forms/AdmissionHeroForm.vue'
+import AdmissionInfoSectionForm from './forms/AdmissionInfoSectionForm.vue'
 import DirectionsSectionForm from './forms/DirectionsSectionForm.vue'
 import ExamsSectionForm from './forms/ExamsSectionForm.vue'
 import ContactsSectionForm from './forms/ContactsSectionForm.vue'

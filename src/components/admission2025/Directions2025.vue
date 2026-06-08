@@ -27,8 +27,23 @@
             <el-row :gutter="14">
               <el-col v-for="profile in direction.profiles" :key="profile.name" :xs="24" :md="direction.profiles.length > 2 ? 8 : 12">
                 <div class="profile-card">
-                  <span>{{ profile.name }}</span>
-                  <el-tag class="places-tag" effect="plain" round>{{ profile.places }} мест</el-tag>
+                  <div class="profile-main">
+                    <div class="profile-title-row">
+                      <span class="profile-name">{{ profile.name }}</span>
+                      <el-tag class="places-tag" effect="plain" round>{{ profile.places }} мест</el-tag>
+                    </div>
+                    <p v-if="profile.description" class="profile-description">{{ profile.description }}</p>
+                    <div v-if="profile.exams.length" class="profile-exams">
+                      <el-tag
+                        v-for="exam in profile.exams"
+                        :key="`${profile.id}-${exam.subject_id}`"
+                        size="small"
+                        effect="plain"
+                      >
+                        {{ exam.priority }}. {{ exam.subject?.name || exam.subject_name }}
+                      </el-tag>
+                    </div>
+                  </div>
                 </div>
               </el-col>
             </el-row>
@@ -71,6 +86,7 @@ const directions = computed(() => {
 
   props.educationProfiles.forEach((profile) => {
     if (!profile?.direction) return
+    if (profile.is_published === false || profile.direction.is_published === false) return
 
     const directionKey = profile.direction_id || profile.direction.code || profile.direction.name
     const existingDirection = groupedDirections.get(directionKey)
@@ -78,6 +94,9 @@ const directions = computed(() => {
     const nextProfile = {
       id: profile.id,
       name: getProfileName(profile.name),
+      description: profile.description || '',
+      exams: profile.profile_exams || [],
+      sortOrder: Number(profile.sort_order) || 0,
       places
     }
 
@@ -94,13 +113,19 @@ const directions = computed(() => {
       title: profile.direction.name,
       level: profile.direction.level?.name || '',
       places,
+      sortOrder: Number(profile.direction.sort_order) || 0,
       profileTitle: getProfileTitle(profile.direction.level?.name, 1),
       wide: false,
       profiles: [nextProfile]
     })
   })
 
-  return [...groupedDirections.values()].sort((a, b) => a.code.localeCompare(b.code, 'ru'))
+  return [...groupedDirections.values()]
+    .map(direction => ({
+      ...direction,
+      profiles: direction.profiles.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ru'))
+    }))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code, 'ru'))
 })
 
 function getGeneratedTitle() {
@@ -112,7 +137,7 @@ function getGeneratedTitle() {
 }
 
 function getProfilePlaces(profile) {
-  return Number(profilePlaces.value?.[profile.id] || profilePlaces.value?.[profile.name]) || defaultProfilePlaces.value
+  return Number(profile.places || profilePlaces.value?.[profile.id] || profilePlaces.value?.[profile.name]) || defaultProfilePlaces.value
 }
 
 function getProfileName(name = '') {
@@ -194,11 +219,7 @@ function getProfileTitle(levelName, profilesCount) {
 }
 
 .profile-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   min-height: 76px;
-  gap: 16px;
   margin-bottom: 14px;
   padding: 16px;
   border: 1px solid #e5eaf3;
@@ -206,9 +227,34 @@ function getProfileTitle(levelName, profilesCount) {
   background: #f8fafc;
 }
 
-.profile-card span {
+.profile-main {
+  width: 100%;
+}
+
+.profile-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-name {
   color: #334155;
   line-height: 1.45;
+}
+
+.profile-description {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.profile-exams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
 }
 
 .important-alert {
@@ -226,7 +272,7 @@ function getProfileTitle(levelName, profilesCount) {
 
 @media (max-width: 767px) {
   .direction-header,
-  .profile-card {
+  .profile-title-row {
     align-items: flex-start;
     flex-direction: column;
   }

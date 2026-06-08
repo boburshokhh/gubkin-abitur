@@ -47,6 +47,10 @@
                 <el-text type="info" size="small">
                   {{ getProfileCountByDirection(direction.id) }} профилей
                 </el-text>
+                <el-tag :type="direction.is_published === false ? 'info' : 'success'" effect="light">
+                  {{ direction.is_published === false ? 'Скрыто' : 'На сайте' }}
+                </el-tag>
+                <el-tag type="info" effect="plain">порядок: {{ direction.sort_order ?? 0 }}</el-tag>
               </div>
             </template>
 
@@ -78,6 +82,15 @@
               stripe
             >
               <el-table-column prop="name" label="Профиль/специализация" min-width="260" />
+              <el-table-column prop="places" label="Мест" width="90" align="center" />
+              <el-table-column prop="sort_order" label="Порядок" width="100" align="center" />
+              <el-table-column label="На сайте" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="row.is_published === false ? 'info' : 'success'" effect="light">
+                    {{ row.is_published === false ? 'Скрыт' : 'Показан' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
               <el-table-column label="Экзамены" min-width="260">
                 <template #default="{ row }">
                   <el-space v-if="row.profile_exams?.length" wrap>
@@ -128,6 +141,12 @@
         <el-form-item label="Название направления" required>
           <el-input v-model="currentDirection.name" placeholder="Например: Нефтегазовое дело" />
         </el-form-item>
+        <el-form-item label="Порядок отображения">
+          <el-input-number v-model="currentDirection.sort_order" :min="0" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="Показывать на сайте">
+          <el-switch v-model="currentDirection.is_published" />
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -158,6 +177,45 @@
             :rows="3"
             placeholder="Краткое описание профиля..."
           />
+        </el-form-item>
+
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <el-form-item label="Количество мест">
+              <el-input-number v-model="currentProfile.places" :min="0" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="Порядок">
+              <el-input-number v-model="currentProfile.sort_order" :min="0" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="Показывать на сайте">
+              <el-switch v-model="currentProfile.is_published" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="Срок обучения">
+              <el-input v-model="currentProfile.duration_years" placeholder="Например: 4.0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="Форма финансирования">
+              <el-input v-model="currentProfile.tuition_fee" placeholder="Контракт / Бюджет" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="Карьерные возможности">
+          <el-input v-model="currentProfile.career_info" type="textarea" :rows="2" />
+        </el-form-item>
+
+        <el-form-item label="Практика / стажировки">
+          <el-input v-model="currentProfile.internship_info" type="textarea" :rows="2" />
         </el-form-item>
 
         <el-divider content-position="left">Вступительные экзамены</el-divider>
@@ -220,19 +278,36 @@ const allSubjects = ref([]);
 const showDirectionModal = ref(false);
 const showProfileModal = ref(false);
 
-const initialDirection = () => ({ id: null, name: '', code: '', level_id: null });
+const initialDirection = () => ({ id: null, name: '', code: '', level_id: null, sort_order: null, is_published: true });
 const currentDirection = ref(initialDirection());
 
-const initialProfile = () => ({ id: null, name: '', description: '', direction_id: null, exams: [] });
+const initialProfile = () => ({
+  id: null,
+  name: '',
+  description: '',
+  direction_id: null,
+  places: 30,
+  sort_order: null,
+  is_published: true,
+  duration_years: '',
+  tuition_fee: '',
+  career_info: '',
+  internship_info: '',
+  exams: []
+});
 const currentProfile = ref(initialProfile());
 
 // Computed properties for filtering
 const directionsByLevel = (levelId) => {
-    return allDirections.value.filter(d => d.level_id === levelId);
+    return allDirections.value
+      .filter(d => d.level_id === levelId)
+      .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || a.code.localeCompare(b.code, 'ru'));
 }
 
 const profilesByDirection = (directionId) => {
-    return allProfiles.value.filter(p => p.direction_id === directionId);
+    return allProfiles.value
+      .filter(p => p.direction_id === directionId)
+      .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || a.name.localeCompare(b.name, 'ru'));
 }
 
 const getDirectionCount = (levelId) => {
