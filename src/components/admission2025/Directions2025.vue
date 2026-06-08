@@ -11,7 +11,7 @@
       <el-empty v-else-if="!directions.length" description="Направления не найдены" />
 
       <el-row v-else :gutter="24">
-        <el-col v-for="direction in directions" :key="direction.code" :xs="24" :lg="direction.wide ? 24 : 12">
+        <el-col v-for="direction in directions" :key="direction.code" :span="24">
           <el-card class="direction-card" shadow="hover">
             <template #header>
               <div class="direction-header">
@@ -25,7 +25,13 @@
 
             <p class="profiles-title">{{ direction.profileTitle }}</p>
             <el-row :gutter="14">
-              <el-col v-for="profile in direction.profiles" :key="profile.name" :xs="24" :md="direction.profiles.length > 2 ? 8 : 12">
+              <el-col
+                v-for="profile in direction.profiles"
+                :key="profile.name"
+                :xs="24"
+                :sm="direction.profiles.length === 1 ? 24 : 12"
+                :lg="getProfileColumnSpan(direction.profiles.length)"
+              >
                 <div class="profile-card">
                   <div class="profile-main">
                     <div class="profile-title-row">
@@ -103,7 +109,6 @@ const directions = computed(() => {
     if (existingDirection) {
       existingDirection.profiles.push(nextProfile)
       existingDirection.places += places
-      existingDirection.wide = existingDirection.profiles.length > 2
       existingDirection.profileTitle = getProfileTitle(existingDirection.level, existingDirection.profiles.length)
       return
     }
@@ -115,7 +120,6 @@ const directions = computed(() => {
       places,
       sortOrder: Number(profile.direction.sort_order) || 0,
       profileTitle: getProfileTitle(profile.direction.level?.name, 1),
-      wide: false,
       profiles: [nextProfile]
     })
   })
@@ -148,6 +152,12 @@ function getProfileName(name = '') {
 function getProfileTitle(levelName, profilesCount) {
   if (levelName === 'Специалитет') return profilesCount === 1 ? 'Специализация' : 'Специализации'
   return profilesCount === 1 ? 'Профиль подготовки' : 'Профили подготовки'
+}
+
+function getProfileColumnSpan(profilesCount) {
+  if (profilesCount <= 1) return 24
+  if (profilesCount === 2) return 12
+  return 8
 }
 </script>
 
@@ -187,14 +197,18 @@ function getProfileTitle(levelName, profilesCount) {
 }
 
 .direction-card {
-  height: calc(100% - 24px);
   margin-bottom: 24px;
   border: 1px solid #e2e8f0;
   border-radius: 20px;
 }
 
+.direction-card :deep(.el-card__body) {
+  padding: 24px;
+}
+
 .direction-card :deep(.el-card__header) {
   border-bottom-color: #eef2f7;
+  padding: 24px;
 }
 
 .direction-header {
@@ -202,6 +216,10 @@ function getProfileTitle(levelName, profilesCount) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
+}
+
+.direction-header > div:first-child {
+  min-width: 0;
 }
 
 .direction-header h3 {
@@ -219,6 +237,7 @@ function getProfileTitle(levelName, profilesCount) {
 }
 
 .profile-card {
+  height: calc(100% - 14px);
   min-height: 76px;
   margin-bottom: 14px;
   padding: 16px;
@@ -233,13 +252,15 @@ function getProfileTitle(levelName, profilesCount) {
 
 .profile-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
 
 .profile-name {
+  min-width: 0;
   color: #334155;
+  font-weight: 550;
   line-height: 1.45;
 }
 
@@ -268,6 +289,10 @@ function getProfileTitle(levelName, profilesCount) {
   border-color: rgba(18, 61, 112, 0.18);
   background: rgba(18, 61, 112, 0.06);
   color: #123d70;
+}
+
+.places-tag {
+  flex: 0 0 auto;
 }
 
 @media (max-width: 767px) {
