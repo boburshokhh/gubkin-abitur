@@ -7,7 +7,10 @@
         <p>{{ sectionSubtitle }}</p>
       </div>
 
-      <el-row :gutter="24">
+      <el-skeleton v-if="isLoading" :rows="8" animated />
+      <el-empty v-else-if="!directions.length" description="Направления не найдены" />
+
+      <el-row v-else :gutter="24">
         <el-col v-for="direction in directions" :key="direction.code" :xs="24" :lg="direction.wide ? 24 : 12">
           <el-card class="direction-card" shadow="hover">
             <template #header>
@@ -34,12 +37,13 @@
       </el-row>
 
       <el-alert
+        v-if="importantDescription"
         class="important-alert"
         type="info"
         show-icon
         :closable="false"
-        title="Важная информация"
-        description="Вступительные испытания одинаковые для всех направлений как для бюджетных мест, так и для мест по договорам. Абитуриенты могут указать до 3 конкурсных групп с приоритетом."
+        :title="importantTitle"
+        :description="importantDescription"
       />
     </div>
   </section>
@@ -49,69 +53,77 @@
 import { computed } from 'vue'
 
 const props = defineProps({
+  educationProfiles: { type: Array, default: () => [] },
+  isLoading: { type: Boolean, default: false },
   sectionData: { type: Object, default: () => ({}) }
 })
 
+const defaultProfilePlaces = computed(() => Number(props.sectionData?.default_profile_places) || 30)
+const profilePlaces = computed(() => props.sectionData?.profile_places || {})
 const sectionKicker = computed(() => props.sectionData?.kicker || 'Направления подготовки')
-const sectionTitle = computed(() => props.sectionData?.title || '5 направлений, 11 специализаций, 330 мест')
-const sectionSubtitle = computed(() => props.sectionData?.subtitle || 'Выберите до трех конкурсных групп с единым набором вступительных испытаний.')
+const sectionTitle = computed(() => props.sectionData?.title || getGeneratedTitle())
+const sectionSubtitle = computed(() => props.sectionData?.subtitle || 'Выберите конкурсные группы с единым набором вступительных испытаний.')
+const importantTitle = computed(() => props.sectionData?.important_title || 'Важная информация')
+const importantDescription = computed(() => props.sectionData?.important_description || 'Вступительные испытания одинаковые для всех направлений как для бюджетных мест, так и для мест по договорам. Абитуриенты могут указать конкурсные группы с приоритетом.')
 
-const directions = [
-  {
-    code: '21.05.03',
-    title: 'Технология геологической разведки',
-    level: 'Специалитет',
-    places: 30,
-    profileTitle: 'Специализация',
-    profiles: [{ name: 'Цифровой геоинжиниринг', places: 30 }]
-  },
-  {
-    code: '21.03.01',
-    title: 'Нефтегазовое дело',
-    level: 'Бакалавриат',
-    places: 120,
-    profileTitle: 'Профили подготовки',
-    wide: true,
-    profiles: [
-      { name: 'Бурение нефтяных и газовых скважин', places: 30 },
-      { name: 'Эксплуатация и обслуживание объектов добычи нефти', places: 30 },
-      { name: 'Эксплуатация и обслуживание объектов добычи газа', places: 30 },
-      { name: 'Транспорт и хранение нефти, газа', places: 30 }
-    ]
-  },
-  {
-    code: '21.05.06',
-    title: 'Нефтегазовые техника и технологии',
-    level: 'Специалитет',
-    places: 90,
-    profileTitle: 'Специализации',
-    wide: true,
-    profiles: [
-      { name: 'Технология бурения нефтяных и газовых скважин', places: 30 },
-      { name: 'Разработка и эксплуатация нефтяных месторождений', places: 30 },
-      { name: 'Разработка и эксплуатация газовых месторождений', places: 30 }
-    ]
-  },
-  {
-    code: '38.03.01',
-    title: 'Экономика',
-    level: 'Бакалавриат',
-    places: 30,
-    profileTitle: 'Профиль подготовки',
-    profiles: [{ name: 'Экономика и проекты устойчивого развития энергетики', places: 30 }]
-  },
-  {
-    code: '38.03.02',
-    title: 'Менеджмент',
-    level: 'Бакалавриат',
-    places: 60,
-    profileTitle: 'Профили подготовки',
-    profiles: [
-      { name: 'Управление бизнесом в энергетике', places: 30 },
-      { name: 'Международный менеджмент', places: 30 }
-    ]
-  }
-]
+const directions = computed(() => {
+  const groupedDirections = new Map()
+
+  props.educationProfiles.forEach((profile) => {
+    if (!profile?.direction) return
+
+    const directionKey = profile.direction_id || profile.direction.code || profile.direction.name
+    const existingDirection = groupedDirections.get(directionKey)
+    const places = getProfilePlaces(profile)
+    const nextProfile = {
+      id: profile.id,
+      name: getProfileName(profile.name),
+      places
+    }
+
+    if (existingDirection) {
+      existingDirection.profiles.push(nextProfile)
+      existingDirection.places += places
+      existingDirection.wide = existingDirection.profiles.length > 2
+      existingDirection.profileTitle = getProfileTitle(existingDirection.level, existingDirection.profiles.length)
+      return
+    }
+
+    groupedDirections.set(directionKey, {
+      code: profile.direction.code,
+      title: profile.direction.name,
+      level: profile.direction.level?.name || '',
+      places,
+      profileTitle: getProfileTitle(profile.direction.level?.name, 1),
+      wide: false,
+      profiles: [nextProfile]
+    })
+  })
+
+  return [...groupedDirections.values()].sort((a, b) => a.code.localeCompare(b.code, 'ru'))
+})
+
+function getGeneratedTitle() {
+  const directionsCount = directions.value.length
+  const profilesCount = props.educationProfiles.length
+  const placesCount = directions.value.reduce((total, direction) => total + direction.places, 0)
+
+  return `${directionsCount} направлений, ${profilesCount} профилей, ${placesCount} мест`
+}
+
+function getProfilePlaces(profile) {
+  return Number(profilePlaces.value?.[profile.id] || profilePlaces.value?.[profile.name]) || defaultProfilePlaces.value
+}
+
+function getProfileName(name = '') {
+  if (props.sectionData?.show_profile_codes) return name
+  return name.replace(/\s*\([^)]*\)\s*$/, '')
+}
+
+function getProfileTitle(levelName, profilesCount) {
+  if (levelName === 'Специалитет') return profilesCount === 1 ? 'Специализация' : 'Специализации'
+  return profilesCount === 1 ? 'Профиль подготовки' : 'Профили подготовки'
+}
 </script>
 
 <style scoped>

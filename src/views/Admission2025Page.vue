@@ -25,7 +25,11 @@
     </div>
 
     <div id="directions">
-      <Directions2025 :section-data="directionsData" />
+      <Directions2025
+        :education-profiles="educationProfiles"
+        :is-loading="isLoading"
+        :section-data="directionsData"
+      />
     </div>
 
     <div id="documents">
@@ -60,8 +64,10 @@ import ExamSchedule2025 from '@/components/admission2025/ExamSchedule2025.vue'
 import OlympiadBenefits2025 from '@/components/admission2025/OlympiadBenefits2025.vue'
 import ContactInfo2025 from '@/components/admission2025/ContactInfo2025.vue'
 import { fetchCmsPage, getSectionByAnchor } from '@/api/cms.js'
+import { profiles as profilesApi } from '@/api/education.js'
 
 const pageData = ref(null)
+const educationProfiles = ref([])
 const isLoading = ref(false)
 
 const sections = computed(() => pageData.value?.sections || [])
@@ -99,7 +105,13 @@ const navItems = computed(() => {
 onMounted(async () => {
   isLoading.value = true
   try {
-    pageData.value = await fetchCmsPage('admission2025')
+    const [cmsPage, profilesResult] = await Promise.all([
+      fetchCmsPage('admission2025'),
+      profilesApi.getAllWithDetails()
+    ])
+    pageData.value = cmsPage
+    if (profilesResult.error) throw profilesResult.error
+    educationProfiles.value = profilesResult.data || []
   } catch {
     // fallback to default content if API unavailable
   } finally {
