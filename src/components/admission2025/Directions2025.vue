@@ -10,52 +10,50 @@
       <el-skeleton v-if="isLoading" :rows="8" animated />
       <el-empty v-else-if="!directions.length" description="Направления не найдены" />
 
-      <el-row v-else :gutter="24">
-        <el-col v-for="direction in directions" :key="direction.code" :span="24">
-          <el-card class="direction-card" shadow="hover">
-            <template #header>
-              <div class="direction-header">
-                <div>
-                  <el-tag class="direction-tag" effect="plain" round>{{ direction.level }}</el-tag>
-                  <h3>{{ direction.code }} «{{ direction.title }}»</h3>
-                </div>
-                <el-statistic :value="direction.places" suffix="мест" />
+      <div v-else class="directions-list">
+        <el-card v-for="direction in directions" :key="direction.code" class="direction-card" shadow="hover">
+          <template #header>
+            <div class="direction-header">
+              <div>
+                <el-tag class="direction-tag" effect="plain" round>{{ direction.level }}</el-tag>
+                <h3>{{ direction.code }} «{{ direction.title }}»</h3>
               </div>
-            </template>
+              <el-statistic :value="direction.places" suffix="мест" />
+            </div>
+          </template>
 
-            <p class="profiles-title">{{ direction.profileTitle }}</p>
-            <el-row :gutter="14">
-              <el-col
-                v-for="profile in direction.profiles"
-                :key="profile.name"
-                :xs="24"
-                :sm="direction.profiles.length === 1 ? 24 : 12"
-                :lg="getProfileColumnSpan(direction.profiles.length)"
-              >
-                <div class="profile-card">
-                  <div class="profile-main">
-                    <div class="profile-title-row">
-                      <span class="profile-name">{{ profile.name }}</span>
-                      <el-tag class="places-tag" effect="plain" round>{{ profile.places }} мест</el-tag>
-                    </div>
-                    <p v-if="profile.description" class="profile-description">{{ profile.description }}</p>
-                    <div v-if="profile.exams.length" class="profile-exams">
-                      <el-tag
-                        v-for="exam in profile.exams"
-                        :key="`${profile.id}-${exam.subject_id}`"
-                        size="small"
-                        effect="plain"
-                      >
-                        {{ exam.priority }}. {{ exam.subject?.name || exam.subject_name }}
-                      </el-tag>
-                    </div>
+          <p class="profiles-title">{{ direction.profileTitle }}</p>
+          <el-row :gutter="14">
+            <el-col
+              v-for="profile in direction.profiles"
+              :key="profile.name"
+              :xs="24"
+              :sm="direction.profiles.length === 1 ? 24 : 12"
+              :lg="getProfileColumnSpan(direction.profiles.length)"
+            >
+              <div class="profile-card">
+                <div class="profile-main">
+                  <div class="profile-title-row">
+                    <span class="profile-name">{{ profile.name }}</span>
+                    <el-tag class="places-tag" effect="plain" round>{{ profile.places }} мест</el-tag>
+                  </div>
+                  <p v-if="profile.description" class="profile-description">{{ profile.description }}</p>
+                  <div v-if="profile.exams.length" class="profile-exams">
+                    <el-tag
+                      v-for="exam in profile.exams"
+                      :key="`${profile.id}-${exam.subject_id}`"
+                      size="small"
+                      effect="plain"
+                    >
+                      {{ exam.priority }}. {{ exam.subject?.name || exam.subject_name }}
+                    </el-tag>
                   </div>
                 </div>
-              </el-col>
-            </el-row>
-          </el-card>
-        </el-col>
-      </el-row>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+      </div>
 
       <el-alert
         v-if="importantDescription"
@@ -196,8 +194,15 @@ function getProfileColumnSpan(profilesCount) {
   line-height: 1.7;
 }
 
+.directions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
 .direction-card {
-  margin-bottom: 24px;
+  width: 100%;
   border: 1px solid #e2e8f0;
   border-radius: 20px;
 }
