@@ -739,12 +739,27 @@ router.post('/education/profiles', requireAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const result = await client.query(
-      `INSERT INTO profiles (direction_id, name, description)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [profileData.direction_id, profileData.name, profileData.description || null]
-    );
+    const result = profileData.id
+      ? await client.query(
+        `UPDATE profiles
+         SET direction_id = $1,
+             name = $2,
+             description = $3
+         WHERE id = $4
+         RETURNING *`,
+        [profileData.direction_id, profileData.name, profileData.description || null, profileData.id]
+      )
+      : await client.query(
+        `INSERT INTO profiles (direction_id, name, description)
+         VALUES ($1, $2, $3)
+         RETURNING *`,
+        [profileData.direction_id, profileData.name, profileData.description || null]
+      );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Профиль не найден' });
+    }
 
     await saveProfileExams(client, result.rows[0].id, exams);
 
