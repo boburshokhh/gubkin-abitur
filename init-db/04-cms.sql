@@ -247,6 +247,7 @@ INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order) VAL
     {
       "number": "01",
       "title": "Документ об образовании",
+      "status_label": "Обязательно",
       "icon_type": "document",
       "description": "Оригинал или копия документа государственного образца об образовании: аттестат о среднем образовании, диплом о среднем и профессиональном образовании.",
       "notes": [
@@ -257,6 +258,7 @@ INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order) VAL
     {
       "number": "02",
       "title": "Документы, удостоверяющие личность",
+      "status_label": "Обязательно",
       "icon_type": "files",
       "description": "Отсканированная цветная копия первой страницы паспорта или ID-карты в формате PDF и копия нотариально заверенного перевода первой страницы паспорта/ID-карты или копия свидетельства о рождении на кириллице.",
       "notes": [
@@ -266,6 +268,7 @@ INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order) VAL
     {
       "number": "03",
       "title": "Фотография",
+      "status_label": "Обязательно",
       "icon_type": "picture",
       "description": "Фотография 3х4 см: цветное фото, белый фон, протокольный вид.",
       "notes": []
@@ -273,6 +276,7 @@ INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order) VAL
     {
       "number": "04",
       "title": "Подача документов",
+      "status_label": "Обязательно",
       "icon_type": "edit",
       "description": "Абитуриент заполняет на официальном сайте Филиала gubkin.uz форму во вкладке «Абитуриенту / Онлайн подача документов» и отправляет необходимые документы в приемную комиссию.",
       "notes": [
@@ -282,11 +286,17 @@ INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order) VAL
     }
   ],
   "summary": {
+    "show_summary": true,
     "title": "Сроки и режим работы",
+    "notice_title": "Прием документов",
+    "notice_type": "info",
     "date_info": "с 16 июня по 1 июля включительно 2026 года. Документы принимаются online 24 часа в сутки.",
+    "address_label": "Адрес",
     "address": "город Ташкент, Мирзо Улугбекский район, улица Дурмон йули, дом 34",
+    "phone_title": "Call-центр",
     "phone": "+998712000156",
     "phone_label": "(+99871) 200-01-56",
+    "contact_person_label": "Ответственное лицо",
     "contact_person": "Копаненко Кристина Александровна"
   }
 }'::jsonb, 30)
@@ -399,14 +409,21 @@ INSERT INTO cms_sections (page_id, type, anchor, title, content, sort_order) VAL
     {"title": "Зачисление по конкурсу", "value": "20-25 июля 2026"}
   ],
   "rules": {
+    "show_rules": true,
+    "title": "Правила проведения экзаменов",
+    "admission_title": "Допуск на экзамен",
+    "admission_docs_label": "Документы",
     "admission_docs": "Экзаменационный лист и паспорт/ID-карта.",
+    "admission_time_label": "Получение экзаменационного листа",
     "admission_time": "В день экзамена с 07:00 до 08:45.",
+    "forbidden_title": "Категорически запрещается",
     "forbidden": [
       "Проносить мобильные телефоны, микрокалькуляторы, компьютеры и средства связи.",
       "Покидать аудиторию во время экзамена, кроме случаев плохого самочувствия.",
       "Опаздывать к началу экзамена."
     ],
     "penalty": "За нарушение правил - удаление с экзамена и отстранение от конкурса",
+    "ege_title": "Результаты ЕГЭ",
     "ege_text": "Поступающие, сдавшие ЕГЭ, могут заявить результаты ЕГЭ по одному или нескольким предметам. Баллы ЕГЭ включаются в общую сумму баллов."
   }
 }'::jsonb, 50)

@@ -17,7 +17,9 @@
                 </el-icon>
                 <div>
                   <h3>{{ documentItem.title }}</h3>
-                  <el-tag class="status-tag" effect="plain" round>Обязательно</el-tag>
+                  <el-tag class="status-tag" effect="plain" round>
+                    {{ documentItem.status_label || 'Обязательно' }}
+                  </el-tag>
                 </div>
               </div>
               <el-tag effect="plain" round>{{ documentItem.number }}</el-tag>
@@ -41,7 +43,7 @@
         </el-card>
       </el-space>
 
-      <el-card v-if="summary" class="summary-card" shadow="never">
+      <el-card v-if="summary && summary.show_summary !== false" class="summary-card" shadow="never">
         <template #header>
           <div class="card-header">
             <el-icon color="#123d70" size="24"><Calendar /></el-icon>
@@ -52,22 +54,22 @@
         <el-row :gutter="24">
           <el-col :xs="24" :md="12">
             <el-alert
-              title="Прием документов"
+              :title="summary.notice_title || 'Прием документов'"
               :description="summary.date_info"
-              type="info"
+              :type="summary.notice_type || 'info'"
               show-icon
               :closable="false"
             />
           </el-col>
           <el-col :xs="24" :md="12">
             <el-descriptions :column="1" border>
-              <el-descriptions-item v-if="summary.address" label="Адрес">
+              <el-descriptions-item v-if="summary.address" :label="summary.address_label || 'Адрес'">
                 {{ summary.address }}
               </el-descriptions-item>
-              <el-descriptions-item v-if="summary.phone_label" label="Call-центр">
+              <el-descriptions-item v-if="summary.phone_label" :label="summary.phone_title || 'Call-центр'">
                 <a :href="`tel:${summary.phone}`">{{ summary.phone_label }}</a>
               </el-descriptions-item>
-              <el-descriptions-item v-if="summary.contact_person" label="Ответственное лицо">
+              <el-descriptions-item v-if="summary.contact_person" :label="summary.contact_person_label || 'Ответственное лицо'">
                 {{ summary.contact_person }}
               </el-descriptions-item>
             </el-descriptions>

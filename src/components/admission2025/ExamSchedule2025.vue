@@ -51,27 +51,27 @@
         </el-col>
       </el-row>
 
-      <el-card class="rules-card" shadow="never">
+      <el-card v-if="rules.show_rules !== false" class="rules-card" shadow="never">
         <template #header>
           <div class="card-header">
             <el-icon color="#dc2626" size="24"><WarningFilled /></el-icon>
-            <span>Правила проведения экзаменов</span>
+            <span>{{ rules.title || 'Правила проведения экзаменов' }}</span>
           </div>
         </template>
 
         <el-collapse v-model="activeRules">
-          <el-collapse-item title="Допуск на экзамен" name="admission">
+          <el-collapse-item :title="rules.admission_title || 'Допуск на экзамен'" name="admission">
             <el-descriptions :column="1" border>
-              <el-descriptions-item label="Документы">
+              <el-descriptions-item :label="rules.admission_docs_label || 'Документы'">
                 {{ rules.admission_docs || 'Экзаменационный лист и паспорт/ID-карта.' }}
               </el-descriptions-item>
-              <el-descriptions-item label="Получение экзаменационного листа">
+              <el-descriptions-item :label="rules.admission_time_label || 'Получение экзаменационного листа'">
                 {{ rules.admission_time || 'В день экзамена с 07:00 до 08:45.' }}
               </el-descriptions-item>
             </el-descriptions>
           </el-collapse-item>
 
-          <el-collapse-item title="Категорически запрещается" name="forbidden">
+          <el-collapse-item :title="rules.forbidden_title || 'Категорически запрещается'" name="forbidden">
             <el-alert
               type="error"
               show-icon
@@ -84,7 +84,7 @@
             </el-alert>
           </el-collapse-item>
 
-          <el-collapse-item title="Результаты ЕГЭ" name="ege">
+          <el-collapse-item :title="rules.ege_title || 'Результаты ЕГЭ'" name="ege">
             <p class="collapse-text">{{ rules.ege_text || '' }}</p>
           </el-collapse-item>
         </el-collapse>
