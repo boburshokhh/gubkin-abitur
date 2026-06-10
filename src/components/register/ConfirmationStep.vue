@@ -49,26 +49,26 @@
         <el-card v-for="choice in modelValue.choices" :key="choice.priority" shadow="never">
           <el-tag type="primary" effect="light">Приоритет {{ choice.priority }}</el-tag>
           <p class="mt-2">{{ getProfileFullName(choice.profile_id) }}</p>
-          <el-alert
-            v-if="getProfileExams(choice.profile_id).length"
-            class="confirmation-exams-alert"
-            title="Набор вступительных экзаменов"
-            type="warning"
-            show-icon
-            :closable="false"
-          >
-            <el-space wrap>
-              <el-tag
-                v-for="exam in getProfileExams(choice.profile_id)"
-                :key="`${choice.priority}-${exam.priority}-${exam.name}`"
-                type="warning"
-                effect="light"
-              >
-                {{ exam.priority }}. {{ exam.name }}
-              </el-tag>
-            </el-space>
-          </el-alert>
         </el-card>
+        <el-alert
+          v-if="selectedProgramExams.length"
+          class="confirmation-exams-alert"
+          title="Набор вступительных экзаменов"
+          type="warning"
+          show-icon
+          :closable="false"
+        >
+          <el-space wrap>
+            <el-tag
+              v-for="exam in selectedProgramExams"
+              :key="`${exam.priority}-${exam.name}`"
+              type="warning"
+              effect="light"
+            >
+              {{ exam.priority }}. {{ exam.name }}
+            </el-tag>
+          </el-space>
+        </el-alert>
       </div>
       <el-empty v-else description="Образовательные программы не выбраны" />
     </el-card>
@@ -167,6 +167,15 @@ const allRegions = computed(() => {
   props.regions.forEach(region => regionsMap.set(region.id, region));
   appStore.regions.forEach(region => regionsMap.set(region.id, region));
   return Array.from(regionsMap.values());
+});
+
+const selectedProgramExams = computed(() => {
+  const firstChoice = [...(props.modelValue.choices || [])]
+    .sort((firstChoiceItem, secondChoiceItem) => firstChoiceItem.priority - secondChoiceItem.priority)[0];
+
+  if (!firstChoice) return [];
+
+  return getProfileExams(firstChoice.profile_id);
 });
 
 onMounted(async () => {

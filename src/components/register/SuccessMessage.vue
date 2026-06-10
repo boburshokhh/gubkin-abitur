@@ -6,17 +6,19 @@
   >
     <template #extra>
       <div class="mx-auto max-w-2xl space-y-4 text-left">
-        <el-card shadow="never">
-          <template #header>
-            <span class="font-medium">Что дальше?</span>
+        <el-alert
+          type="warning"
+          show-icon
+          :closable="false"
+        >
+          <template #title>
+            <span class="font-medium">Важная информация для абитуриентов</span>
           </template>
-          <el-timeline>
-            <el-timeline-item>Вы получите SMS-оповещение с подтверждением регистрации.</el-timeline-item>
-            <el-timeline-item>Документы будут проверены в течение 1-2 рабочих дней.</el-timeline-item>
-            <el-timeline-item>При необходимости с вами свяжутся для уточнения деталей.</el-timeline-item>
-            <el-timeline-item>Информация о вступительных испытаниях будет направлена дополнительно.</el-timeline-item>
-          </el-timeline>
-        </el-card>
+          <p>
+            <strong><u>Не забывайте свой логин и пароль.</u></strong>
+            Абитуриенты должны часто входить на сайт и проверять статус своего заявления в личном кабинете.
+          </p>
+        </el-alert>
 
         <el-card shadow="never">
           <template #header>
