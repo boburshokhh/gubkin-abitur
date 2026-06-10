@@ -2,7 +2,7 @@
   <el-form label-position="top" class="register-step-form">
     <el-alert
       title="Выбор образовательных программ"
-      description="Можно выбрать до 3 профилей. После первого выбора система покажет только программы с совпадающим набором вступительных испытаний."
+      description="Можно выбрать до 5 профилей или специализаций. После первого выбора система покажет только программы с совпадающим набором вступительных испытаний."
       type="info"
       show-icon
       :closable="false"
@@ -17,83 +17,47 @@
     />
 
     <div class="space-y-4">
-      <el-card shadow="never">
+      <el-card v-for="priorityIndex in maxProfileChoices" :key="priorityIndex" shadow="never">
         <template #header>
-          <span class="font-medium">Приоритет 1</span>
+          <span class="font-medium">Приоритет {{ priorityIndex }}</span>
         </template>
-        <el-form-item label="Профиль/Специализация" required :error="errors.choices">
+        <el-form-item
+          label="Профиль/Специализация"
+          :required="priorityIndex === 1"
+          :error="priorityIndex === 1 ? errors.choices : ''"
+        >
           <el-select
-            v-model="selectedProfiles[0]"
-            class="w-full"
-            filterable
-            placeholder="Выберите профиль"
-            :loading="isLoadingProfiles"
-            @change="onFirstProfileChange"
-          >
-            <el-option
-              v-for="profile in allProfilesWithDetails"
-              :key="profile.id"
-              :label="getProfileLabel(profile)"
-              :value="profile.id"
-            />
-          </el-select>
-        </el-form-item>
-      </el-card>
-
-      <el-card shadow="never">
-        <template #header>
-          <span class="font-medium">Приоритет 2</span>
-        </template>
-        <el-form-item label="Профиль/Специализация">
-          <el-select
-            v-model="selectedProfiles[1]"
+            v-model="selectedProfiles[priorityIndex - 1]"
             class="w-full"
             filterable
             clearable
             placeholder="Выберите профиль"
-            :disabled="!isSecondSelectEnabled"
+            :disabled="isProfileSelectDisabled(priorityIndex - 1)"
             :loading="isLoadingProfiles"
-            @change="onSecondProfileChange"
+            @change="onProfileChange(priorityIndex - 1)"
           >
             <el-option
-              v-for="profile in filteredProfilesForSecondSelect"
+              v-for="profile in getProfilesForPriority(priorityIndex - 1)"
               :key="profile.id"
               :label="getProfileLabel(profile)"
               :value="profile.id"
             />
           </el-select>
         </el-form-item>
-      </el-card>
 
-      <el-card shadow="never">
-        <template #header>
-          <span class="font-medium">Приоритет 3</span>
-        </template>
-        <el-form-item label="Профиль/Специализация">
-          <el-select
-            v-model="selectedProfiles[2]"
-            class="w-full"
-            filterable
-            clearable
-            placeholder="Выберите профиль"
-            :disabled="!isThirdSelectEnabled"
-            :loading="isLoadingProfiles"
-            @change="onThirdProfileChange"
-          >
-            <el-option
-              v-for="profile in filteredProfilesForThirdSelect"
-              :key="profile.id"
-              :label="getProfileLabel(profile)"
-              :value="profile.id"
-            />
-          </el-select>
-        </el-form-item>
+        <el-text
+          v-if="getSelectedProfile(priorityIndex - 1)"
+          class="block mt-3"
+          type="info"
+        >
+          Срок обучения: {{ getProfileDurationText(getSelectedProfile(priorityIndex - 1)) }}
+        </el-text>
       </el-card>
     </div>
 
     <el-alert
       v-if="compatibleProfiles.length > 0 && selectedProfiles[0]"
-      title="Список второго и третьего приоритета ограничен программами с тем же набором вступительных испытаний."
+      title="Список последующих приоритетов ограничен программами с тем же набором вступительных испытаний."
       type="success"
       show-icon
       :closable="false"
@@ -123,19 +87,17 @@ const emit = defineEmits(['update:modelValue']);
 const appStore = useApplicationStore();
 const toast = useToast();
 
-const selectedProfiles = ref([null, null, null]);
+const maxProfileChoices = 5;
+const selectedProfiles = ref(Array(maxProfileChoices).fill(null));
 const compatibleProfiles = ref([]);
 const isLoadingProfiles = ref(false);
-
-const isSecondSelectEnabled = computed(() => !!selectedProfiles.value[0] && compatibleProfiles.value.length > 0);
-const isThirdSelectEnabled = computed(() => !!selectedProfiles.value[1] && compatibleProfiles.value.length > 1);
 
 onMounted(() => {
   if (!props.modelValue.choices?.length) return;
 
-  const initialProfiles = [null, null, null];
+  const initialProfiles = Array(maxProfileChoices).fill(null);
   props.modelValue.choices.forEach((choice, index) => {
-    if (index < 3) initialProfiles[index] = choice.profile_id;
+    if (index < maxProfileChoices) initialProfiles[index] = choice.profile_id;
   });
 
   selectedProfiles.value = initialProfiles;
@@ -152,25 +114,60 @@ const allProfilesWithDetails = computed(() => {
   });
 });
 
-const filteredProfilesForSecondSelect = computed(() => {
+const compatibleProfilesWithDetails = computed(() => {
   if (!compatibleProfiles.value.length || !selectedProfiles.value[0]) return [];
 
   return compatibleProfiles.value
-    .filter(profile => profile.profile_id !== selectedProfiles.value[0])
-    .map(profile => allProfilesWithDetails.value.find(p => p.id === profile.profile_id) || profile);
-});
-
-const filteredProfilesForThirdSelect = computed(() => {
-  if (!compatibleProfiles.value.length || !selectedProfiles.value[0] || !selectedProfiles.value[1]) return [];
-
-  return compatibleProfiles.value
-    .filter(profile => profile.profile_id !== selectedProfiles.value[0] && profile.profile_id !== selectedProfiles.value[1])
     .map(profile => allProfilesWithDetails.value.find(p => p.id === profile.profile_id) || profile);
 });
 
 function getProfileLabel(profile) {
   const directionName = profile.direction?.name || profile.direction?.code;
-  return directionName ? `${profile.name} (${directionName})` : profile.name;
+  const baseLabel = directionName ? `${profile.name} (${directionName})` : profile.name;
+  const durationText = getProfileDurationText(profile);
+  return durationText ? `${baseLabel} - ${durationText}` : baseLabel;
+}
+
+function getProfilesForPriority(index) {
+  if (index === 0) return allProfilesWithDetails.value;
+  if (!selectedProfiles.value[0]) return [];
+
+  const selectedBeforeCurrent = selectedProfiles.value.filter((profileId, selectedIndex) => (
+    selectedIndex !== index && profileId !== null && profileId !== undefined && profileId !== ''
+  )).map(profileId => String(profileId));
+
+  return compatibleProfilesWithDetails.value.filter(profile => !selectedBeforeCurrent.includes(String(profile.id)));
+}
+
+function getSelectedProfile(index) {
+  const profileId = selectedProfiles.value[index];
+  if (!profileId) return null;
+
+  return allProfilesWithDetails.value.find(profile => String(profile.id) === String(profileId)) || null;
+}
+
+function getProfileDurationText(profile) {
+  if (!profile?.duration_years) return '';
+
+  const duration = Number(profile.duration_years);
+  if (!Number.isFinite(duration)) return `${profile.duration_years} лет`;
+
+  const formattedDuration = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(duration);
+  if (!Number.isInteger(duration)) return `${formattedDuration} года`;
+
+  const lastDigit = duration % 10;
+  const lastTwoDigits = duration % 100;
+  if (lastDigit === 1 && lastTwoDigits !== 11) return `${formattedDuration} год`;
+  if ([2, 3, 4].includes(lastDigit) && ![12, 13, 14].includes(lastTwoDigits)) return `${formattedDuration} года`;
+  return `${formattedDuration} лет`;
+}
+
+function isProfileSelectDisabled(index) {
+  if (index === 0) return false;
+  if (isLoadingProfiles.value) return true;
+  if (!selectedProfiles.value[index - 1]) return true;
+
+  return getProfilesForPriority(index).length === 0;
 }
 
 async function loadCompatibleProfiles(profileId) {
@@ -195,23 +192,18 @@ async function loadCompatibleProfiles(profileId) {
   }
 }
 
-async function onFirstProfileChange() {
-  selectedProfiles.value[1] = null;
-  selectedProfiles.value[2] = null;
+async function onProfileChange(index) {
+  selectedProfiles.value = selectedProfiles.value.map((profileId, profileIndex) => (
+    profileIndex > index ? null : profileId
+  ));
 
-  if (selectedProfiles.value[0]) {
+  if (index === 0 && selectedProfiles.value[0]) {
     await loadCompatibleProfiles(selectedProfiles.value[0]);
     return;
   }
 
-  compatibleProfiles.value = [];
+  if (index === 0) compatibleProfiles.value = [];
 }
-
-function onSecondProfileChange() {
-  selectedProfiles.value[2] = null;
-}
-
-function onThirdProfileChange() {}
 
 function getChoicesFromSelectedProfiles(selectedProfileIds) {
   return selectedProfileIds
