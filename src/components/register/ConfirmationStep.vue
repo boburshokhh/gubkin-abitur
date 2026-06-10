@@ -49,6 +49,25 @@
         <el-card v-for="choice in modelValue.choices" :key="choice.priority" shadow="never">
           <el-tag type="primary" effect="light">Приоритет {{ choice.priority }}</el-tag>
           <p class="mt-2">{{ getProfileFullName(choice.profile_id) }}</p>
+          <el-alert
+            v-if="getProfileExams(choice.profile_id).length"
+            class="confirmation-exams-alert"
+            title="Набор вступительных экзаменов"
+            type="warning"
+            show-icon
+            :closable="false"
+          >
+            <el-space wrap>
+              <el-tag
+                v-for="exam in getProfileExams(choice.profile_id)"
+                :key="`${choice.priority}-${exam.priority}-${exam.name}`"
+                type="warning"
+                effect="light"
+              >
+                {{ exam.priority }}. {{ exam.name }}
+              </el-tag>
+            </el-space>
+          </el-alert>
         </el-card>
       </div>
       <el-empty v-else description="Образовательные программы не выбраны" />
@@ -181,10 +200,32 @@ function getEducationLevelName(level) {
 function getProfileFullName(profileId) {
   if (!profileId) return '';
 
-  const profile = appStore.allProfiles.find(p => p.id === profileId) || props.availableProfiles.find(p => p.id === profileId);
+  const profile = getProfileById(profileId);
   if (!profile) return 'Профиль не найден';
 
   const direction = appStore.allDirections.find(d => d.id === profile.direction_id);
   return direction ? `${profile.name} (${direction.name || direction.code})` : profile.name;
 }
+
+function getProfileById(profileId) {
+  return appStore.allProfiles.find(profile => String(profile.id) === String(profileId))
+    || props.availableProfiles.find(profile => String(profile.id) === String(profileId))
+    || null;
+}
+
+function getProfileExams(profileId) {
+  const profile = getProfileById(profileId);
+  return (profile?.profile_exams || [])
+    .map(exam => ({
+      priority: exam.priority || 0,
+      name: exam.subject?.name || exam.subject_name || exam.name || 'Предмет не указан'
+    }))
+    .sort((firstExam, secondExam) => firstExam.priority - secondExam.priority);
+}
 </script>
+
+<style scoped>
+.confirmation-exams-alert {
+  margin-top: 12px;
+}
+</style>

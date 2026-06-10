@@ -52,6 +52,26 @@
         >
           Срок обучения: {{ getProfileDurationText(getSelectedProfile(priorityIndex - 1)) }}
         </el-text>
+
+        <el-alert
+          v-if="priorityIndex === 1 && firstSelectedProfileExams.length"
+          class="program-exams-alert"
+          title="Важная информация: набор вступительных предметов"
+          type="warning"
+          show-icon
+          :closable="false"
+        >
+          <el-space wrap>
+            <el-tag
+              v-for="exam in firstSelectedProfileExams"
+              :key="`${exam.priority}-${exam.name}`"
+              type="warning"
+              effect="light"
+            >
+              {{ exam.priority }}. {{ exam.name }}
+            </el-tag>
+          </el-space>
+        </el-alert>
       </el-card>
     </div>
 
@@ -119,6 +139,17 @@ const compatibleProfilesWithDetails = computed(() => {
 
   return compatibleProfiles.value
     .map(profile => allProfilesWithDetails.value.find(p => p.id === profile.profile_id) || profile);
+});
+
+const firstSelectedProfile = computed(() => getSelectedProfile(0));
+
+const firstSelectedProfileExams = computed(() => {
+  return (firstSelectedProfile.value?.profile_exams || [])
+    .map(exam => ({
+      priority: exam.priority || 0,
+      name: exam.subject?.name || exam.subject_name || exam.name || 'Предмет не указан'
+    }))
+    .sort((firstExam, secondExam) => firstExam.priority - secondExam.priority);
 });
 
 function getProfileLabel(profile) {
@@ -249,5 +280,9 @@ watch(selectedProfiles, (newSelectedProfiles) => {
 :deep(.el-form-item__content),
 :deep(.el-select) {
   width: 100%;
+}
+
+.program-exams-alert {
+  margin-top: 14px;
 }
 </style>
