@@ -106,6 +106,42 @@ async function ensureApplicationAccess(req, res, applicationId) {
   return false;
 }
 
+function getSafeDownloadFileName(fileName, fallback = 'file') {
+  return String(fileName || fallback).replace(/[\r\n"]/g, '_');
+}
+
+function getS3KeyCandidates(filePath, bucketAlias) {
+  const normalizedPath = String(filePath || '').replace(/^\/+/, '');
+  const candidates = [normalizedPath];
+
+  if (bucketAlias) candidates.push(`${bucketAlias}/${normalizedPath}`);
+
+  return [...new Set(candidates.filter(Boolean))];
+}
+
+async function streamS3File(res, { bucket, keyCandidates, fileName, contentType }) {
+  let lastError = null;
+
+  for (const key of keyCandidates) {
+    try {
+      const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+      const s3Response = await s3.s3Client.send(command);
+      const safeFileName = getSafeDownloadFileName(fileName);
+
+      res.setHeader('Content-Type', s3Response.ContentType || contentType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `inline; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(safeFileName)}`);
+      if (s3Response.ContentLength) res.setHeader('Content-Length', s3Response.ContentLength);
+
+      s3Response.Body.pipe(res);
+      return true;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('Файл не найден');
+}
+
 async function getApplicationHistory(applicationId) {
   const result = await db.query(
     `WITH ordered_history AS (
@@ -1774,6 +1810,30 @@ router.get('/files/signed-url/document/:docId', requireAuth, async (req, res) =>
   }
 });
 
+// Просмотр документа через backend с проверкой доступа
+router.get('/files/view/document/:docId', requireAuth, async (req, res) => {
+  try {
+    const result = await db.query(
+      'SELECT application_id, file_path, file_name, file_type FROM documents WHERE id = $1',
+      [req.params.docId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Документ не найден' });
+    }
+    if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
+
+    await streamS3File(res, {
+      bucket: s3.BUCKET_DOCUMENTS,
+      keyCandidates: getS3KeyCandidates(result.rows[0].file_path, 'application_documents'),
+      fileName: result.rows[0].file_name,
+      contentType: result.rows[0].file_type
+    });
+  } catch (err) {
+    console.error('Ошибка просмотра документа:', err);
+    res.status(404).json({ error: 'Файл не найден' });
+  }
+});
+
 // Обновить документ
 router.put('/files/documents/:docId', requireAuth, async (req, res) => {
   const { document_type_id } = req.body;
@@ -1858,6 +1918,30 @@ router.get('/files/signed-url/file/:fileId', requireAuth, async (req, res) => {
   }
 });
 
+// Просмотр файла заявления через backend с проверкой доступа
+router.get('/files/view/file/:fileId', requireAuth, async (req, res) => {
+  try {
+    const result = await db.query(
+      'SELECT application_id, file_path, file_name, file_type FROM application_files WHERE id = $1',
+      [req.params.fileId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Файл не найден' });
+    }
+    if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
+
+    await streamS3File(res, {
+      bucket: s3.BUCKET_FILES,
+      keyCandidates: getS3KeyCandidates(result.rows[0].file_path, 'application_files'),
+      fileName: result.rows[0].file_name,
+      contentType: result.rows[0].file_type
+    });
+  } catch (err) {
+    console.error('Ошибка просмотра файла заявления:', err);
+    res.status(404).json({ error: 'Файл не найден' });
+  }
+});
+
 // Загрузить сертификат олимпиады
 router.post('/files/olympiad-certificates/:appId', requireAuth, upload.single('file'), async (req, res) => {
   const file = req.file;
@@ -1915,6 +1999,30 @@ router.get('/files/signed-url/certificate/:certId', requireAuth, async (req, res
     res.json({ data: { signedUrl } });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Просмотр сертификата олимпиады через backend с проверкой доступа
+router.get('/files/view/certificate/:certId', requireAuth, async (req, res) => {
+  try {
+    const result = await db.query(
+      'SELECT application_id, file_path, name AS file_name, file_type FROM olympiad_certificates WHERE id = $1',
+      [req.params.certId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Сертификат не найден' });
+    }
+    if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
+
+    await streamS3File(res, {
+      bucket: s3.BUCKET_FILES,
+      keyCandidates: getS3KeyCandidates(result.rows[0].file_path, 'application_files'),
+      fileName: result.rows[0].file_name,
+      contentType: result.rows[0].file_type
+    });
+  } catch (err) {
+    console.error('Ошибка просмотра сертификата олимпиады:', err);
+    res.status(404).json({ error: 'Файл не найден' });
   }
 });
 

@@ -239,9 +239,8 @@
                       type="primary"
                       link
                       :icon="View"
-                      tag="a"
-                      :href="getApplicationFileUrl(file)"
-                      target="_blank"
+                      :loading="openingFileKey === getFileKey('application-file', file)"
+                      @click="openApplicationFile(file)"
                     >
                       Открыть
                     </el-button>
@@ -270,10 +269,22 @@
               </el-table-column>
               <el-table-column label="Действия" width="190" fixed="right">
                 <template #default="{ row }">
-                  <el-button type="primary" link :icon="View" tag="a" :href="row.url" target="_blank">
+                  <el-button
+                    type="primary"
+                    link
+                    :icon="View"
+                    :loading="openingFileKey === row.key"
+                    @click="openExtraDocument(row)"
+                  >
                     Открыть
                   </el-button>
-                  <el-button type="info" link :icon="Download" tag="a" :href="row.url" target="_blank" download>
+                  <el-button
+                    type="info"
+                    link
+                    :icon="Download"
+                    :loading="openingFileKey === row.key"
+                    @click="openExtraDocument(row)"
+                  >
                     Скачать
                   </el-button>
                 </template>
@@ -456,8 +467,9 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue';
-import { appApi } from '@/api/app-api';
+import { appApi, applicationFiles, documents, olympiadCertificates } from '@/api/app-api';
 import { Download, View } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
 
 const props = defineProps({
   show: {
@@ -484,6 +496,7 @@ const emit = defineEmits(['close', 'update-status', 'add-staff-comment']);
 const newStatus = ref(props.application?.status_id || null);
 const comment = ref(props.application?.admin_comment || '');
 const staffComment = ref('');
+const openingFileKey = ref('');
 const staffCommentTemplates = [
   'Проверить качество сканов документов',
   'Связаться с абитуриентом по телефону',
@@ -575,31 +588,40 @@ const regionName = computed(() => {
 const extraDocumentRows = computed(() => {
   const documentsRows = (props.application?.documents || []).map(doc => ({
     id: doc.id,
+    key: getFileKey('document', doc),
+    source: 'document',
     name: doc.file_name || doc.document_types?.name || 'Документ',
     fileName: doc.file_name,
     typeLabel: doc.document_types?.name || getDocumentStatus(doc.status),
     createdAt: doc.created_at,
     size: doc.file_size,
+    file: doc,
     url: getDocumentUrl(doc)
   }));
 
   const generalFilesRows = getFilesByCategory('general').map(file => ({
     id: file.id,
+    key: getFileKey('application-file', file),
+    source: 'application-file',
     name: file.file_name || 'Общий файл',
     fileName: file.file_name,
     typeLabel: getFileCategoryName(file.file_category || 'general'),
     createdAt: file.created_at,
     size: file.file_size,
+    file,
     url: getApplicationFileUrl(file)
   }));
 
   const certificateRows = (props.application?.olympiad_certificates || []).map(cert => ({
     id: cert.id,
+    key: getFileKey('olympiad-certificate', cert),
+    source: 'olympiad-certificate',
     name: cert.file_name || cert.name || 'Сертификат олимпиады',
     fileName: cert.file_name,
     typeLabel: 'Сертификат олимпиады',
     createdAt: cert.created_at,
     size: cert.file_size,
+    file: cert,
     url: getOlympiadCertificateUrl(cert)
   }));
 
@@ -898,7 +920,78 @@ function getFileCategoryName(category) {
   return categoryMap[category] || 'Неизвестная категория';
 }
 
-// Получение URL документа (аналогично ApplicationDetailsPage.vue)
+function getFileKey(source, file) {
+  return `${source}-${file?.id || file?.file_path || 'unknown'}`;
+}
+
+async function openBlobFile({ key, getBlob, fallbackUrl }) {
+  openingFileKey.value = key;
+
+  try {
+    const { data, error } = await getBlob();
+    if (error) throw error;
+
+    const fileUrl = data instanceof Blob
+      ? URL.createObjectURL(data)
+      : fallbackUrl;
+    if (!fileUrl || fileUrl === '#') throw new Error('Не удалось получить ссылку на файл');
+
+    window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    if (data instanceof Blob) setTimeout(() => URL.revokeObjectURL(fileUrl), 60_000);
+  } catch (error) {
+    console.error('Ошибка открытия файла:', error);
+    ElMessage.error('Не удалось открыть файл. Попробуйте обновить заявку и открыть файл снова.');
+  } finally {
+    openingFileKey.value = '';
+  }
+}
+
+function openApplicationFile(file) {
+  if (!file?.id) {
+    window.open(getApplicationFileUrl(file), '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  return openBlobFile({
+    key: getFileKey('application-file', file),
+    getBlob: () => applicationFiles.downloadBlob(file.id),
+    fallbackUrl: getApplicationFileUrl(file)
+  });
+}
+
+function openDocumentFile(document) {
+  if (!document?.id) {
+    window.open(getDocumentUrl(document), '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  return openBlobFile({
+    key: getFileKey('document', document),
+    getBlob: () => documents.downloadBlob(document.id),
+    fallbackUrl: getDocumentUrl(document)
+  });
+}
+
+function openOlympiadCertificate(certificate) {
+  if (!certificate?.id) {
+    window.open(getOlympiadCertificateUrl(certificate), '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  return openBlobFile({
+    key: getFileKey('olympiad-certificate', certificate),
+    getBlob: () => olympiadCertificates.downloadBlob(certificate.id),
+    fallbackUrl: getOlympiadCertificateUrl(certificate)
+  });
+}
+
+function openExtraDocument(row) {
+  if (row.source === 'document') return openDocumentFile(row.file);
+  if (row.source === 'olympiad-certificate') return openOlympiadCertificate(row.file);
+  return openApplicationFile(row.file);
+}
+
+// Получение URL документа (резервная ссылка, если signed-url недоступен)
 function getDocumentUrl(document) {
   try {
     if (!document.file_path) {

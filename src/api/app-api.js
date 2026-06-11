@@ -503,6 +503,15 @@ export const documents = {
     }
   },
 
+  async downloadBlob(documentId) {
+    try {
+      const response = await apiClient.get(`/files/view/document/${documentId}`, { responseType: 'blob' })
+      return { data: response.data, error: null }
+    } catch (err) {
+      return handleError(err)
+    }
+  },
+
   async update(documentId, documentData) {
     try {
       const response = await apiClient.put(`/files/documents/${documentId}`, documentData)
@@ -549,6 +558,15 @@ export const applicationFiles = {
     } catch (err) {
       return handleError(err)
     }
+  },
+
+  async downloadBlob(fileId) {
+    try {
+      const response = await apiClient.get(`/files/view/file/${fileId}`, { responseType: 'blob' })
+      return { data: response.data, error: null }
+    } catch (err) {
+      return handleError(err)
+    }
   }
 }
 
@@ -583,6 +601,15 @@ export const olympiadCertificates = {
     try {
       const response = await apiClient.get(`/files/signed-url/certificate/${certificateId}`)
       return { data: response.data.data, error: null }
+    } catch (err) {
+      return handleError(err)
+    }
+  },
+
+  async downloadBlob(certificateId) {
+    try {
+      const response = await apiClient.get(`/files/view/certificate/${certificateId}`, { responseType: 'blob' })
+      return { data: response.data, error: null }
     } catch (err) {
       return handleError(err)
     }
