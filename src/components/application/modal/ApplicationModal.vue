@@ -1100,6 +1100,16 @@ async function downloadAllFilesAsZip() {
 
 async function openBlobFile({ key, getBlob, fallbackUrl }) {
   openingFileKey.value = key;
+  const previewWindow = window.open('about:blank', '_blank');
+
+  if (!previewWindow) {
+    openingFileKey.value = '';
+    ElMessage.error('Браузер заблокировал открытие файла. Разрешите всплывающие окна для этого сайта.');
+    return;
+  }
+
+  previewWindow.opener = null;
+  previewWindow.document.write('<p style="font-family: sans-serif;">Файл загружается...</p>');
 
   try {
     const { data, error } = await getBlob();
@@ -1110,9 +1120,10 @@ async function openBlobFile({ key, getBlob, fallbackUrl }) {
       : fallbackUrl;
     if (!fileUrl || fileUrl === '#') throw new Error('Не удалось получить ссылку на файл');
 
-    window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    previewWindow.location.href = fileUrl;
     if (data instanceof Blob) setTimeout(() => URL.revokeObjectURL(fileUrl), 60_000);
   } catch (error) {
+    previewWindow.close();
     console.error('Ошибка открытия файла:', error);
     ElMessage.error('Не удалось открыть файл. Попробуйте обновить заявку и открыть файл снова.');
   } finally {
