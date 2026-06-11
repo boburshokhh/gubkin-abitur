@@ -156,27 +156,47 @@
             <template #label>
               <span>Документы <el-tag v-if="normalizedDocuments.length" size="small" effect="plain">{{ normalizedDocuments.length }}</el-tag></span>
             </template>
-            <div v-if="normalizedDocuments.length" class="application-details-page__document-list">
-              <el-card v-for="document in normalizedDocuments" :key="document.key" shadow="never">
-                <div class="application-details-page__document-row">
-                  <div class="application-details-page__document-info">
-                    <el-icon size="30"><Document /></el-icon>
-                    <div>
-                      <h4 class="application-details-page__document-title">{{ document.title }}</h4>
-                      <p class="application-details-page__document-meta">
-                        {{ document.fileName }}
-                        <el-tag size="small" effect="plain">{{ getFileExtension(document.fileName) || 'FILE' }}</el-tag>
-                        <span>{{ formatFileSize(document.fileSize) }}</span>
-                      </p>
+            <template v-if="normalizedDocuments.length">
+              <div class="application-details-page__documents-toolbar">
+                <el-button
+                  type="primary"
+                  plain
+                  :loading="isDownloadingArchive"
+                  @click="downloadAllDocumentsAsZip"
+                >
+                  Скачать все ZIP
+                </el-button>
+              </div>
+              <div class="application-details-page__document-list">
+                <el-card v-for="document in normalizedDocuments" :key="document.key" shadow="never">
+                  <div class="application-details-page__document-row">
+                    <div class="application-details-page__document-info">
+                      <el-icon size="30"><Document /></el-icon>
+                      <div>
+                        <h4 class="application-details-page__document-title">{{ document.title }}</h4>
+                        <p class="application-details-page__document-meta">
+                          {{ document.fileName }}
+                          <el-tag size="small" effect="plain">{{ getFileExtension(document.fileName) || 'FILE' }}</el-tag>
+                          <span>{{ formatFileSize(document.fileSize) }}</span>
+                        </p>
+                      </div>
                     </div>
+                    <el-space>
+                      <el-button size="small" @click="openFile(document.url)">Просмотреть</el-button>
+                      <el-button
+                        size="small"
+                        type="primary"
+                        plain
+                        :loading="downloadingFileKey === document.key"
+                        @click="downloadDocumentFile(document)"
+                      >
+                        Скачать
+                      </el-button>
+                    </el-space>
                   </div>
-                  <el-space>
-                    <el-button size="small" @click="openFile(document.url)">Просмотреть</el-button>
-                    <el-button size="small" type="primary" plain @click="openFile(document.url)">Скачать</el-button>
-                  </el-space>
-                </div>
-              </el-card>
-            </div>
+                </el-card>
+              </div>
+            </template>
             <el-empty v-else description="Нет загруженных документов" />
           </el-tab-pane>
 
@@ -230,10 +250,21 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Document } from '@element-plus/icons-vue'
-import { appApi } from '@/api/app-api'
+import { appApi, applicationFiles, documents, olympiadCertificates } from '@/api/app-api'
 import { useApplicationStore } from '@/stores/application'
 import { subscribeApplicationUpdates } from '@/services/application-realtime'
 import DashboardNavigation from '@/components/dashboard/DashboardNavigation.vue'
+import {
+  createZipBlob,
+  downloadBlob,
+  getApplicantFilePrefix,
+  getApplicationFileLabel,
+  getArchiveFileName,
+  getDocumentFileLabel,
+  getDownloadFileName,
+  getOlympiadCertificateLabel,
+  getUniqueFileName
+} from '@/utils/application-downloads'
 
 const route = useRoute()
 const router = useRouter()
@@ -242,6 +273,8 @@ const appStore = useApplicationStore()
 const isLoading = ref(true)
 const error = ref('')
 const isSubmitting = ref(false)
+const isDownloadingArchive = ref(false)
+const downloadingFileKey = ref('')
 const activeTab = ref('personal')
 const applicationHistory = ref([])
 const isHistoryLoading = ref(false)
@@ -261,6 +294,10 @@ const applicantFullName = computed(() => {
   const parts = [applicant.value.last_name, applicant.value.first_name, applicant.value.middle_name].filter(Boolean)
   return parts.length ? parts.join(' ') : 'Абитуриент'
 })
+const applicantFilePrefix = computed(() => getApplicantFilePrefix({
+  application: application.value,
+  applicant: applicant.value
+}))
 const statusId = computed(() => application.value?.status?.id || application.value?.status_id)
 const statusText = computed(() => application.value?.status?.name || getStatusText(statusId.value))
 const statusTagType = computed(() => getStatusTagType(statusId.value))
@@ -272,29 +309,41 @@ const normalizedDocuments = computed(() => {
 
   const documents = (app.documents || []).map(document => ({
     key: `document-${document.id}`,
+    id: document.id,
+    source: 'document',
     title: document.document_type?.name || document.document_types?.name || 'Документ',
+    label: getDocumentFileLabel(document),
     fileName: document.file_name || getFileNameFromPath(document.file_path),
     fileSize: document.file_size,
-    url: getStorageUrl('application_documents', document.file_path)
+    url: getStorageUrl('application_documents', document.file_path),
+    file: document
   }))
 
-  const applicationFiles = (app.application_files || []).map(file => ({
+  const applicationFileRows = (app.application_files || []).map(file => ({
     key: `application-file-${file.id}`,
+    id: file.id,
+    source: 'application-file',
     title: getFileDisplayName(file),
+    label: getApplicationFileLabel(file),
     fileName: file.file_name || getFileNameFromPath(file.file_path),
     fileSize: file.file_size,
-    url: getStorageUrl('application_files', file.file_path)
+    url: getStorageUrl('application_files', file.file_path),
+    file
   }))
 
   const olympiadCertificates = (app.olympiad_certificates || []).map(certificate => ({
     key: `olympiad-${certificate.id}`,
+    id: certificate.id,
+    source: 'olympiad-certificate',
     title: certificate.name || 'Сертификат олимпиады',
+    label: getOlympiadCertificateLabel(certificate),
     fileName: certificate.file_name || getFileNameFromPath(certificate.file_path),
     fileSize: certificate.file_size,
-    url: getStorageUrl('application_files', certificate.file_path)
+    url: getStorageUrl('application_files', certificate.file_path),
+    file: certificate
   }))
 
-  return [...documents, ...applicationFiles, ...olympiadCertificates]
+  return [...documents, ...applicationFileRows, ...olympiadCertificates]
 })
 
 onMounted(async () => {
@@ -400,6 +449,88 @@ function getStorageUrl(bucket, filePath) {
 function openFile(url) {
   if (!url || url === '#') return
   window.open(url, '_blank')
+}
+
+async function getDocumentBlob(document) {
+  if (document.id) {
+    const downloaders = {
+      document: () => documents.downloadBlob(document.id),
+      'application-file': () => applicationFiles.downloadBlob(document.id),
+      'olympiad-certificate': () => olympiadCertificates.downloadBlob(document.id)
+    }
+    const download = downloaders[document.source]
+    if (!download) throw new Error('Неизвестный тип файла')
+
+    const { data, error } = await download()
+    if (error) throw error
+    if (!(data instanceof Blob)) throw new Error('Файл не получен')
+
+    return data
+  }
+
+  if (!document.url || document.url === '#') throw new Error('Ссылка на файл недоступна')
+
+  const response = await fetch(document.url)
+  if (!response.ok) throw new Error('Не удалось скачать файл')
+
+  return response.blob()
+}
+
+async function downloadDocumentFile(document) {
+  downloadingFileKey.value = document.key
+
+  try {
+    const blob = await getDocumentBlob(document)
+    const fileName = getDownloadFileName({
+      prefix: applicantFilePrefix.value,
+      label: document.label || document.title,
+      originalFileName: document.fileName
+    })
+
+    downloadBlob(blob, fileName)
+  } catch (err) {
+    console.error('Ошибка скачивания файла:', err)
+    ElMessage.error('Не удалось скачать файл. Попробуйте обновить заявку и скачать файл снова.')
+  } finally {
+    downloadingFileKey.value = ''
+  }
+}
+
+async function downloadAllDocumentsAsZip() {
+  if (!normalizedDocuments.value.length) {
+    ElMessage.warning('В заявке нет файлов для скачивания.')
+    return
+  }
+
+  isDownloadingArchive.value = true
+
+  try {
+    const usedNames = new Set()
+    const files = []
+
+    for (const document of normalizedDocuments.value) {
+      const blob = await getDocumentBlob(document)
+      const fileName = getUniqueFileName(getDownloadFileName({
+        prefix: applicantFilePrefix.value,
+        label: document.label || document.title,
+        originalFileName: document.fileName
+      }), usedNames)
+
+      files.push({ fileName, blob })
+    }
+
+    const zipBlob = await createZipBlob(files)
+    downloadBlob(zipBlob, getArchiveFileName({
+      application: application.value,
+      applicant: applicant.value
+    }))
+    ElMessage.success('Архив документов готов к скачиванию.')
+  } catch (err) {
+    console.error('Ошибка скачивания архива документов:', err)
+    ElMessage.error('Не удалось скачать архив. Проверьте доступность файлов и попробуйте снова.')
+  } finally {
+    isDownloadingArchive.value = false
+  }
 }
 
 function formatDate(dateString) {
@@ -624,6 +755,12 @@ function getCommentAuthor(comment) {
 .application-details-page__document-list {
   display: grid;
   gap: 12px;
+}
+
+.application-details-page__documents-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
 }
 
 .application-details-page__document-info {

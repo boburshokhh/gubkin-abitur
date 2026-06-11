@@ -183,7 +183,21 @@
       />
 
       <el-card class="application-modal__documents-card" shadow="never">
-        <template #header>Загруженные документы и файлы</template>
+        <template #header>
+          <div class="application-modal__card-header">
+            <span>Загруженные документы и файлы</span>
+            <el-button
+              type="primary"
+              plain
+              :icon="Download"
+              :disabled="!downloadableFiles.length"
+              :loading="isDownloadingArchive"
+              @click="downloadAllFilesAsZip"
+            >
+              Скачать все ZIP
+            </el-button>
+          </div>
+        </template>
 
         <el-alert
           v-if="missingRequiredFiles.length"
@@ -230,20 +244,32 @@
                   </el-space>
                 </template>
               </el-table-column>
-              <el-table-column label="Действия" width="190" fixed="right">
+              <el-table-column label="Действия" width="230" fixed="right">
                 <template #default="{ row }">
                   <el-space v-if="row.files.length" wrap>
-                    <el-button
+                    <template
                       v-for="file in row.files"
-                      :key="`view-${file.id || file.file_path}`"
-                      type="primary"
-                      link
-                      :icon="View"
-                      :loading="openingFileKey === getFileKey('application-file', file)"
-                      @click="openApplicationFile(file)"
+                      :key="file.id || file.file_path"
                     >
-                      Открыть
-                    </el-button>
+                      <el-button
+                        type="primary"
+                        link
+                        :icon="View"
+                        :loading="openingFileKey === getFileKey('application-file', file)"
+                        @click="openApplicationFile(file)"
+                      >
+                        Открыть
+                      </el-button>
+                      <el-button
+                        type="info"
+                        link
+                        :icon="Download"
+                        :loading="openingFileKey === getDownloadLoadingKey(getFileKey('application-file', file))"
+                        @click="downloadApplicationFile(file)"
+                      >
+                        Скачать
+                      </el-button>
+                    </template>
                   </el-space>
                 </template>
               </el-table-column>
@@ -282,8 +308,8 @@
                     type="info"
                     link
                     :icon="Download"
-                    :loading="openingFileKey === row.key"
-                    @click="openExtraDocument(row)"
+                    :loading="openingFileKey === getDownloadLoadingKey(row.key)"
+                    @click="downloadExtraDocument(row)"
                   >
                     Скачать
                   </el-button>
@@ -470,6 +496,17 @@ import { ref, watch, computed } from 'vue';
 import { appApi, applicationFiles, documents, olympiadCertificates } from '@/api/app-api';
 import { Download, View } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import {
+  createZipBlob,
+  downloadBlob,
+  getApplicantFilePrefix,
+  getApplicationFileLabel,
+  getArchiveFileName,
+  getDocumentFileLabel,
+  getDownloadFileName,
+  getOlympiadCertificateLabel,
+  getUniqueFileName
+} from '@/utils/application-downloads';
 
 const props = defineProps({
   show: {
@@ -497,6 +534,7 @@ const newStatus = ref(props.application?.status_id || null);
 const comment = ref(props.application?.admin_comment || '');
 const staffComment = ref('');
 const openingFileKey = ref('');
+const isDownloadingArchive = ref(false);
 const staffCommentTemplates = [
   'Проверить качество сканов документов',
   'Связаться с абитуриентом по телефону',
@@ -541,6 +579,10 @@ const requiredFileRows = computed(() => [
 ]);
 
 const applicant = computed(() => props.application?.user || props.application?.users || {});
+const applicantFilePrefix = computed(() => getApplicantFilePrefix({
+  application: props.application,
+  applicant: applicant.value
+}));
 const applicationChoices = computed(() => (
   props.application?.application_choices || props.application?.choices || []
 ));
@@ -626,6 +668,14 @@ const extraDocumentRows = computed(() => {
   }));
 
   return [...documentsRows, ...generalFilesRows, ...certificateRows];
+});
+
+const downloadableFiles = computed(() => {
+  const applicationRows = (props.application?.application_files || []).map(file => createApplicationFileDownloadItem(file));
+  const documentRows = (props.application?.documents || []).map(document => createDocumentDownloadItem(document));
+  const certificateRows = (props.application?.olympiad_certificates || []).map(certificate => createOlympiadCertificateDownloadItem(certificate));
+
+  return [...applicationRows, ...documentRows, ...certificateRows].filter(item => item.file);
 });
 
 // Удалены неиспользуемые переменные для модального окна просмотра документов
@@ -922,6 +972,130 @@ function getFileCategoryName(category) {
 
 function getFileKey(source, file) {
   return `${source}-${file?.id || file?.file_path || 'unknown'}`;
+}
+
+function getDownloadLoadingKey(key) {
+  return `download-${key}`;
+}
+
+function createApplicationFileDownloadItem(file) {
+  return {
+    id: file?.id,
+    key: getFileKey('application-file', file),
+    file,
+    label: getApplicationFileLabel(file),
+    originalFileName: file?.file_name || file?.file_path,
+    fallbackUrl: getApplicationFileUrl(file),
+    getBlob: () => applicationFiles.downloadBlob(file.id)
+  };
+}
+
+function createDocumentDownloadItem(document) {
+  return {
+    id: document?.id,
+    key: getFileKey('document', document),
+    file: document,
+    label: getDocumentFileLabel(document),
+    originalFileName: document?.file_name || document?.file_path,
+    fallbackUrl: getDocumentUrl(document),
+    getBlob: () => documents.downloadBlob(document.id)
+  };
+}
+
+function createOlympiadCertificateDownloadItem(certificate) {
+  return {
+    id: certificate?.id,
+    key: getFileKey('olympiad-certificate', certificate),
+    file: certificate,
+    label: getOlympiadCertificateLabel(certificate),
+    originalFileName: certificate?.file_name || certificate?.name || certificate?.file_path,
+    fallbackUrl: getOlympiadCertificateUrl(certificate),
+    getBlob: () => olympiadCertificates.downloadBlob(certificate.id)
+  };
+}
+
+async function getDownloadBlob(item) {
+  if (item.id) {
+    const { data, error } = await item.getBlob();
+    if (error) throw error;
+    if (!(data instanceof Blob)) throw new Error('Файл не получен');
+    return data;
+  }
+
+  if (!item.fallbackUrl || item.fallbackUrl === '#') throw new Error('Ссылка на файл недоступна');
+
+  const response = await fetch(item.fallbackUrl);
+  if (!response.ok) throw new Error('Не удалось скачать файл');
+
+  return response.blob();
+}
+
+async function downloadFileItem(item) {
+  const loadingKey = getDownloadLoadingKey(item.key);
+  openingFileKey.value = loadingKey;
+
+  try {
+    const blob = await getDownloadBlob(item);
+    const fileName = getDownloadFileName({
+      prefix: applicantFilePrefix.value,
+      label: item.label,
+      originalFileName: item.originalFileName
+    });
+
+    downloadBlob(blob, fileName);
+  } catch (error) {
+    console.error('Ошибка скачивания файла:', error);
+    ElMessage.error('Не удалось скачать файл. Попробуйте обновить заявку и скачать файл снова.');
+  } finally {
+    openingFileKey.value = '';
+  }
+}
+
+function downloadApplicationFile(file) {
+  return downloadFileItem(createApplicationFileDownloadItem(file));
+}
+
+function downloadExtraDocument(row) {
+  if (row.source === 'document') return downloadFileItem(createDocumentDownloadItem(row.file));
+  if (row.source === 'olympiad-certificate') return downloadFileItem(createOlympiadCertificateDownloadItem(row.file));
+  return downloadFileItem(createApplicationFileDownloadItem(row.file));
+}
+
+async function downloadAllFilesAsZip() {
+  if (!downloadableFiles.value.length) {
+    ElMessage.warning('В заявке нет файлов для скачивания.');
+    return;
+  }
+
+  isDownloadingArchive.value = true;
+
+  try {
+    const usedNames = new Set();
+    const files = [];
+
+    for (const item of downloadableFiles.value) {
+      const blob = await getDownloadBlob(item);
+      const fileName = getUniqueFileName(getDownloadFileName({
+        prefix: applicantFilePrefix.value,
+        label: item.label,
+        originalFileName: item.originalFileName
+      }), usedNames);
+
+      files.push({ fileName, blob });
+    }
+
+    const zipBlob = await createZipBlob(files);
+    downloadBlob(zipBlob, getArchiveFileName({
+      application: props.application,
+      applicant: applicant.value
+    }));
+    ElMessage.success('Архив документов готов к скачиванию.');
+  } catch (error) {
+    console.error('Ошибка скачивания архива документов:', error);
+    ElMessage.error('Не удалось скачать архив. Проверьте доступность файлов и попробуйте снова.');
+  } finally {
+    isDownloadingArchive.value = false;
+  }
 }
 
 async function openBlobFile({ key, getBlob, fallbackUrl }) {
