@@ -362,7 +362,7 @@ export const applications = {
         return app
       })
 
-      return { data: formattedData, count: response.data.count || 0, error: null }
+      return { data: formattedData, count: Number(response.data.count) || 0, error: null }
     } catch (err) {
       return { data: null, count: 0, error: err.response?.data?.error ? new Error(err.response.data.error) : err }
     }

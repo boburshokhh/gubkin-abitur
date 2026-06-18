@@ -7,6 +7,7 @@ const s3 = require('../config/s3');
 const { GetObjectCommand } = require('@aws-sdk/client-s3');
 const { JWT_SECRET, requireAuth, requireAdmin, requireAdminOrReviewer } = require('../middleware/auth');
 const { createNotification, createStaffNotifications } = require('../services/notification-service');
+const { sendApplicationStatusChangeEmail } = require('../services/application-status-email');
 const { emitApplicationUpdated } = require('../socket/feedback');
 
 const router = express.Router();
@@ -1122,7 +1123,7 @@ router.get('/applications', requireAuth, async (req, res) => {
       ]
     );
 
-    const count = result.rows.length > 0 ? result.rows[0].total_count : 0;
+    const count = result.rows.length > 0 ? Number(result.rows[0].total_count) : 0;
     const applicationIds = result.rows.map(row => row.id);
 
     if (applicationIds.length === 0) {
@@ -1604,9 +1605,11 @@ router.put('/applications/:id/status', requireAdminOrReviewer, async (req, res) 
   const { statusId, comment } = req.body;
   try {
     const applicationResult = await db.query(
-      `SELECT a.id, a.user_id, s.name AS current_status_name
+      `SELECT a.id, a.user_id, s.name AS current_status_name,
+              u.email, u.first_name, u.last_name, u.middle_name
        FROM applications a
        LEFT JOIN application_statuses s ON s.id = a.status_id
+       JOIN users u ON u.id = a.user_id
        WHERE a.id = $1`,
       [req.params.id]
     );
@@ -1651,6 +1654,20 @@ router.put('/applications/:id/status', requireAdminOrReviewer, async (req, res) 
         status: status
           ? { id: status.id, name: status.name, color: status.color }
           : { id: statusId, name: null, color: null }
+      });
+
+      const application = applicationResult.rows[0];
+      sendApplicationStatusChangeEmail({
+        applicationId: req.params.id,
+        statusId,
+        statusName: status?.name || null,
+        comment: trimmedComment,
+        studentEmail: application.email,
+        studentFirstName: application.first_name,
+        studentLastName: application.last_name,
+        studentMiddleName: application.middle_name
+      }).catch((emailError) => {
+        console.error('Ошибка отправки email об изменении статуса заявления:', emailError);
       });
 
       res.json({ success: true });

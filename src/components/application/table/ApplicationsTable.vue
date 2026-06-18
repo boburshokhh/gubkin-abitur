@@ -91,11 +91,22 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <application-pagination
+      v-if="totalItems > 0"
+      embedded
+      :current-page="currentPage"
+      :page-size="pageSize"
+      :total-items="totalItems"
+      @change-page="$emit('change-page', $event)"
+      @change-page-size="$emit('change-page-size', $event)"
+    />
   </el-card>
 </template>
 
 <script setup>
 import { ElMessageBox } from 'element-plus';
+import ApplicationPagination from '../pagination/ApplicationPagination.vue';
 
 const props = defineProps({
   applications: {
@@ -109,10 +120,27 @@ const props = defineProps({
   loading: {
     type: Boolean,
     default: false
+  },
+  currentPage: {
+    type: Number,
+    default: 1
+  },
+  pageSize: {
+    type: Number,
+    default: 10
+  },
+  totalItems: {
+    type: Number,
+    default: 0
   }
 });
 
-const emit = defineEmits(['view-application', 'quick-status-update']);
+const emit = defineEmits([
+  'view-application',
+  'quick-status-update',
+  'change-page',
+  'change-page-size'
+]);
 
 const getStatusType = (statusName) => {
   const types = {

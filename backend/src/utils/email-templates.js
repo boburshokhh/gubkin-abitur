@@ -8,6 +8,15 @@ function buildUrl(path, params) {
   return url.toString();
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function wrapEmail({ title, body }) {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
@@ -71,8 +80,90 @@ function invitationEmail({ token, roleName }) {
   };
 }
 
+const ACCEPTED_STATUS_ID = 3;
+const REJECTED_STATUS_ID = 4;
+
+function applicationStatusEmail({
+  statusId,
+  statusName,
+  comment,
+  applicationId,
+  studentName,
+  commissionPhoneLabel,
+  commissionPhone
+}) {
+  const isAccepted = statusId === ACCEPTED_STATUS_ID;
+  const isRejected = statusId === REJECTED_STATUS_ID;
+  const greeting = studentName ? `Здравствуйте, ${studentName}!` : 'Здравствуйте!';
+  const trimmedComment = typeof comment === 'string' ? comment.trim() : '';
+  const phoneDisplay = commissionPhoneLabel || commissionPhone || 'не указан';
+  const phoneLine = commissionPhone
+    ? `Телефон приемной комиссии: ${phoneDisplay} (${commissionPhone})`
+    : `Телефон приемной комиссии: ${phoneDisplay}`;
+
+  let statusMessage;
+  let subject;
+
+  if (isAccepted) {
+    subject = 'Заявление принято - Приемная кампания Губкинского университета';
+    statusMessage = 'Ваше заявление успешно проверено и принято приемной комиссией.';
+  } else if (isRejected) {
+    subject = 'Заявление отклонено - Приемная кампания Губкинского университета';
+    statusMessage = 'К сожалению, ваше заявление отклонено приемной комиссией.';
+  } else {
+    subject = `Статус заявления изменен: ${statusName} - Приемная кампания Губкинского университета`;
+    statusMessage = `Статус вашего заявления изменен на «${statusName}».`;
+  }
+
+  const commentBlock = trimmedComment
+    ? `
+        <p><strong>${isRejected ? 'Причина отклонения' : 'Комментарий приемной комиссии'}:</strong></p>
+        <p style="padding: 12px 16px; background: #f9fafb; border-left: 4px solid ${isRejected ? '#dc2626' : '#003366'}; margin: 0 0 16px;">${escapeHtml(trimmedComment)}</p>
+      `
+    : '';
+
+  const commentText = trimmedComment
+    ? `\n\n${isRejected ? 'Причина отклонения' : 'Комментарий приемной комиссии'}: ${trimmedComment}`
+    : '';
+
+  const text = [
+    greeting,
+    '',
+    statusMessage,
+    `Номер заявления: ${applicationId}`,
+    commentText,
+    '',
+    phoneLine,
+    '',
+    'С уважением,',
+    'Приемная комиссия Губкинского университета'
+  ].join('\n');
+
+  const html = wrapEmail({
+    title: isAccepted ? 'Заявление принято' : isRejected ? 'Заявление отклонено' : 'Изменение статуса заявления',
+    body: `
+      <p>${greeting}</p>
+      <p>${statusMessage}</p>
+      <p>Номер заявления: <strong>${applicationId}</strong></p>
+      ${commentBlock}
+      <p style="margin-top: 20px;">
+        <strong>Контакты приемной комиссии</strong><br>
+        ${commissionPhone
+          ? `<a href="tel:${commissionPhone}" style="color: #003366;">${phoneDisplay}</a>`
+          : phoneDisplay}
+      </p>
+      <p style="font-size: 14px; color: #666;">По вопросам поступления вы можете обратиться в приемную комиссию по указанному телефону.</p>
+    `
+  });
+
+  return { subject, text, html };
+}
+
 module.exports = {
   verificationEmail,
   passwordResetEmail,
-  invitationEmail
+  invitationEmail,
+  applicationStatusEmail,
+  ACCEPTED_STATUS_ID,
+  REJECTED_STATUS_ID
 };

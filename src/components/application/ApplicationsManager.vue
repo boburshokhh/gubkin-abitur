@@ -17,18 +17,14 @@
     />
 
     <applications-table
-      :applications="paginatedApplications"
+      :applications="applicationsList"
       :statuses="statuses"
       :loading="loading"
-      @view-application="openApplicationModal"
-      @quick-status-update="handleStatusUpdate"
-    />
-
-    <application-pagination
-      v-if="totalApplications > 0"
       :current-page="pagination.currentPage"
       :page-size="pagination.pageSize"
       :total-items="totalApplications"
+      @view-application="openApplicationModal"
+      @quick-status-update="handleStatusUpdate"
       @change-page="handlePageChange"
       @change-page-size="handlePageSizeChange"
     />
@@ -57,7 +53,6 @@ import ApplicationFilters from './filters/ApplicationFilters.vue';
 import ApplicationStats from './stats/ApplicationStats.vue';
 import ApplicationsTable from './table/ApplicationsTable.vue';
 import ApplicationModal from './modal/ApplicationModal.vue';
-import ApplicationPagination from './pagination/ApplicationPagination.vue';
 
 // Состояние компонента
 const applicationsList = ref([]);
@@ -163,7 +158,7 @@ async function loadApplications() {
     if (error) throw error;
     
     applicationsList.value = data;
-    totalApplications.value = count;
+    totalApplications.value = Number(count) || 0;
   } catch (err) {
     console.error('Ошибка при загрузке заявок:', err);
     toast.error('Не удалось загрузить список заявок');
@@ -260,8 +255,6 @@ async function handleStaffCommentAdd({ applicationId, comment }) {
     isUpdating.value = false;
   }
 }
-
-const paginatedApplications = computed(() => applicationsList.value);
 </script>
 
 <style scoped>
