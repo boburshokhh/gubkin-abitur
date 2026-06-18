@@ -2,7 +2,7 @@
   <el-card shadow="never">
     <div class="application-pagination">
       <el-text type="info">
-        Показано {{ startItem }} - {{ endItem }} из {{ totalItems }} заявок
+        Показано {{ startItem }} - {{ endItem }} из {{ totalItems }} {{ itemLabel }}
       </el-text>
 
       <el-pagination
@@ -38,6 +38,10 @@ const props = defineProps({
   pageSizeOptions: {
     type: Array,
     default: () => [10, 20, 50, 100]
+  },
+  itemLabel: {
+    type: String,
+    default: 'заявок'
   }
 });
 

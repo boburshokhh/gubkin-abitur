@@ -42,7 +42,7 @@
 
     <el-table
       v-loading="isLoading"
-      :data="filteredProfiles"
+      :data="paginatedProfiles"
       row-key="id"
       border
       stripe
@@ -113,6 +113,16 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <application-pagination
+      v-if="totalProfiles > 0"
+      :current-page="pagination.currentPage"
+      :page-size="pagination.pageSize"
+      :total-items="totalProfiles"
+      item-label="профилей"
+      @change-page="handlePageChange"
+      @change-page-size="handlePageSizeChange"
+    />
 
     <el-dialog
       v-model="showProfileModal"
@@ -256,11 +266,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useToast } from 'vue-toastification';
 import { levels as levelsApi, directions as directionsApi, profiles as profilesApi, subjects as subjectsApi } from '@/api/education';
 import { ElMessageBox } from 'element-plus';
 import { Delete, Edit, Plus } from '@element-plus/icons-vue';
+import ApplicationPagination from '@/components/application/pagination/ApplicationPagination.vue';
 
 // Состояние компонента
 const isLoading = ref(false);
@@ -278,6 +289,11 @@ const filters = reactive({
   levelId: null,
   directionId: null,
   search: ''
+});
+
+const pagination = reactive({
+  currentPage: 1,
+  pageSize: 10
 });
 
 // Модальное окно профиля
@@ -341,6 +357,26 @@ const filteredProfiles = computed(() => {
   
   return result.sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || a.name.localeCompare(b.name, 'ru'));
 });
+
+const totalProfiles = computed(() => filteredProfiles.value.length);
+
+const paginatedProfiles = computed(() => {
+  const start = (pagination.currentPage - 1) * pagination.pageSize;
+  return filteredProfiles.value.slice(start, start + pagination.pageSize);
+});
+
+function handlePageChange(page) {
+  pagination.currentPage = page;
+}
+
+function handlePageSizeChange(size) {
+  pagination.pageSize = size;
+  pagination.currentPage = 1;
+}
+
+watch(filters, () => {
+  pagination.currentPage = 1;
+}, { deep: true });
 
 // Жизненный цикл
 onMounted(async () => {
