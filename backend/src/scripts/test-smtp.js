@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
+const { COMMISSION_NAME, ADMISSION_CAMPAIGN_NAME } = require('../config/organization');
 
 const DEFAULT_TO = 'samanihalab@gmail.com';
 
@@ -51,9 +52,9 @@ async function main() {
   console.log('SMTP connection verified.');
 
   const info = await transporter.sendMail({
-    from: `"Приемная комиссия Губкинского университета" <${from}>`,
+    from: `"${COMMISSION_NAME}" <${from}>`,
     to,
-    subject: 'Тест SMTP - Губкин Абитур',
+    subject: `Тест SMTP - ${ADMISSION_CAMPAIGN_NAME}`,
     text: 'Это тестовое письмо для проверки SMTP отправки.',
     html: '<p>Это тестовое письмо для проверки SMTP отправки.</p>'
   });

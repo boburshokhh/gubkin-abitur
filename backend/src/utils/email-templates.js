@@ -1,4 +1,5 @@
 const { FRONTEND_ORIGIN } = require('../config/auth');
+const { UNIVERSITY_NAME, ADMISSION_CAMPAIGN_NAME, COMMISSION_NAME } = require('../config/organization');
 
 function buildUrl(path, params) {
   const url = new URL(path, FRONTEND_ORIGIN);
@@ -20,7 +21,7 @@ function escapeHtml(value) {
 function wrapEmail({ title, body }) {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-      <h2 style="color: #003366; text-align: center;">Губкинский университет</h2>
+      <h2 style="color: #003366; text-align: center; font-size: 18px; line-height: 1.4;">${UNIVERSITY_NAME}</h2>
       <h3 style="color: #111827;">${title}</h3>
       ${body}
       <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
@@ -32,7 +33,7 @@ function wrapEmail({ title, body }) {
 function verificationEmail({ token }) {
   const link = buildUrl('/auth/callback', { type: 'email_verification', token });
   return {
-    subject: 'Подтверждение email - Приемная кампания Губкинского университета',
+    subject: `Подтверждение email - ${ADMISSION_CAMPAIGN_NAME}`,
     text: `Подтвердите email по ссылке: ${link}`,
     html: wrapEmail({
       title: 'Подтверждение email',
@@ -49,7 +50,7 @@ function verificationEmail({ token }) {
 function passwordResetEmail({ token }) {
   const link = buildUrl('/auth/reset-password', { token });
   return {
-    subject: 'Сброс пароля - Приемная кампания Губкинского университета',
+    subject: `Сброс пароля - ${ADMISSION_CAMPAIGN_NAME}`,
     text: `Сбросьте пароль по ссылке: ${link}`,
     html: wrapEmail({
       title: 'Сброс пароля',
@@ -66,7 +67,7 @@ function passwordResetEmail({ token }) {
 function invitationEmail({ token, roleName }) {
   const link = buildUrl('/auth/accept-invitation', { token });
   return {
-    subject: 'Приглашение в систему - Приемная кампания Губкинского университета',
+    subject: `Приглашение в систему - ${ADMISSION_CAMPAIGN_NAME}`,
     text: `Примите приглашение (${roleName}) по ссылке: ${link}`,
     html: wrapEmail({
       title: 'Приглашение в систему',
@@ -105,13 +106,13 @@ function applicationStatusEmail({
   let subject;
 
   if (isAccepted) {
-    subject = 'Заявление принято - Приемная кампания Губкинского университета';
+    subject = `Заявление принято - ${ADMISSION_CAMPAIGN_NAME}`;
     statusMessage = 'Ваше заявление успешно проверено и принято приемной комиссией.';
   } else if (isRejected) {
-    subject = 'Заявление отклонено - Приемная кампания Губкинского университета';
+    subject = `Заявление отклонено - ${ADMISSION_CAMPAIGN_NAME}`;
     statusMessage = 'К сожалению, ваше заявление отклонено приемной комиссией.';
   } else {
-    subject = `Статус заявления изменен: ${statusName} - Приемная кампания Губкинского университета`;
+    subject = `Статус заявления изменен: ${statusName} - ${ADMISSION_CAMPAIGN_NAME}`;
     statusMessage = `Статус вашего заявления изменен на «${statusName}».`;
   }
 
@@ -136,7 +137,7 @@ function applicationStatusEmail({
     phoneLine,
     '',
     'С уважением,',
-    'Приемная комиссия Губкинского университета'
+    COMMISSION_NAME
   ].join('\n');
 
   const html = wrapEmail({

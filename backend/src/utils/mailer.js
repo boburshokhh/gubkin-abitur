@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { COMMISSION_NAME } = require('../config/organization');
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -22,7 +23,7 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async (to, subject, text, html) => {
   try {
     const info = await transporter.sendMail({
-      from: `"Приемная комиссия Губкинского университета" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      from: `"${COMMISSION_NAME}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to,
       subject,
       text,

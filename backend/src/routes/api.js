@@ -389,6 +389,7 @@ router.get('/auth/session', requireAuth, async (req, res) => {
 });
 
 const { sendEmail } = require('../utils/mailer');
+const { UNIVERSITY_NAME, ADMISSION_CAMPAIGN_NAME } = require('../config/organization');
 
 // Хранилище OTP в памяти (для простоты)
 // В production лучше использовать Redis или таблицу в БД
@@ -410,11 +411,11 @@ router.post('/auth/send-otp', async (req, res) => {
     expiresAt: Date.now() + 10 * 60 * 1000
   });
 
-  const subject = 'Код подтверждения - Приемная кампания Губкинского университета';
+  const subject = `Код подтверждения - ${ADMISSION_CAMPAIGN_NAME}`;
   const text = `Ваш код подтверждения: ${otpCode}`;
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-      <h2 style="color: #003366; text-align: center;">Губкинский университет</h2>
+      <h2 style="color: #003366; text-align: center; font-size: 18px; line-height: 1.4;">${UNIVERSITY_NAME}</h2>
       <p style="font-size: 16px; color: #333;">Здравствуйте!</p>
       <p style="font-size: 16px; color: #333;">Ваш код подтверждения для доступа к порталу абитуриента:</p>
       <div style="text-align: center; margin: 30px 0;">
@@ -485,11 +486,11 @@ router.post('/auth/reset-password', async (req, res) => {
       return res.json({ success: true, message: 'Если email существует, на него отправлен новый пароль' });
     }
     
-    const subject = 'Сброс пароля - Приемная кампания Губкинского университета';
+    const subject = `Сброс пароля - ${ADMISSION_CAMPAIGN_NAME}`;
     const text = `Ваш новый пароль: ${newPassword}`;
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-        <h2 style="color: #003366; text-align: center;">Губкинский университет</h2>
+        <h2 style="color: #003366; text-align: center; font-size: 18px; line-height: 1.4;">${UNIVERSITY_NAME}</h2>
         <p style="font-size: 16px; color: #333;">Здравствуйте!</p>
         <p style="font-size: 16px; color: #333;">Ваш пароль был успешно сброшен.</p>
         <div style="text-align: center; margin: 30px 0;">
