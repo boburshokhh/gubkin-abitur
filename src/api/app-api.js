@@ -484,9 +484,8 @@ export const documents = {
       formData.append('documentTypeId', documentTypeId)
 
       const response = await apiClient.post(`/files/documents/${applicationId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
       })
       return { data: response.data.data, error: null }
     } catch (err) {
@@ -532,9 +531,8 @@ export const applicationFiles = {
       formData.append('isImage', isImage)
 
       const response = await apiClient.post(`/files/application-files/${applicationId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
       })
       return { data: response.data.data, error: null }
     } catch (err) {
@@ -578,9 +576,8 @@ export const olympiadCertificates = {
       formData.append('file', file)
 
       const response = await apiClient.post(`/files/olympiad-certificates/${applicationId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
       })
       return { data: response.data.data, error: null }
     } catch (err) {

@@ -507,6 +507,7 @@ import {
   getOlympiadCertificateLabel,
   getUniqueFileName
 } from '@/utils/application-downloads';
+import { decodeFileName } from '@/utils/file-name';
 
 const props = defineProps({
   show: {
@@ -632,8 +633,8 @@ const extraDocumentRows = computed(() => {
     id: doc.id,
     key: getFileKey('document', doc),
     source: 'document',
-    name: doc.file_name || doc.document_types?.name || 'Документ',
-    fileName: doc.file_name,
+    name: decodeFileName(doc.file_name) || doc.document_types?.name || 'Документ',
+    fileName: decodeFileName(doc.file_name),
     typeLabel: doc.document_types?.name || getDocumentStatus(doc.status),
     createdAt: doc.created_at,
     size: doc.file_size,
@@ -645,8 +646,8 @@ const extraDocumentRows = computed(() => {
     id: file.id,
     key: getFileKey('application-file', file),
     source: 'application-file',
-    name: file.file_name || 'Общий файл',
-    fileName: file.file_name,
+    name: decodeFileName(file.file_name) || 'Общий файл',
+    fileName: decodeFileName(file.file_name),
     typeLabel: getFileCategoryName(file.file_category || 'general'),
     createdAt: file.created_at,
     size: file.file_size,
@@ -658,8 +659,8 @@ const extraDocumentRows = computed(() => {
     id: cert.id,
     key: getFileKey('olympiad-certificate', cert),
     source: 'olympiad-certificate',
-    name: cert.file_name || cert.name || 'Сертификат олимпиады',
-    fileName: cert.file_name,
+    name: decodeFileName(cert.file_name || cert.name) || 'Сертификат олимпиады',
+    fileName: decodeFileName(cert.file_name || cert.name),
     typeLabel: 'Сертификат олимпиады',
     createdAt: cert.created_at,
     size: cert.file_size,
@@ -862,7 +863,7 @@ function getTimelineTitle(item) {
 
 function getTimelineDescription(item) {
   if (item.event_type === 'document_uploaded' || item.event_type === 'education_document_uploaded') {
-    return [item.title, getFileCategoryName(item.subtitle)].filter(Boolean).join(' · ');
+    return [decodeFileName(item.title), getFileCategoryName(item.subtitle)].filter(Boolean).join(' · ');
   }
 
   return item.comment || '';
@@ -1276,7 +1277,7 @@ function getFileDisplayName(file) {
   } else if (file.file_category === 'additional') {
     return 'Дополнительный документ';
   }
-  return file.file_name || 'Файл';
+  return decodeFileName(file.file_name) || 'Файл';
 }
 
 function getFileTypeTagType(filename) {

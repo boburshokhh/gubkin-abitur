@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import { decodeFileName } from './file-name'
 
 const invalidFileNameChars = /[<>:"/\\|?*\u0000-\u001F]/g
 const whitespaceChars = /\s+/g
@@ -66,7 +67,7 @@ export function getOlympiadCertificateLabel(certificate = {}) {
 
 export function getDownloadFileName({ prefix, label, originalFileName }) {
   const safePrefix = sanitizeFileNamePart(prefix, 'Абитуриент')
-  const extension = getExtensionFromFileName(originalFileName)
+  const extension = getExtensionFromFileName(decodeFileName(originalFileName))
   const rawLabel = String(label || '')
   const labelExtension = getExtensionFromFileName(rawLabel)
   const labelWithoutExtension = labelExtension ? rawLabel.slice(0, -labelExtension.length) : rawLabel

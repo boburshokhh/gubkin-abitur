@@ -9,6 +9,7 @@ const { JWT_SECRET, requireAuth, requireAdmin, requireAdminOrReviewer } = requir
 const { createNotification, createStaffNotifications } = require('../services/notification-service');
 const { sendApplicationStatusChangeEmail } = require('../services/application-status-email');
 const { emitApplicationUpdated } = require('../socket/feedback');
+const { decodeUploadedFileName, getFileExtension, decodeApplicationFileNames, decodeFileRecord } = require('../utils/file-name');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -267,7 +268,10 @@ async function getApplicationTimeline(applicationId) {
   return [
     ...statusHistory.map(item => ({ ...item, event_type: 'status_changed' })),
     ...staffComments.map(item => ({ ...item, event_type: 'staff_comment' })),
-    ...documentEvents.rows
+    ...documentEvents.rows.map(row => ({
+      ...row,
+      title: decodeUploadedFileName(row.title)
+    }))
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
@@ -1163,8 +1167,9 @@ router.get('/applications', requireAuth, async (req, res) => {
 
     const requiredDocuments = [
       { key: 'passport_scan', label: 'паспорт', aliases: ['passport_scan', 'passportScan'] },
+      { key: 'passport_translation', label: 'перевод паспорта', aliases: ['passport_translation', 'passportTranslation'] },
       { key: 'photo', label: 'фото', aliases: ['photo', 'photoFile'] },
-      { key: 'education_scan', label: 'образование', aliases: ['education_scan', 'educationScan'] }
+      { key: 'education_scan', label: 'образование', aliases: ['education_scan', 'educationScan'] },
     ];
     const documentsSummaryByApplicationId = new Map(
       documentsSummaryResult.rows.map(summary => {
@@ -1213,10 +1218,12 @@ router.get('/applications', requireAuth, async (req, res) => {
 router.get('/applications/:id', requireAuth, async (req, res) => {
   try {
     const result = await db.query('SELECT get_application_details($1) as details', [req.params.id]);
-    const details = result.rows[0]?.details;
-    if (!details) {
+    const rawDetails = result.rows[0]?.details;
+    if (!rawDetails) {
       return res.status(404).json({ error: 'Заявление не найдено' });
     }
+
+    const details = decodeApplicationFileNames(rawDetails);
 
     // Безопасность: обычный абитуриент может смотреть только свои заявления
     if (!isStaffUser(req.user) && details.user_id !== req.user.id) {
@@ -1492,6 +1499,33 @@ router.post('/applications/:id/submit', requireAuth, async (req, res) => {
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
+
+    // Проверяем наличие всех обязательных файлов перед сменой статуса
+    const filesCheck = await client.query(
+      `SELECT ARRAY_AGG(DISTINCT file_category) AS categories FROM application_files
+       WHERE application_id = $1`,
+      [req.params.id]
+    );
+    const uploadedCategories = filesCheck.rows[0]?.categories || [];
+
+    const requiredCategories = [
+      { key: 'passport_scan', label: 'скан паспорта' },
+      { key: 'passport_translation', label: 'перевод паспорта' },
+      { key: 'photo', label: 'фотография 3×4' },
+      { key: 'education_scan', label: 'документ об образовании' },
+    ];
+    const missing = requiredCategories
+      .filter(r => !uploadedCategories.includes(r.key))
+      .map(r => r.label);
+
+    if (missing.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: `Не загружены обязательные документы: ${missing.join(', ')}. Загрузите все документы и попробуйте снова.`,
+        code: 'MISSING_REQUIRED_FILES',
+        missing,
+      });
+    }
 
     const result = await client.query(
       `UPDATE applications
@@ -1788,7 +1822,8 @@ router.post('/files/documents/:appId', requireAuth, upload.single('file'), async
   try {
     if (!(await ensureApplicationAccess(req, res, appId))) return;
 
-    const fileExt = file.originalname.split('.').pop();
+    const originalFileName = decodeUploadedFileName(file.originalname);
+    const fileExt = getFileExtension(originalFileName);
     const fileId = crypto.randomUUID ? crypto.randomUUID() : require('crypto').randomUUID();
     const s3Key = `${appId}/${fileId}.${fileExt}`;
 
@@ -1799,7 +1834,7 @@ router.post('/files/documents/:appId', requireAuth, upload.single('file'), async
     const rpcResult = await db.query('SELECT upload_document($1, $2, $3, $4, $5, $6) as doc_id', [
       appId,
       parseInt(documentTypeId),
-      file.originalname,
+      originalFileName,
       s3Key,
       file.size,
       file.mimetype
@@ -1885,7 +1920,8 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
   try {
     if (!(await ensureApplicationAccess(req, res, appId))) return;
 
-    const fileExt = file.originalname.split('.').pop();
+    const originalFileName = decodeUploadedFileName(file.originalname);
+    const fileExt = getFileExtension(originalFileName);
     const category = fileCategory || 'general';
     const s3Key = `${appId}/${category}/${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
 
@@ -1894,7 +1930,7 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
     const rpcResult = await db.query('SELECT upload_application_file($1, $2, $3, $4, $5, $6, $7) as file_id', [
       appId,
       s3Key,
-      file.originalname,
+      originalFileName,
       file.mimetype,
       file.size,
       isImage === 'true' || file.mimetype.startsWith('image/'),
@@ -1914,7 +1950,7 @@ router.get('/files/application-files/:appId', requireAuth, async (req, res) => {
     if (!(await ensureApplicationAccess(req, res, req.params.appId))) return;
 
     const result = await db.query('SELECT * FROM application_files WHERE application_id = $1 ORDER BY created_at DESC', [req.params.appId]);
-    res.json({ data: result.rows });
+    res.json({ data: result.rows.map(decodeFileRecord) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1972,14 +2008,15 @@ router.post('/files/olympiad-certificates/:appId', requireAuth, upload.single('f
   try {
     if (!(await ensureApplicationAccess(req, res, appId))) return;
 
-    const fileExt = file.originalname.split('.').pop();
+    const originalFileName = decodeUploadedFileName(file.originalname);
+    const fileExt = getFileExtension(originalFileName);
     const s3Key = `${appId}/olympiad_${Date.now()}.${fileExt}`;
 
     await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
 
     const rpcResult = await db.query('SELECT upload_olympiad_certificate($1, $2, $3, $4, $5, 2025) as cert_id', [
       appId,
-      file.originalname,
+      originalFileName,
       s3Key,
       file.size,
       file.mimetype
@@ -2479,7 +2516,8 @@ router.get('/admin/cms/assets', requireAdminOrReviewer, async (req, res) => {
 
 router.post('/admin/cms/assets', requireAdmin, uploadSiteAsset.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Файл не передан или неподдерживаемый формат' });
-  const ext = req.file.originalname.split('.').pop().toLowerCase();
+  const originalFileName = decodeUploadedFileName(req.file.originalname);
+  const ext = getFileExtension(originalFileName).toLowerCase();
   const objectKey = `cms/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   try {
     await s3.uploadToS3(BUCKET_SITE_ASSETS, objectKey, req.file.buffer, req.file.mimetype);
@@ -2490,7 +2528,7 @@ router.post('/admin/cms/assets', requireAdmin, uploadSiteAsset.single('file'), a
       `INSERT INTO cms_assets (bucket, object_key, url, mime_type, original_name, file_size_bytes, alt_text, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [BUCKET_SITE_ASSETS, objectKey, url, req.file.mimetype, req.file.originalname, req.file.size, req.body.alt_text || '', req.user.id]
+      [BUCKET_SITE_ASSETS, objectKey, url, req.file.mimetype, originalFileName, req.file.size, req.body.alt_text || '', req.user.id]
     );
     res.status(201).json({ data: result.rows[0] });
   } catch (err) {
