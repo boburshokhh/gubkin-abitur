@@ -13,6 +13,7 @@ const invitationsRouter = require('./routes/invitations');
 const feedbackRouter = require('./routes/feedback');
 const { initFeedbackSocket } = require('./socket/feedback');
 const { FRONTEND_ORIGIN } = require('./config/auth');
+const { runStartupMigrations } = require('./db/run-migrations');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -94,7 +95,18 @@ const io = new SocketIOServer(httpServer, {
 });
 initFeedbackSocket(io);
 
-httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`Сервер бэкенда успешно запущен на порту ${PORT}`);
-  console.log(`Backend build: version=${APP_VERSION} gitSha=${GIT_SHA} buildDate=${BUILD_DATE}`);
-});
+async function startServer() {
+  try {
+    await runStartupMigrations();
+  } catch (err) {
+    console.error('Критическая ошибка миграций БД:', err.message);
+    process.exit(1);
+  }
+
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`Сервер бэкенда успешно запущен на порту ${PORT}`);
+    console.log(`Backend build: version=${APP_VERSION} gitSha=${GIT_SHA} buildDate=${BUILD_DATE}`);
+  });
+}
+
+startServer();

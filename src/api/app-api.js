@@ -419,19 +419,42 @@ export const applications = {
       }
 
       const response = await apiClient.post('/applications/submit', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 900000,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
       })
       return { data: response.data.data, error: null }
     } catch (err) {
       const responseData = err.response?.data || {}
-      if (err.response?.status === 413) {
+      const status = err.response?.status
+
+      if (status === 413) {
         return {
           data: null,
-          error: responseData.error || `Суммарный размер файлов превышает лимит ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ. Каждый файл — до ${MAX_APPLICATION_FILE_MB} МБ.`,
+          error: responseData.error || `Запрос отклонён из‑за лимита размера (413). Проверьте nginx: client_max_body_size 420M. Файлы: до ${MAX_APPLICATION_FILE_MB} МБ каждый, до ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ суммарно.`,
           code: responseData.code || 'PAYLOAD_TOO_LARGE',
           status: 413
         }
       }
+
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        return {
+          data: null,
+          error: 'Превышено время загрузки. Проверьте интернет и попробуйте снова, либо уменьшите размер файлов.',
+          code: 'UPLOAD_TIMEOUT',
+          status: 408
+        }
+      }
+
+      if (!err.response) {
+        return {
+          data: null,
+          error: 'Сетевая ошибка при отправке заявки. Проверьте соединение и попробуйте снова.',
+          code: 'NETWORK_ERROR'
+        }
+      }
+
       return {
         data: null,
         error: responseData.error || err.message,

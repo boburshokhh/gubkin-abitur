@@ -1695,7 +1695,14 @@ router.post('/applications/submit', requireAuth, (req, res, next) => {
         application_id: err.applicationId
       });
     }
-    res.status(400).json({ error: err.message || 'Ошибка подачи заявления' });
+    if (err.code === '42703') {
+      return res.status(500).json({
+        error: 'Схема базы данных устарела. Перезапустите backend-контейнер — миграция применится автоматически.',
+        code: 'SCHEMA_OUTDATED'
+      });
+    }
+    const status = err.code === 'PAYLOAD_TOO_LARGE' ? 413 : 400;
+    res.status(status).json({ error: err.message || 'Ошибка подачи заявления', code: err.code || 'SUBMIT_ERROR' });
   } finally {
     client.release();
   }
