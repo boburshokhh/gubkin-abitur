@@ -982,45 +982,57 @@ function getDownloadLoadingKey(key) {
 function createApplicationFileDownloadItem(file) {
   return {
     id: file?.id,
+    filePath: file?.file_path,
     key: getFileKey('application-file', file),
     file,
     label: getApplicationFileLabel(file),
     originalFileName: file?.file_name || file?.file_path,
     fallbackUrl: getApplicationFileUrl(file),
-    getBlob: () => applicationFiles.downloadBlob(file.id)
+    getBlob: () => applicationFiles.downloadBlob(file.id),
+    getBlobByPath: () => applicationFiles.downloadByPath(file.file_path)
   };
 }
 
 function createDocumentDownloadItem(document) {
   return {
     id: document?.id,
+    filePath: document?.file_path,
     key: getFileKey('document', document),
     file: document,
     label: getDocumentFileLabel(document),
     originalFileName: document?.file_name || document?.file_path,
     fallbackUrl: getDocumentUrl(document),
-    getBlob: () => documents.downloadBlob(document.id)
+    getBlob: () => documents.downloadBlob(document.id),
+    getBlobByPath: () => documents.downloadByPath(document.file_path)
   };
 }
 
 function createOlympiadCertificateDownloadItem(certificate) {
   return {
     id: certificate?.id,
+    filePath: certificate?.file_path,
     key: getFileKey('olympiad-certificate', certificate),
     file: certificate,
     label: getOlympiadCertificateLabel(certificate),
     originalFileName: certificate?.file_name || certificate?.name || certificate?.file_path,
     fallbackUrl: getOlympiadCertificateUrl(certificate),
-    getBlob: () => olympiadCertificates.downloadBlob(certificate.id)
+    getBlob: () => olympiadCertificates.downloadBlob(certificate.id),
+    getBlobByPath: () => olympiadCertificates.downloadByPath(certificate.file_path)
   };
 }
 
 async function getDownloadBlob(item) {
   if (item.id) {
-    const { data, error } = await item.getBlob();
-    if (error) throw error;
-    if (!(data instanceof Blob)) throw new Error('Файл не получен');
-    return data;
+    const primary = await item.getBlob();
+    if (!primary.error && primary.data instanceof Blob) return primary.data;
+
+    if (item.filePath && item.getBlobByPath) {
+      const fallback = await item.getBlobByPath();
+      if (!fallback.error && fallback.data instanceof Blob) return fallback.data;
+    }
+
+    if (primary.error) throw primary.error;
+    throw new Error('Файл не получен');
   }
 
   if (!item.fallbackUrl || item.fallbackUrl === '#') throw new Error('Ссылка на файл недоступна');
@@ -1073,16 +1085,26 @@ async function downloadAllFilesAsZip() {
   try {
     const usedNames = new Set();
     const files = [];
+    const failed = [];
 
     for (const item of downloadableFiles.value) {
-      const blob = await getDownloadBlob(item);
-      const fileName = getUniqueFileName(getDownloadFileName({
-        prefix: applicantFilePrefix.value,
-        label: item.label,
-        originalFileName: item.originalFileName
-      }), usedNames);
+      try {
+        const blob = await getDownloadBlob(item);
+        const fileName = getUniqueFileName(getDownloadFileName({
+          prefix: applicantFilePrefix.value,
+          label: item.label,
+          originalFileName: item.originalFileName
+        }), usedNames);
 
-      files.push({ fileName, blob });
+        files.push({ fileName, blob });
+      } catch (error) {
+        console.error(`Ошибка скачивания файла «${item.label}»:`, error);
+        failed.push(item.label);
+      }
+    }
+
+    if (!files.length) {
+      throw new Error('Ни один файл не удалось скачать из хранилища');
     }
 
     const zipBlob = await createZipBlob(files);
@@ -1090,7 +1112,12 @@ async function downloadAllFilesAsZip() {
       application: props.application,
       applicant: applicant.value
     }));
-    ElMessage.success('Архив документов готов к скачиванию.');
+
+    if (failed.length) {
+      ElMessage.warning(`Архив создан частично: не найдены в хранилище — ${failed.join(', ')}`);
+    } else {
+      ElMessage.success('Архив документов готов к скачиванию.');
+    }
   } catch (error) {
     console.error('Ошибка скачивания архива документов:', error);
     ElMessage.error('Не удалось скачать архив. Проверьте доступность файлов и попробуйте снова.');

@@ -75,12 +75,38 @@ export const clearAuthStorage = () => {
 }
 
 // Вспомогательный обработчик ошибок
+async function getErrorMessage(err) {
+  const data = err.response?.data
+  if (data instanceof Blob) {
+    try {
+      const parsed = JSON.parse(await data.text())
+      return parsed.error || parsed.message || err.message
+    } catch {
+      return err.message || 'Произошла неизвестная ошибка'
+    }
+  }
+
+  if (data && typeof data === 'object') {
+    return data.error || data.message || err.message
+  }
+
+  return err.message || 'Произошла неизвестная ошибка'
+}
+
 const handleError = (err) => {
   console.error('API Error:', err)
   const responseData = err.response?.data || {}
   const message = responseData.error || responseData.message || err.message || 'Произошла неизвестная ошибка'
   const apiError = new Error(message)
   apiError.code = responseData.code || responseData.error_code
+  apiError.status = err.response?.status
+  return { data: null, error: apiError }
+}
+
+async function handleDownloadError(err) {
+  console.error('API Error:', err)
+  const message = await getErrorMessage(err)
+  const apiError = new Error(message)
   apiError.status = err.response?.status
   return { data: null, error: apiError }
 }
@@ -594,7 +620,17 @@ export const documents = {
       const response = await apiClient.get(`/files/view/document/${documentId}`, { responseType: 'blob' })
       return { data: response.data, error: null }
     } catch (err) {
-      return handleError(err)
+      return handleDownloadError(err)
+    }
+  },
+
+  async downloadByPath(filePath) {
+    try {
+      const cleanPath = String(filePath || '').replace(/^\/+/, '')
+      const response = await apiClient.get(`/files/download/application_documents/${cleanPath}`, { responseType: 'blob' })
+      return { data: response.data, error: null }
+    } catch (err) {
+      return handleDownloadError(err)
     }
   },
 
@@ -651,7 +687,17 @@ export const applicationFiles = {
       const response = await apiClient.get(`/files/view/file/${fileId}`, { responseType: 'blob' })
       return { data: response.data, error: null }
     } catch (err) {
-      return handleError(err)
+      return handleDownloadError(err)
+    }
+  },
+
+  async downloadByPath(filePath) {
+    try {
+      const cleanPath = String(filePath || '').replace(/^\/+/, '')
+      const response = await apiClient.get(`/files/download/application_files/${cleanPath}`, { responseType: 'blob' })
+      return { data: response.data, error: null }
+    } catch (err) {
+      return handleDownloadError(err)
     }
   }
 }
@@ -697,7 +743,17 @@ export const olympiadCertificates = {
       const response = await apiClient.get(`/files/view/certificate/${certificateId}`, { responseType: 'blob' })
       return { data: response.data, error: null }
     } catch (err) {
-      return handleError(err)
+      return handleDownloadError(err)
+    }
+  },
+
+  async downloadByPath(filePath) {
+    try {
+      const cleanPath = String(filePath || '').replace(/^\/+/, '')
+      const response = await apiClient.get(`/files/download/application_files/${cleanPath}`, { responseType: 'blob' })
+      return { data: response.data, error: null }
+    } catch (err) {
+      return handleDownloadError(err)
     }
   }
 }

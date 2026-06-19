@@ -255,12 +255,14 @@ async function uploadDraftFile({ applicationId, userId, fieldKey, file }) {
   const s3Key = `${applicationId}/${fieldKey}/${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
 
   await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
-  await db.query(
-    'SELECT upload_application_file($1, $2, $3, $4, $5, $6, $7)',
+  const insertResult = await db.query(
+    'SELECT upload_application_file($1, $2, $3, $4, $5, $6, $7) AS file_id',
     [applicationId, s3Key, originalFileName, file.mimetype, file.size, fieldConfig.isImage, fieldKey]
   );
 
-  return { field: fieldKey, size: file.size };
+  console.log(`Файл заявления сохранён: app=${applicationId}, bucket=${s3.BUCKET_FILES}, key=${s3Key}, size=${file.size}, file_id=${insertResult.rows[0]?.file_id}`);
+
+  return { field: fieldKey, size: file.size, file_id: insertResult.rows[0]?.file_id };
 }
 
 async function finalizeDraftApplication({ applicationId, userId }) {

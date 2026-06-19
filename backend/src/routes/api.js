@@ -24,6 +24,7 @@ const {
   uploadDraftFile,
   finalizeDraftApplication
 } = require('../services/application-submit-service');
+const { verifyApplicationStorage } = require('../services/file-storage-service');
 
 const router = express.Router();
 
@@ -240,28 +241,34 @@ function getSafeDownloadFileName(fileName, fallback = 'file') {
   return String(fileName || fallback).replace(/[\r\n"]/g, '_');
 }
 
-async function streamS3File(res, { bucket, keyCandidates, fileName, contentType }) {
+async function streamS3File(res, { bucket, buckets, keyCandidates, filePath, bucketAlias, fileName, contentType }) {
+  const bucketList = buckets || s3.getFileBucketCandidates(bucket);
+  const keys = keyCandidates || s3.getS3KeyCandidates(filePath, bucketAlias);
   let lastError = null;
+  const triedKeys = [];
 
-  for (const key of keyCandidates) {
-    try {
-      const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-      const s3Response = await s3.s3Client.send(command);
-      const safeFileName = getSafeDownloadFileName(fileName);
+  for (const bucketName of bucketList) {
+    for (const key of keys) {
+      triedKeys.push(`${bucketName}/${key}`);
+      try {
+        const command = new GetObjectCommand({ Bucket: bucketName, Key: key });
+        const s3Response = await s3.s3Client.send(command);
+        const safeFileName = getSafeDownloadFileName(fileName);
 
-      res.setHeader('Content-Type', s3Response.ContentType || contentType || 'application/octet-stream');
-      res.setHeader('Content-Disposition', `inline; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(safeFileName)}`);
-      if (s3Response.ContentLength) res.setHeader('Content-Length', s3Response.ContentLength);
+        res.setHeader('Content-Type', s3Response.ContentType || contentType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `inline; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(safeFileName)}`);
+        if (s3Response.ContentLength) res.setHeader('Content-Length', s3Response.ContentLength);
 
-      s3Response.Body.pipe(res);
-      return true;
-    } catch (error) {
-      lastError = error;
+        s3Response.Body.pipe(res);
+        return true;
+      } catch (error) {
+        lastError = error;
+      }
     }
   }
 
   const error = lastError || new Error('Файл не найден');
-  error.triedKeys = keyCandidates;
+  error.triedKeys = triedKeys;
   throw error;
 }
 
@@ -1494,6 +1501,19 @@ router.get('/applications/:id', requireAuth, async (req, res) => {
   }
 });
 
+// Проверка наличия файлов заявления в MinIO (для админов)
+router.get('/applications/:id/files/storage-status', requireAdminOrReviewer, async (req, res) => {
+  try {
+    if (!(await ensureApplicationAccess(req, res, req.params.id))) return;
+
+    const report = await verifyApplicationStorage(req.params.id);
+    return res.json({ data: report });
+  } catch (err) {
+    console.error('Ошибка проверки хранилища файлов:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Загрузчик для атомарной подачи заявления (все файлы сразу)
 const submitUpload = multer({
   storage: multer.memoryStorage(),
@@ -2263,13 +2283,14 @@ router.get('/files/signed-url/document/:docId', requireAuth, async (req, res) =>
     }
     if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
+    const location = await s3.findObjectLocation({
+      buckets: s3.getDocumentBucketCandidates(),
+      filePath: result.rows[0].file_path,
+      bucketAlias: 'application_documents'
+    });
     const signedUrl = await s3.getPresignedDownloadUrl(
-      s3.BUCKET_DOCUMENTS,
-      await s3.resolveObjectKey({
-        bucket: s3.BUCKET_DOCUMENTS,
-        filePath: result.rows[0].file_path,
-        bucketAlias: 'application_documents'
-      })
+      location.bucket,
+      location.key
     );
     res.json({ data: { signedUrl } });
   } catch (err) {
@@ -2290,8 +2311,9 @@ router.get('/files/view/document/:docId', requireAuth, async (req, res) => {
     if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
     await streamS3File(res, {
-      bucket: s3.BUCKET_DOCUMENTS,
-      keyCandidates: s3.getS3KeyCandidates(result.rows[0].file_path, 'application_documents'),
+      buckets: s3.getDocumentBucketCandidates(),
+      filePath: result.rows[0].file_path,
+      bucketAlias: 'application_documents',
       fileName: result.rows[0].file_name,
       contentType: result.rows[0].file_type
     });
@@ -2398,13 +2420,14 @@ router.get('/files/signed-url/file/:fileId', requireAuth, async (req, res) => {
     }
     if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
+    const location = await s3.findObjectLocation({
+      buckets: s3.getFileBucketCandidates(),
+      filePath: result.rows[0].file_path,
+      bucketAlias: 'application_files'
+    });
     const signedUrl = await s3.getPresignedDownloadUrl(
-      s3.BUCKET_FILES,
-      await s3.resolveObjectKey({
-        bucket: s3.BUCKET_FILES,
-        filePath: result.rows[0].file_path,
-        bucketAlias: 'application_files'
-      })
+      location.bucket,
+      location.key
     );
     res.json({ data: { signedUrl } });
   } catch (err) {
@@ -2425,8 +2448,9 @@ router.get('/files/view/file/:fileId', requireAuth, async (req, res) => {
     if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
     await streamS3File(res, {
-      bucket: s3.BUCKET_FILES,
-      keyCandidates: s3.getS3KeyCandidates(result.rows[0].file_path, 'application_files'),
+      buckets: s3.getFileBucketCandidates(),
+      filePath: result.rows[0].file_path,
+      bucketAlias: 'application_files',
       fileName: result.rows[0].file_name,
       contentType: result.rows[0].file_type
     });
@@ -2507,13 +2531,14 @@ router.get('/files/signed-url/certificate/:certId', requireAuth, async (req, res
     }
     if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
+    const location = await s3.findObjectLocation({
+      buckets: s3.getFileBucketCandidates(),
+      filePath: result.rows[0].file_path,
+      bucketAlias: 'application_files'
+    });
     const signedUrl = await s3.getPresignedDownloadUrl(
-      s3.BUCKET_FILES,
-      await s3.resolveObjectKey({
-        bucket: s3.BUCKET_FILES,
-        filePath: result.rows[0].file_path,
-        bucketAlias: 'application_files'
-      })
+      location.bucket,
+      location.key
     );
     res.json({ data: { signedUrl } });
   } catch (err) {
@@ -2534,8 +2559,9 @@ router.get('/files/view/certificate/:certId', requireAuth, async (req, res) => {
     if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
     await streamS3File(res, {
-      bucket: s3.BUCKET_FILES,
-      keyCandidates: s3.getS3KeyCandidates(result.rows[0].file_path, 'application_files'),
+      buckets: s3.getFileBucketCandidates(),
+      filePath: result.rows[0].file_path,
+      bucketAlias: 'application_files',
       fileName: result.rows[0].file_name,
       contentType: result.rows[0].file_type
     });
@@ -2554,12 +2580,15 @@ router.get('/files/download/:bucket/*', requireAuth, async (req, res) => {
     const applicationId = String(filePath || '').split('/')[0];
     if (!applicationId || !(await ensureApplicationAccess(req, res, applicationId))) return;
 
-    const bucket = bucketName === 'application_documents' ? s3.BUCKET_DOCUMENTS : s3.BUCKET_FILES;
     const bucketAlias = bucketName === 'application_documents' ? 'application_documents' : 'application_files';
+    const buckets = bucketName === 'application_documents'
+      ? s3.getDocumentBucketCandidates()
+      : s3.getFileBucketCandidates();
 
     await streamS3File(res, {
-      bucket,
-      keyCandidates: s3.getS3KeyCandidates(filePath, bucketAlias),
+      buckets,
+      filePath,
+      bucketAlias,
       fileName: String(filePath || '').split('/').pop() || 'file',
       contentType: undefined
     });

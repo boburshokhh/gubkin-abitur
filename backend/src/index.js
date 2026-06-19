@@ -14,6 +14,7 @@ const feedbackRouter = require('./routes/feedback');
 const { initFeedbackSocket } = require('./socket/feedback');
 const { FRONTEND_ORIGIN } = require('./config/auth');
 const { runStartupMigrations } = require('./db/run-migrations');
+const s3 = require('./config/s3');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -67,8 +68,8 @@ app.use('/api/feedback', feedbackRouter);
 app.use('/api', apiRouter);
 
 // Базовый эндпоинт для проверки здоровья (health check)
-app.get('/health', (req, res) => {
-  res.json({
+app.get('/health', async (req, res) => {
+  const payload = {
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.round(process.uptime()),
@@ -76,7 +77,14 @@ app.get('/health', (req, res) => {
     gitSha: GIT_SHA,
     buildDate: BUILD_DATE,
     nodeEnv: process.env.NODE_ENV || 'development'
-  });
+  };
+
+  if (req.query.storage === '1') {
+    payload.storage = await s3.checkStorageHealth();
+    if (!payload.storage.ok) payload.status = 'degraded';
+  }
+
+  res.json(payload);
 });
 
 // Глобальный обработчик ошибок
@@ -98,8 +106,9 @@ initFeedbackSocket(io);
 async function startServer() {
   try {
     await runStartupMigrations();
+    await s3.ensureBucketsReady();
   } catch (err) {
-    console.error('Критическая ошибка миграций БД:', err.message);
+    console.error('Критическая ошибка запуска:', err.message);
     process.exit(1);
   }
 
