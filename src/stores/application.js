@@ -187,12 +187,12 @@ export const useApplicationStore = defineStore('application', () => {
   }
 
   // Атомарная подача заявления с файлами (основной метод)
-  async function submitApplicationWithFiles(applicationData, files) {
+  async function submitApplicationWithFiles(applicationData, files, options = {}) {
     isLoading.value = true
     error.value = null
 
     try {
-      const result = await applicationsApi.submitWithFiles(applicationData, files)
+      const result = await applicationsApi.submitWithFiles(applicationData, files, options)
       const { data, error: submitError } = result
 
       if (submitError) {

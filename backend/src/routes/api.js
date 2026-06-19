@@ -18,6 +18,12 @@ const {
   MAX_APPLICATION_SUBMIT_TOTAL_MB
 } = require('../config/upload-limits');
 const { formatMulterError } = require('../utils/multer-errors');
+const {
+  validateApplicationMetadata,
+  createDraftApplication,
+  uploadDraftFile,
+  finalizeDraftApplication
+} = require('../services/application-submit-service');
 
 const router = express.Router();
 
@@ -1504,7 +1510,118 @@ const submitUpload = multer({
   { name: 'olympiad_certificate', maxCount: 1 },
 ]);
 
-// Атомарная подача заявления — создаёт запись сразу со статусом «Подано»
+const submitSingleFileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_APPLICATION_FILE_BYTES }
+}).single('file');
+
+function parseApplicationPayload(body) {
+  const raw = typeof body.app_data === 'string'
+    ? JSON.parse(body.app_data)
+    : body.app_data || body;
+  const appData = normalizeApplicationData(raw);
+  appData.is_foreign_residence = raw.isForeignResidence === true || raw.is_foreign_residence === true || raw.isForeignResidence === 'true';
+  return appData;
+}
+
+router.post('/applications/submit/init', requireAuth, async (req, res) => {
+  if (!(await ensureAdmissionOpenForApplicant(req, res))) return;
+
+  let appData;
+  try {
+    appData = parseApplicationPayload(req.body);
+  } catch {
+    return res.status(400).json({ error: 'Не удалось разобрать данные заявления' });
+  }
+
+  const validationError = validateApplicationMetadata(appData);
+  if (validationError) {
+    return res.status(400).json({ error: validationError, code: 'VALIDATION_ERROR' });
+  }
+
+  try {
+    const { applicationId } = await createDraftApplication({ userId: req.user.id, appData });
+    return res.status(201).json({ data: { application_id: applicationId } });
+  } catch (err) {
+    if (err.code === 'ACTIVE_APPLICATION_EXISTS') {
+      return res.status(err.status).json({
+        error: err.message,
+        code: err.code,
+        application_id: err.applicationId
+      });
+    }
+    console.error('Ошибка init подачи заявления:', err);
+    return res.status(err.status || 400).json({ error: err.message || 'Ошибка создания заявления' });
+  }
+});
+
+router.post('/applications/:id/submit/file', requireAuth, (req, res, next) => {
+  submitSingleFileUpload(req, res, (multerErr) => {
+    if (multerErr) {
+      const status = multerErr.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+      return res.status(status).json({ error: formatMulterError(multerErr), code: multerErr.code || 'UPLOAD_ERROR' });
+    }
+    next();
+  });
+}, async (req, res) => {
+  if (!(await ensureAdmissionOpenForApplicant(req, res))) return;
+
+  const fieldKey = String(req.body.field_key || req.body.fieldKey || '').trim();
+  if (!fieldKey) {
+    return res.status(400).json({ error: 'field_key обязателен' });
+  }
+
+  try {
+    const result = await uploadDraftFile({
+      applicationId: req.params.id,
+      userId: req.user.id,
+      fieldKey,
+      file: req.file
+    });
+    return res.json({ data: result });
+  } catch (err) {
+    console.error('Ошибка загрузки файла заявления (step):', err);
+    return res.status(err.status || 500).json({
+      error: err.message || 'Ошибка загрузки файла',
+      code: err.code || 'UPLOAD_ERROR'
+    });
+  }
+});
+
+router.post('/applications/:id/submit/finalize', requireAuth, async (req, res) => {
+  if (!(await ensureAdmissionOpenForApplicant(req, res))) return;
+
+  try {
+    const { applicationId, applicantName } = await finalizeDraftApplication({
+      applicationId: req.params.id,
+      userId: req.user.id
+    });
+
+    emitApplicationUpdated({
+      applicationId,
+      userId: req.user.id,
+      action: 'submitted',
+      status: { id: 2, name: 'Подано' }
+    });
+
+    await createStaffNotifications({
+      type: 'new_application',
+      message: `Поступила новая заявка от ${applicantName}`.trim(),
+      applicationId,
+      meta: { applicantUserId: req.user.id }
+    }).catch(() => {});
+
+    return res.json({ data: { application_id: applicationId, success: true } });
+  } catch (err) {
+    console.error('Ошибка финализации заявления:', err);
+    return res.status(err.status || 400).json({
+      error: err.message || 'Ошибка финализации заявления',
+      code: err.code || 'FINALIZE_ERROR'
+    });
+  }
+});
+
+// Атомарная подача заявления — создаёт запись сразу со статусом «Подано» (legacy)
 router.post('/applications/submit', requireAuth, (req, res, next) => {
   submitUpload(req, res, (multerErr) => {
     if (multerErr) {

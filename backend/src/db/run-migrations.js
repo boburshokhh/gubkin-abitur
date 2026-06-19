@@ -56,7 +56,8 @@ async function runStartupMigrations() {
   await ensureMigrationsTable();
 
   const migrations = [
-    { id: '001-applications-foreign-residence', fileName: '001-applications-foreign-residence.sql' }
+    { id: '001-applications-foreign-residence', fileName: '001-applications-foreign-residence.sql' },
+    { id: '002-draft-application-status', fileName: '002-draft-application-status.sql' }
   ];
 
   for (const migration of migrations) {

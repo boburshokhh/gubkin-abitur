@@ -402,49 +402,81 @@ export const applications = {
   },
 
   /**
-   * Атомарная подача заявления — отправляет данные и все файлы за один запрос.
-   * @param {Object} applicationData — данные анкеты
-   * @param {Object} files — { passport_scan, passport_translation, photo, education_scan, olympiad_certificate }
+   * Пошаговая подача: метаданные → каждый файл отдельным запросом → финализация.
+   * Обходит лимит nginx на размер одного multipart-запроса.
    */
-  async submitWithFiles(applicationData, files) {
-    try {
-      const formData = new FormData()
-      formData.append('app_data', JSON.stringify(applicationData))
+  async submitWithFiles(applicationData, files, { onProgress } = {}) {
+    const uploadTimeout = 900000;
+    const fileFields = [
+      { key: 'passport_scan', label: 'Загрузка скана паспорта...' },
+      { key: 'passport_translation', label: 'Загрузка перевода паспорта...' },
+      { key: 'photo', label: 'Загрузка фотографии...' },
+      { key: 'education_scan', label: 'Загрузка документа об образовании...' },
+      { key: 'olympiad_certificate', label: 'Загрузка сертификата олимпиады...' }
+    ];
+    const filesToUpload = fileFields.filter(({ key }) => files[key]);
+    const totalSteps = 2 + filesToUpload.length;
+    let step = 0;
 
-      const fileFields = ['passport_scan', 'passport_translation', 'photo', 'education_scan', 'olympiad_certificate']
-      for (const key of fileFields) {
-        if (files[key]) {
-          formData.append(key, files[key])
-        }
+    const report = (label) => {
+      step += 1;
+      onProgress?.({ step, total: totalSteps, label });
+    };
+
+    try {
+      report('Сохранение данных заявления...');
+      const initResponse = await apiClient.post('/applications/submit/init', {
+        app_data: applicationData
+      }, { timeout: 60000 });
+
+      const applicationId = initResponse.data?.data?.application_id;
+      if (!applicationId) {
+        return { data: null, error: 'Не удалось создать заявление', code: 'INIT_FAILED' };
       }
 
-      const response = await apiClient.post('/applications/submit', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 900000,
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity
-      })
-      return { data: response.data.data, error: null }
+      for (const { key, label } of filesToUpload) {
+        report(label);
+        const formData = new FormData();
+        formData.append('file', files[key]);
+        formData.append('field_key', key);
+
+        await apiClient.post(`/applications/${applicationId}/submit/file`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: uploadTimeout,
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity
+        });
+      }
+
+      report('Завершение подачи заявления...');
+      const finalizeResponse = await apiClient.post(
+        `/applications/${applicationId}/submit/finalize`,
+        {},
+        { timeout: 60000 }
+      );
+
+      return { data: finalizeResponse.data.data, error: null };
     } catch (err) {
-      const responseData = err.response?.data || {}
-      const status = err.response?.status
+      const responseData = err.response?.data || {};
+      const status = err.response?.status;
 
       if (status === 413) {
         return {
           data: null,
-          error: responseData.error || 'Сервер отклонил загрузку (413). Администратор VPS: sudo bash scripts/configure-host-nginx-upload.sh && пересоберите frontend (docker compose build frontend && docker compose up -d frontend).',
+          error: responseData.error || `Файл слишком большой (макс. ${MAX_APPLICATION_FILE_MB} МБ на один файл).`,
           code: responseData.code || 'PAYLOAD_TOO_LARGE',
-          status: 413
-        }
+          status: 413,
+          applicationId: responseData.application_id
+        };
       }
 
       if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
         return {
           data: null,
-          error: 'Превышено время загрузки. Проверьте интернет и попробуйте снова, либо уменьшите размер файлов.',
+          error: 'Превышено время загрузки. Проверьте интернет и попробуйте снова.',
           code: 'UPLOAD_TIMEOUT',
           status: 408
-        }
+        };
       }
 
       if (!err.response) {
@@ -452,7 +484,7 @@ export const applications = {
           data: null,
           error: 'Сетевая ошибка при отправке заявки. Проверьте соединение и попробуйте снова.',
           code: 'NETWORK_ERROR'
-        }
+        };
       }
 
       return {
@@ -461,7 +493,7 @@ export const applications = {
         code: responseData.code,
         status: err.response?.status,
         applicationId: responseData.application_id
-      }
+      };
     }
   },
 

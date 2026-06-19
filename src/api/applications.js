@@ -27,8 +27,8 @@ export const submit = async (id) => {
   return await applications.submit(id)
 }
 
-export const submitWithFiles = async (applicationData, files) => {
-  return await applications.submitWithFiles(applicationData, files)
+export const submitWithFiles = async (applicationData, files, options) => {
+  return await applications.submitWithFiles(applicationData, files, options)
 }
 
 export const getStatistics = async () => {

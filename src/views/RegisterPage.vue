@@ -664,7 +664,12 @@ async function submitForm() {
     submissionProgress.value = 30;
     submissionStatus.value = 'Отправка заявления и документов...';
 
-    const result = await appStore.submitApplicationWithFiles(applicationPayload, files);
+    const result = await appStore.submitApplicationWithFiles(applicationPayload, files, {
+      onProgress: ({ step, total, label }) => {
+        submissionProgress.value = 15 + Math.round((step / total) * 80);
+        submissionStatus.value = label;
+      }
+    });
     const { success, data, error, code } = result;
 
     if (!success || !data) {
