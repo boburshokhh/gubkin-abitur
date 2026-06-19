@@ -269,8 +269,11 @@ async function finalizeDraftApplication({ applicationId, userId }) {
     await client.query('BEGIN');
 
     const appResult = await client.query(
-      `SELECT id, user_id, status_id, olympiad_participant, first_name, last_name
-       FROM applications WHERE id = $1 FOR UPDATE`,
+      `SELECT a.id, a.user_id, a.status_id, a.olympiad_participant, u.first_name, u.last_name
+       FROM applications a
+       JOIN users u ON u.id = a.user_id
+       WHERE a.id = $1
+       FOR UPDATE OF a`,
       [applicationId]
     );
     const app = appResult.rows[0];
