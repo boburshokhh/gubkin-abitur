@@ -14,6 +14,7 @@ const {
   clearRefreshCookie
 } = require('../services/auth/token-service');
 const { logAuthEvent } = require('../services/auth/audit-service');
+const { credentialRateLimit } = require('../middleware/rate-limit');
 
 const router = express.Router();
 const GENERIC_RESET_MESSAGE = 'Если email существует, на него отправлена ссылка для сброса пароля';
@@ -51,7 +52,7 @@ async function issueSession({ user, req, res }) {
   });
 }
 
-router.post('/signup', async (req, res) => {
+router.post('/signup', credentialRateLimit, async (req, res) => {
   const email = normalizeEmail(req.body.email);
   const { password, options = {} } = req.body;
   const firstName = String(options?.data?.first_name || req.body.firstName || '').trim();
@@ -114,7 +115,7 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-router.post('/verify-email', async (req, res) => {
+router.post('/verify-email', credentialRateLimit, async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: 'Токен подтверждения обязателен' });
 
@@ -140,7 +141,7 @@ router.post('/verify-email', async (req, res) => {
   }
 });
 
-router.post('/signin', async (req, res) => {
+router.post('/signin', credentialRateLimit, async (req, res) => {
   const email = normalizeEmail(req.body.email);
   const { password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email и пароль обязательны' });
@@ -270,7 +271,7 @@ router.get('/session', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/password/forgot', async (req, res) => {
+router.post('/password/forgot', credentialRateLimit, async (req, res) => {
   const email = normalizeEmail(req.body.email);
   if (!email) return res.status(400).json({ error: 'Email обязателен' });
 
@@ -295,7 +296,7 @@ router.post('/password/forgot', async (req, res) => {
   }
 });
 
-router.post('/password/reset', async (req, res) => {
+router.post('/password/reset', credentialRateLimit, async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ error: 'Токен и новый пароль обязательны' });
 
@@ -346,7 +347,7 @@ router.post('/password/change', requireAuth, async (req, res) => {
   return res.json({ success: true });
 });
 
-router.post('/resend-verification', async (req, res) => {
+router.post('/resend-verification', credentialRateLimit, async (req, res) => {
   const email = normalizeEmail(req.body.email);
   if (!email) return res.status(400).json({ error: 'Email обязателен' });
 
@@ -381,12 +382,12 @@ router.post('/resend-verification', async (req, res) => {
   }
 });
 
-router.post('/send-otp', async (req, res) => {
+router.post('/send-otp', credentialRateLimit, async (req, res) => {
   req.url = '/resend-verification';
   return router.handle(req, res);
 });
 
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', credentialRateLimit, async (req, res) => {
   req.url = '/password/forgot';
   return router.handle(req, res);
 });

@@ -3,8 +3,8 @@ const http = require('http');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const { Server: SocketIOServer } = require('socket.io');
+const { invitationRateLimit } = require('./middleware/rate-limit');
 require('dotenv').config();
 
 const apiRouter = require('./routes/api');
@@ -59,17 +59,9 @@ app.use(helmet());
 app.use(cookieParser());
 app.use(express.json());
 
-const authRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 50,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Слишком много запросов. Попробуйте позже.' }
-});
-
 // Маршруты API
-app.use('/api/auth', authRateLimit, authRouter);
-app.use('/api/invitations', authRateLimit, invitationsRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/invitations', invitationRateLimit, invitationsRouter);
 app.use('/api/feedback', feedbackRouter);
 app.use('/api', apiRouter);
 
