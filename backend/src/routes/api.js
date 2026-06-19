@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const db = require('../config/db');
 const s3 = require('../config/s3');
-const { GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
+const { GetObjectCommand } = require('@aws-sdk/client-s3');
 const { JWT_SECRET, requireAuth, requireAdmin, requireAdminOrReviewer } = require('../middleware/auth');
 const { createNotification, createStaffNotifications } = require('../services/notification-service');
 const { sendApplicationStatusChangeEmail } = require('../services/application-status-email');
@@ -112,41 +112,20 @@ function getSafeDownloadFileName(fileName, fallback = 'file') {
   return String(fileName || fallback).replace(/[\r\n"]/g, '_');
 }
 
-function getS3KeyCandidates(filePath, bucketAlias) {
-  const normalizedPath = String(filePath || '').replace(/^\/+/, '');
-  if (!normalizedPath) return [];
+async function removeApplicationFileRecords(appId, category, excludeFileId = null) {
+  const existing = await db.query(
+    `SELECT id, file_path
+     FROM application_files
+     WHERE application_id = $1
+       AND file_category = $2
+       AND ($3::uuid IS NULL OR id <> $3)`,
+    [appId, category, excludeFileId]
+  );
 
-  const candidates = new Set([normalizedPath]);
-
-  if (bucketAlias) {
-    const prefix = `${bucketAlias}/`;
-
-    if (normalizedPath.startsWith(prefix)) {
-      candidates.add(normalizedPath.slice(prefix.length));
-    } else {
-      candidates.add(`${prefix}${normalizedPath}`);
-    }
+  for (const row of existing.rows) {
+    await s3.deleteObjectWithCandidates(s3.BUCKET_FILES, row.file_path, 'application_files');
+    await db.query('DELETE FROM application_files WHERE id = $1', [row.id]);
   }
-
-  return [...candidates];
-}
-
-async function resolveS3ObjectKey({ bucket, filePath, bucketAlias }) {
-  const keyCandidates = getS3KeyCandidates(filePath, bucketAlias);
-  let lastError = null;
-
-  for (const key of keyCandidates) {
-    try {
-      await s3.s3Client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-      return key;
-    } catch (error) {
-      lastError = error;
-      const statusCode = error.$metadata?.httpStatusCode;
-      if (error.name !== 'NotFound' && statusCode !== 404) throw error;
-    }
-  }
-
-  throw lastError || new Error('Файл не найден');
 }
 
 async function streamS3File(res, { bucket, keyCandidates, fileName, contentType }) {
@@ -1888,7 +1867,7 @@ router.get('/files/signed-url/document/:docId', requireAuth, async (req, res) =>
 
     const signedUrl = await s3.getPresignedDownloadUrl(
       s3.BUCKET_DOCUMENTS,
-      await resolveS3ObjectKey({
+      await s3.resolveObjectKey({
         bucket: s3.BUCKET_DOCUMENTS,
         filePath: result.rows[0].file_path,
         bucketAlias: 'application_documents'
@@ -1914,7 +1893,7 @@ router.get('/files/view/document/:docId', requireAuth, async (req, res) => {
 
     await streamS3File(res, {
       bucket: s3.BUCKET_DOCUMENTS,
-      keyCandidates: getS3KeyCandidates(result.rows[0].file_path, 'application_documents'),
+      keyCandidates: s3.getS3KeyCandidates(result.rows[0].file_path, 'application_documents'),
       fileName: result.rows[0].file_name,
       contentType: result.rows[0].file_type
     });
@@ -1954,6 +1933,10 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
     return res.status(400).json({ error: 'Файл обязателен' });
   }
 
+  if (!file.buffer?.length) {
+    return res.status(400).json({ error: 'Файл пустой или не был получен сервером' });
+  }
+
   try {
     if (!(await ensureApplicationAccess(req, res, appId))) return;
 
@@ -1963,6 +1946,8 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
     const s3Key = `${appId}/${category}/${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
 
     await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
+
+    console.log(`Файл заявления сохранён: bucket=${s3.BUCKET_FILES}, key=${s3Key}, size=${file.size}`);
 
     const rpcResult = await db.query('SELECT upload_application_file($1, $2, $3, $4, $5, $6, $7) as file_id', [
       appId,
@@ -1974,7 +1959,10 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
       category
     ]);
 
-    res.json({ data: { id: rpcResult.rows[0]?.file_id } });
+    const fileId = rpcResult.rows[0]?.file_id;
+    await removeApplicationFileRecords(appId, category, fileId);
+
+    res.json({ data: { id: fileId } });
   } catch (err) {
     console.error('Ошибка загрузки файла заявления:', err);
     res.status(500).json({ error: err.message });
@@ -2004,7 +1992,7 @@ router.get('/files/signed-url/file/:fileId', requireAuth, async (req, res) => {
 
     const signedUrl = await s3.getPresignedDownloadUrl(
       s3.BUCKET_FILES,
-      await resolveS3ObjectKey({
+      await s3.resolveObjectKey({
         bucket: s3.BUCKET_FILES,
         filePath: result.rows[0].file_path,
         bucketAlias: 'application_files'
@@ -2030,7 +2018,7 @@ router.get('/files/view/file/:fileId', requireAuth, async (req, res) => {
 
     await streamS3File(res, {
       bucket: s3.BUCKET_FILES,
-      keyCandidates: getS3KeyCandidates(result.rows[0].file_path, 'application_files'),
+      keyCandidates: s3.getS3KeyCandidates(result.rows[0].file_path, 'application_files'),
       fileName: result.rows[0].file_name,
       contentType: result.rows[0].file_type
     });
@@ -2096,7 +2084,7 @@ router.get('/files/signed-url/certificate/:certId', requireAuth, async (req, res
 
     const signedUrl = await s3.getPresignedDownloadUrl(
       s3.BUCKET_FILES,
-      await resolveS3ObjectKey({
+      await s3.resolveObjectKey({
         bucket: s3.BUCKET_FILES,
         filePath: result.rows[0].file_path,
         bucketAlias: 'application_files'
@@ -2122,7 +2110,7 @@ router.get('/files/view/certificate/:certId', requireAuth, async (req, res) => {
 
     await streamS3File(res, {
       bucket: s3.BUCKET_FILES,
-      keyCandidates: getS3KeyCandidates(result.rows[0].file_path, 'application_files'),
+      keyCandidates: s3.getS3KeyCandidates(result.rows[0].file_path, 'application_files'),
       fileName: result.rows[0].file_name,
       contentType: result.rows[0].file_type
     });
@@ -2143,7 +2131,7 @@ router.get('/files/download/:bucket/*', async (req, res) => {
 
     await streamS3File(res, {
       bucket,
-      keyCandidates: getS3KeyCandidates(filePath, bucketAlias),
+      keyCandidates: s3.getS3KeyCandidates(filePath, bucketAlias),
       fileName: String(filePath || '').split('/').pop() || 'file',
       contentType: undefined
     });

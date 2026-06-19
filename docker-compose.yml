@@ -24,7 +24,7 @@ services:
 
   # 2. Объектное хранилище MinIO
   minio:
-    image: quay.io/minio/minio:RELEASE.2024-01-18T22-51-28Z-cpuv1
+    image: quay.io/minio/minio:RELEASE.2025-01-20T14-49-07Z
     container_name: abitur-minio
     restart: always
     ports:

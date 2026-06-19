@@ -13,6 +13,7 @@ const invitationsRouter = require('./routes/invitations');
 const feedbackRouter = require('./routes/feedback');
 const { initFeedbackSocket } = require('./socket/feedback');
 const { FRONTEND_ORIGIN } = require('./config/auth');
+const { ensureBucketsReady } = require('./config/s3');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -102,7 +103,14 @@ const io = new SocketIOServer(httpServer, {
 });
 initFeedbackSocket(io);
 
-httpServer.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, '0.0.0.0', async () => {
+  try {
+    await ensureBucketsReady();
+    console.log(`S3/MinIO buckets ready (endpoint=${process.env.S3_ENDPOINT || 'http://minio:9000'})`);
+  } catch (err) {
+    console.error('S3/MinIO недоступен при старте:', err.message);
+  }
+
   console.log(`Сервер бэкенда успешно запущен на порту ${PORT}`);
   console.log(`Backend build: version=${APP_VERSION} gitSha=${GIT_SHA} buildDate=${BUILD_DATE}`);
 });
