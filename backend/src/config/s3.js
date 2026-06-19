@@ -96,6 +96,15 @@ async function resolveObjectKey({ bucket, filePath, bucketAlias }) {
   throw lastError || new Error('Файл не найден');
 }
 
+async function objectExists({ bucket, filePath, bucketAlias }) {
+  try {
+    await resolveObjectKey({ bucket, filePath, bucketAlias });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function uploadToS3(bucket, key, buffer, mimeType) {
   if (!buffer?.length) {
     throw new Error('Пустой файл нельзя загрузить в хранилище');
@@ -145,6 +154,7 @@ module.exports = {
   getS3KeyCandidates,
   ensureBucketsReady,
   resolveObjectKey,
+  objectExists,
   uploadToS3,
   deleteObjectWithCandidates,
   getPresignedDownloadUrl,
