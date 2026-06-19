@@ -59,10 +59,11 @@ async function initBuckets() {
           console.log(`Bucket "${bucket}" успешно создан.`);
         } catch (createErr) {
           console.error(`Ошибка при создании бакета "${bucket}":`, createErr.message);
-          // Не валим процесс — API должен подняться даже если MinIO временно недоступен
+          throw createErr;
         }
       } else {
         console.error(`Ошибка проверки бакета "${bucket}":`, error.message);
+        throw error;
       }
     }
   }
@@ -94,15 +95,6 @@ async function resolveObjectKey({ bucket, filePath, bucketAlias }) {
   }
 
   throw lastError || new Error('Файл не найден');
-}
-
-async function objectExists({ bucket, filePath, bucketAlias }) {
-  try {
-    await resolveObjectKey({ bucket, filePath, bucketAlias });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function uploadToS3(bucket, key, buffer, mimeType) {
@@ -154,7 +146,6 @@ module.exports = {
   getS3KeyCandidates,
   ensureBucketsReady,
   resolveObjectKey,
-  objectExists,
   uploadToS3,
   deleteObjectWithCandidates,
   getPresignedDownloadUrl,

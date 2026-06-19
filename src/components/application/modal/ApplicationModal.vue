@@ -936,8 +936,8 @@ function formatFileSize(bytes) {
 // Получение файлов по категории
 function getFilesByCategory(category) {
   if (!props.application?.application_files) return [];
-
-  const matchedFiles = props.application.application_files.filter(file => {
+  
+  return props.application.application_files.filter(file => {
     // Маппинг старых имён на новые категории
     if (category === 'passport_scan') {
       return file.file_category === 'passport_scan' || file.file_category === 'passportScan';
@@ -953,14 +953,6 @@ function getFilesByCategory(category) {
     }
     return file.file_category === category || (!file.file_category && category === 'general');
   });
-
-  if (!matchedFiles.length) return [];
-
-  const latestFile = [...matchedFiles].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  )[0];
-
-  return [latestFile];
 }
 
 // Получение названия категории файла

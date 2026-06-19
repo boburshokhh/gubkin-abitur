@@ -112,134 +112,20 @@ function getSafeDownloadFileName(fileName, fallback = 'file') {
   return String(fileName || fallback).replace(/[\r\n"]/g, '_');
 }
 
-// Оставляет только самый свежий файл в категории и безопасно убирает остальные.
-// Важно: удаление в БД и в S3 устроено так, чтобы НИКОГДА не оставить запись,
-// ссылающуюся на удалённый объект (иначе просмотр файла вернёт 404).
-async function removeApplicationFileRecords(appId, category) {
-  // Атомарно удаляем все записи категории, кроме самой новой.
-  // Конкурентные загрузки сходятся к одному и тому же результату:
-  // выживает строка с максимальным created_at, поэтому взаимного удаления
-  // объектов друг друга (как в прежней реализации) не происходит.
-  const deleted = await db.query(
-    `DELETE FROM application_files
+async function removeApplicationFileRecords(appId, category, excludeFileId = null) {
+  const existing = await db.query(
+    `SELECT id, file_path
+     FROM application_files
      WHERE application_id = $1
        AND file_category = $2
-       AND id NOT IN (
-         SELECT id
-         FROM application_files
-         WHERE application_id = $1
-           AND file_category = $2
-         ORDER BY created_at DESC, id DESC
-         LIMIT 1
-       )
-     RETURNING file_path`,
-    [appId, category]
+       AND ($3::uuid IS NULL OR id <> $3)`,
+    [appId, category, excludeFileId]
   );
 
-  if (deleted.rows.length === 0) return;
-
-  const deletedPaths = deleted.rows.map((row) => row.file_path).filter(Boolean);
-  if (deletedPaths.length === 0) return;
-
-  // Гарантия безопасности: удаляем объект в S3 только если на него больше
-  // не ссылается ни одна сохранившаяся запись (защита от совпадения ключей).
-  const referenced = await db.query(
-    'SELECT DISTINCT file_path FROM application_files WHERE file_path = ANY($1::text[])',
-    [deletedPaths]
-  );
-  const stillReferenced = new Set(referenced.rows.map((row) => row.file_path));
-
-  for (const filePath of new Set(deletedPaths)) {
-    if (stillReferenced.has(filePath)) continue;
-    try {
-      await s3.deleteObjectWithCandidates(s3.BUCKET_FILES, filePath, 'application_files');
-    } catch (err) {
-      // Объект-сирота в хранилище безвреден; падать из-за него нельзя,
-      // т.к. запись в БД уже консистентна.
-      console.error('Не удалось удалить устаревший файл из хранилища:', filePath, err.message);
-    }
+  for (const row of existing.rows) {
+    await s3.deleteObjectWithCandidates(s3.BUCKET_FILES, row.file_path, 'application_files');
+    await db.query('DELETE FROM application_files WHERE id = $1', [row.id]);
   }
-}
-
-async function auditMissingStorageFiles() {
-  async function auditRows({ rows, bucket, bucketAlias, type }) {
-    const missing = [];
-    const present = [];
-
-    for (const row of rows) {
-      const exists = await s3.objectExists({
-        bucket,
-        filePath: row.file_path,
-        bucketAlias
-      });
-      const item = {
-        id: row.id,
-        applicationId: row.application_id,
-        filePath: row.file_path,
-        fileName: row.file_name,
-        type
-      };
-      if (exists) present.push(item);
-      else missing.push(item);
-    }
-
-    return { present, missing };
-  }
-
-  const [applicationFilesRes, certificatesRes, documentsRes] = await Promise.all([
-    db.query(`SELECT id, application_id, file_path, file_name FROM application_files WHERE file_path IS NOT NULL AND file_path <> ''`),
-    db.query(`SELECT id, application_id, file_path, name AS file_name FROM olympiad_certificates WHERE file_path IS NOT NULL AND file_path <> ''`),
-    db.query(`SELECT id, application_id, file_path, file_name FROM documents WHERE file_path IS NOT NULL AND file_path <> ''`)
-  ]);
-
-  const applicationFiles = await auditRows({
-    rows: applicationFilesRes.rows,
-    bucket: s3.BUCKET_FILES,
-    bucketAlias: 'application_files',
-    type: 'application_file'
-  });
-  const certificates = await auditRows({
-    rows: certificatesRes.rows,
-    bucket: s3.BUCKET_FILES,
-    bucketAlias: 'application_files',
-    type: 'olympiad_certificate'
-  });
-  const documents = await auditRows({
-    rows: documentsRes.rows,
-    bucket: s3.BUCKET_DOCUMENTS,
-    bucketAlias: 'application_documents',
-    type: 'document'
-  });
-
-  const missing = [
-    ...applicationFiles.missing,
-    ...certificates.missing,
-    ...documents.missing
-  ];
-  const affectedApplicationIds = [...new Set(missing.map((item) => item.applicationId))];
-
-  return {
-    summary: {
-      applicationFiles: {
-        total: applicationFilesRes.rows.length,
-        present: applicationFiles.present.length,
-        missing: applicationFiles.missing.length
-      },
-      olympiadCertificates: {
-        total: certificatesRes.rows.length,
-        present: certificates.present.length,
-        missing: certificates.missing.length
-      },
-      documents: {
-        total: documentsRes.rows.length,
-        present: documents.present.length,
-        missing: documents.missing.length
-      },
-      affectedApplications: affectedApplicationIds.length
-    },
-    affectedApplicationIds,
-    missing
-  };
 }
 
 async function streamS3File(res, { bucket, keyCandidates, fileName, contentType }) {
@@ -2074,12 +1960,7 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
     ]);
 
     const fileId = rpcResult.rows[0]?.file_id;
-
-    // Чистим дубликаты категории только если запись действительно создана,
-    // иначе можно случайно удалить единственный загруженный файл.
-    if (fileId) {
-      await removeApplicationFileRecords(appId, category);
-    }
+    await removeApplicationFileRecords(appId, category, fileId);
 
     res.json({ data: { id: fileId } });
   } catch (err) {
@@ -2143,21 +2024,7 @@ router.get('/files/view/file/:fileId', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Ошибка просмотра файла заявления:', err.message, err.triedKeys || []);
-    res.status(404).json({
-      error: 'Файл отсутствует в хранилище. Требуется повторная загрузка документа.',
-      code: 'FILE_OBJECT_MISSING'
-    });
-  }
-});
-
-// Аудит: какие записи в БД не имеют объекта в MinIO (только для staff)
-router.get('/files/integrity-audit', requireAuth, requireAdminOrReviewer, async (req, res) => {
-  try {
-    const report = await auditMissingStorageFiles();
-    res.json({ data: report });
-  } catch (err) {
-    console.error('Ошибка аудита файлов:', err);
-    res.status(500).json({ error: err.message });
+    res.status(404).json({ error: 'Файл не найден' });
   }
 });
 

@@ -490,7 +490,7 @@ async function downloadDocumentFile(document) {
     downloadBlob(blob, fileName)
   } catch (err) {
     console.error('Ошибка скачивания файла:', err)
-    ElMessage.error('Файл отсутствует в хранилище. Попросите абитуриента загрузить документ повторно или загрузите файл заново через API.')
+    ElMessage.error('Не удалось скачать файл. Попробуйте обновить заявку и скачать файл снова.')
   } finally {
     downloadingFileKey.value = ''
   }
