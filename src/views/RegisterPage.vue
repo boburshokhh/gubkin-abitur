@@ -168,7 +168,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useApplicationStore } from '@/stores/application';
 import { useToast } from 'vue-toastification';
-import { appApi, applicationFiles, olympiadCertificates } from '@/api/app-api';
+import { appApi } from '@/api/app-api';
 
 // Импорт компонентов
 import ProgressBar from '@/components/register/ProgressBar.vue';
@@ -299,7 +299,6 @@ const regionsData = ref([])
 // Инициализация формы с правильной структурой
 const form = ref({
   user_id: null,
-  status_id: 1, // Черновик
   academic_year: new Date().getFullYear(),
   // Личные данные
   lastName: '',
@@ -591,42 +590,47 @@ function prevStep() {
   }
 }
 
-// Отправка формы
+// Отправка формы — атомарно: данные + файлы в одном запросе
 async function submitForm() {
   if (!validateStep()) {
     toast.error('Пожалуйста, проверьте правильность заполнения всех полей.');
     return;
   }
-  
+
   isSubmitting.value = true;
   submissionProgress.value = 0;
   submissionStatus.value = 'Подготовка данных заявления...';
-  
+
   try {
-    // Этап 1: Подготовка данных (10%)
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Подготовка данных анкеты
     submissionProgress.value = 10;
     submissionStatus.value = 'Обработка персональных данных...';
-    
+
     const applicationPayload = { ...form.value };
-    
+
     const dateFields = ['birthDate', 'passport_issue_date', 'education_document_date'];
     dateFields.forEach(field => {
-      if (applicationPayload[field] === '') {
-        applicationPayload[field] = null;
-      }
+      if (applicationPayload[field] === '') applicationPayload[field] = null;
     });
-    
+
     applicationPayload.document_date = applicationPayload.education_document_date;
     applicationPayload.document_number = applicationPayload.education_document_number || '';
-    
     applicationPayload.first_name = applicationPayload.firstName;
     applicationPayload.last_name = applicationPayload.lastName;
     applicationPayload.middle_name = applicationPayload.middleName;
     applicationPayload.birth_date = applicationPayload.birthDate;
-    
     applicationPayload.parent_phone = applicationPayload.parentPhone;
-    
+    applicationPayload.is_foreign_residence = applicationPayload.isForeignResidence || false;
+
+    // Файлы передаём отдельно, не в JSON
+    const files = {
+      passport_scan: applicationPayload.passportScan,
+      passport_translation: applicationPayload.passportTranslation,
+      photo: applicationPayload.photoFile,
+      education_scan: applicationPayload.educationScan,
+      olympiad_certificate: applicationPayload.olympiadCertificate || null,
+    };
+
     delete applicationPayload.passportScan;
     delete applicationPayload.passportTranslation;
     delete applicationPayload.photoFile;
@@ -639,142 +643,29 @@ async function submitForm() {
     delete applicationPayload.parentPhone;
     delete applicationPayload.isForeignResidence;
 
-    // Этап 2: Создание заявления (20%)
-    submissionProgress.value = 20;
-    submissionStatus.value = 'Создание заявления в системе...';
-    
-    const createResult = await appStore.createApplication(applicationPayload);
-    const { success, data, error, code } = createResult;
-    
+    submissionProgress.value = 30;
+    submissionStatus.value = 'Отправка заявления и документов...';
+
+    const result = await appStore.submitApplicationWithFiles(applicationPayload, files);
+    const { success, data, error, code } = result;
+
     if (!success || !data) {
       if (code === 'ACTIVE_APPLICATION_EXISTS') {
         toast.warning(activeApplicationMessage);
         errors.value.submit = activeApplicationMessage;
         return;
       }
+      throw new Error(error || 'Не удалось подать заявление');
+    }
 
-      throw new Error(error || 'Не удалось создать заявление');
-    }
-    
-    let applicationId = data.application_id || data.id;
-    
-    if (!applicationId) {
-      try {
-        const { data: existingApps } = await appApi
-          .from('applications')
-          .select('id')
-          .limit(1);
-        
-        if (existingApps && existingApps.length > 0) {
-          const testApplicationId = existingApps[0].id;
-          toast.warning('ВНИМАНИЕ: Используется тестовый режим загрузки файлов');
-          applicationId = testApplicationId;
-        } else {
-          throw new Error('Не удалось найти существующие заявления для тестирования');
-        }
-      } catch (testError) {
-        throw new Error('Не удалось получить ID созданного заявления. Data: ' + JSON.stringify(data));
-      }
-    }
-    
-    // Этап 3: Подготовка файлов для загрузки (30%)
-    submissionProgress.value = 30;
-    submissionStatus.value = 'Подготовка документов к загрузке...';
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const fileUploads = [];
-    const fileNames = [];
-    
-    if (form.value.passportScan) {
-      fileUploads.push(
-        applicationFiles.upload(applicationId, form.value.passportScan, 'passport_scan', false)
-      );
-      fileNames.push('Скан паспорта');
-    }
-    
-    if (form.value.passportTranslation) {
-      fileUploads.push(
-        applicationFiles.upload(applicationId, form.value.passportTranslation, 'passport_translation', false)
-      );
-      fileNames.push('Перевод паспорта');
-    }
-    
-    if (form.value.photoFile) {
-      fileUploads.push(
-        applicationFiles.upload(applicationId, form.value.photoFile, 'photo', true)
-      );
-      fileNames.push('Фотография 3х4');
-    }
-    
-    if (form.value.educationScan) {
-      fileUploads.push(
-        applicationFiles.upload(applicationId, form.value.educationScan, 'education_scan', false)
-      );
-      fileNames.push('Документ об образовании');
-    }
-    
-    if (form.value.olympiad_participant && form.value.olympiadCertificate) {
-      fileUploads.push(
-        olympiadCertificates.upload(applicationId, form.value.olympiadCertificate)
-      );
-      fileNames.push('Сертификат олимпиады');
-    }
-    
-    // Этап 4: Загрузка файлов (30% -> 85%)
-    if (fileUploads.length > 0) {
-      submissionStatus.value = `Загрузка документов (0 из ${fileUploads.length})...`;
-      
-      const totalFiles = fileUploads.length;
-      const progressPerFile = 55 / totalFiles; // 55% для всех файлов (30% -> 85%)
-      
-      const uploadResults = await Promise.allSettled(
-        fileUploads.map(async (uploadPromise, index) => {
-          try {
-            submissionStatus.value = `Загрузка: ${fileNames[index]}...`;
-            const result = await uploadPromise;
-            
-            // Обновляем прогресс после каждого файла
-            submissionProgress.value = Math.min(30 + (index + 1) * progressPerFile, 85);
-            submissionStatus.value = `Загружено: ${fileNames[index]} (${index + 1} из ${totalFiles})`;
-            
-            // Небольшая задержка для плавного отображения прогресса
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-            return result;
-          } catch (error) {
-            submissionStatus.value = `Ошибка загрузки: ${fileNames[index]}`;
-            throw error;
-          }
-        })
-      );
-      
-      const failedUploads = uploadResults.filter(result => result.status === 'rejected');
-      if (failedUploads.length > 0) {
-        throw new Error('Заявление создано как черновик, но некоторые файлы не удалось загрузить. Пожалуйста, попробуйте отправить заявление после повторной загрузки документов.');
-      }
-    } else {
-      submissionProgress.value = 85;
-    }
-    
-    // Этап 5: Финализация (85% -> 100%)
-    submissionProgress.value = 90;
-    submissionStatus.value = 'Отправка заявления в приемную комиссию...';
-    
-    const submitResult = await appStore.submitApplication(applicationId);
-    if (!submitResult.success) {
-      throw new Error(submitResult.error || 'Не удалось отправить заявление на рассмотрение');
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     submissionProgress.value = 100;
     submissionStatus.value = 'Заявление успешно отправлено!';
     await new Promise(resolve => setTimeout(resolve, 800));
-    
+
     isSubmitted.value = true;
-    applicationNumber.value = applicationId;
+    applicationNumber.value = data.application_id || data.id;
     toast.success('Ваше заявление успешно отправлено!');
-    
+
   } catch (err) {
     submissionStatus.value = 'Ошибка при отправке заявления';
     toast.error(err.message || 'Произошла непредвиденная ошибка при отправке заявления.');

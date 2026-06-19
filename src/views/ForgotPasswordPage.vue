@@ -5,7 +5,7 @@
         Восстановление пароля
       </h2>
       <p class="mt-2 text-center text-sm text-gray-600">
-        Введите email, и мы отправим ссылку для сброса пароля
+        Введите email, и мы отправим код для сброса пароля
       </p>
     </div>
 
@@ -65,7 +65,7 @@ async function handleSubmit() {
     }
 
     isSent.value = true;
-    message.value = 'Если email существует, на него отправлена ссылка для сброса пароля.';
+    message.value = 'Если email существует, на него отправлен 6-значный код для сброса пароля. Перейдите на страницу смены пароля и введите полученный код.';
   } finally {
     isLoading.value = false;
   }

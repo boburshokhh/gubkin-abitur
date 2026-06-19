@@ -140,14 +140,6 @@
             </section>
 
             <div class="application-details-page__actions">
-              <el-button
-                v-if="[1, 'draft'].includes(application.status_id)"
-                type="primary"
-                :loading="isSubmitting"
-                @click="submitApplication"
-              >
-                Отправить на рассмотрение
-              </el-button>
               <el-button @click="router.push('/dashboard/applications')">Вернуться к списку</el-button>
             </div>
           </el-tab-pane>
@@ -272,7 +264,6 @@ const appStore = useApplicationStore()
 
 const isLoading = ref(true)
 const error = ref('')
-const isSubmitting = ref(false)
 const isDownloadingArchive = ref(false)
 const downloadingFileKey = ref('')
 const activeTab = ref('personal')
@@ -405,25 +396,6 @@ function loadApplicationHistory() {
   }
 }
 
-async function submitApplication() {
-  if (!application.value || ![1, 'draft'].includes(application.value.status_id)) return
-
-  isSubmitting.value = true
-  error.value = ''
-  try {
-    const result = await appStore.submitApplication(application.value.id)
-    if (!result.success) throw new Error(result.error || 'Не удалось отправить заявление')
-
-    await appStore.loadApplication(application.value.id)
-    loadApplicationHistory()
-    ElMessage.success('Заявление отправлено на рассмотрение')
-  } catch (err) {
-    console.error('Ошибка при отправке заявления:', err)
-    error.value = err.message
-  } finally {
-    isSubmitting.value = false
-  }
-}
 
 function getChoiceProfile(choice) {
   return choice.profile || choice.profiles || {}
@@ -554,11 +526,9 @@ function formatFileSize(bytes) {
 
 function getStatusText(id) {
   const statuses = {
-    1: 'Черновик',
     2: 'На рассмотрении',
     3: 'Одобрено',
     4: 'Отклонено',
-    draft: 'Черновик',
     submitted: 'На рассмотрении',
     approved: 'Одобрено',
     rejected: 'Отклонено',
@@ -569,11 +539,9 @@ function getStatusText(id) {
 
 function getStatusTagType(id) {
   const types = {
-    1: 'info',
     2: 'warning',
     3: 'success',
     4: 'danger',
-    draft: 'info',
     submitted: 'warning',
     approved: 'success',
     rejected: 'danger',
@@ -584,11 +552,9 @@ function getStatusTagType(id) {
 
 function getTimelineType(id) {
   const types = {
-    1: 'info',
     2: 'primary',
     3: 'success',
     4: 'danger',
-    draft: 'info',
     submitted: 'primary',
     approved: 'success',
     rejected: 'danger'

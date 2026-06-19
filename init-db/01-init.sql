@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS application_statuses (
 CREATE TABLE IF NOT EXISTS applications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  status_id INTEGER NOT NULL REFERENCES application_statuses(id) DEFAULT 1,
+  status_id INTEGER NOT NULL REFERENCES application_statuses(id) DEFAULT 2,
   passport_series TEXT NOT NULL,
   passport_issue_date DATE NOT NULL,
   passport_issued_by TEXT NOT NULL,
@@ -113,11 +113,12 @@ CREATE TABLE IF NOT EXISTS applications (
   accommodation_needed BOOLEAN DEFAULT FALSE,
   olympiad_participant BOOLEAN DEFAULT FALSE,
   parent_phone TEXT,
-  address TEXT,
+  address TEXT NOT NULL DEFAULT '',
   academic_year INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM CURRENT_DATE),
   education_document_number TEXT,
   education_document_date DATE,
-  region_id INTEGER REFERENCES regions(id)
+  region_id INTEGER REFERENCES regions(id),
+  is_foreign_residence BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Таблица: application_history
@@ -419,9 +420,8 @@ INSERT INTO profile_exams (profile_id, subject_id, priority) VALUES
   (11, 1, 1), (11, 3, 2), (11, 2, 3)  -- Менеджмент УБМ
 ON CONFLICT (profile_id, subject_id) DO NOTHING;
 
--- Статусы заявлений
+-- Статусы заявлений (черновик удалён — заявки создаются сразу как «Подано»)
 INSERT INTO application_statuses (id, name, description, color) VALUES
-  (1, 'Черновик', 'Заявление создано, но еще не отправлено на модерацию', 'gray'),
   (2, 'Подано', 'Заявление отправлено в приемную комиссию на проверку', 'blue'),
   (3, 'Принято', 'Документы успешно проверены и приняты', 'green'),
   (4, 'Отклонено', 'Заявление отклонено по причине ошибок в документах', 'red'),

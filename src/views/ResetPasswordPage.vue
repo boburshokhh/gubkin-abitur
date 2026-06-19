@@ -11,7 +11,23 @@
 
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
       <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-        <form v-if="token && !isSuccess" class="space-y-6" @submit.prevent="handleSubmit">
+        <form v-if="!isSuccess" class="space-y-6" @submit.prevent="handleSubmit">
+          <!-- Если токен не в URL — пользователь вводит код из письма вручную -->
+          <div v-if="!token">
+            <label for="otpCode" class="block text-sm font-medium text-gray-700">Код из письма</label>
+            <input
+              id="otpCode"
+              v-model="manualToken"
+              type="text"
+              required
+              maxlength="6"
+              autocomplete="one-time-code"
+              placeholder="123456"
+              class="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              :disabled="isLoading"
+            />
+          </div>
+
           <div>
             <label for="password" class="block text-sm font-medium text-gray-700">Новый пароль</label>
             <input
@@ -19,12 +35,12 @@
               v-model="password"
               type="password"
               required
-              minlength="10"
+              minlength="8"
               autocomplete="new-password"
               class="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
               :disabled="isLoading"
             />
-            <p class="mt-1 text-xs text-gray-500">Минимум 10 символов, буквы и цифры.</p>
+            <p class="mt-1 text-xs text-gray-500">Минимум 8 символов.</p>
           </div>
 
           <div>
@@ -34,7 +50,7 @@
               v-model="passwordConfirm"
               type="password"
               required
-              minlength="10"
+              minlength="8"
               autocomplete="new-password"
               class="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
               :disabled="isLoading"
@@ -71,6 +87,7 @@ const route = useRoute();
 const authStore = useAuthStore();
 
 const token = ref(route.query.token || '');
+const manualToken = ref('');
 const password = ref('');
 const passwordConfirm = ref('');
 const error = ref('');
@@ -80,6 +97,12 @@ const isSuccess = ref(false);
 async function handleSubmit() {
   error.value = '';
 
+  const activeToken = token.value || manualToken.value.trim();
+  if (!activeToken) {
+    error.value = 'Введите код из письма';
+    return;
+  }
+
   if (password.value !== passwordConfirm.value) {
     error.value = 'Пароли не совпадают';
     return;
@@ -88,7 +111,7 @@ async function handleSubmit() {
   isLoading.value = true;
   try {
     const result = await authStore.resetPasswordWithToken({
-      token: token.value,
+      token: activeToken,
       password: password.value
     });
 

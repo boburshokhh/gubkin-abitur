@@ -79,7 +79,6 @@ const descriptionColumns = computed(() => documentSummaryLabel.value ? 3 : 2)
 
 function getStatusText(id) {
   const statuses = {
-    1: 'Черновик',
     2: 'На рассмотрении',
     3: 'Одобрено',
     4: 'Отклонено'

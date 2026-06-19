@@ -177,7 +177,7 @@ export const auth = {
 
   sendEmailVerification: async (email) => {
     try {
-      await apiClient.post('/auth/resend-verification', { email })
+      await apiClient.post('/auth/send-otp', { email })
       return { error: null }
     } catch (err) {
       return { error: new Error(err.response?.data?.error || err.message) }
@@ -186,7 +186,7 @@ export const auth = {
   
   sendOtpToEmail: async (email) => {
     try {
-      await apiClient.post('/auth/resend-verification', { email })
+      await apiClient.post('/auth/send-otp', { email })
       return { error: null }
     } catch (err) {
       return { error: new Error(err.response?.data?.error || err.message) }
@@ -195,7 +195,7 @@ export const auth = {
   
   verifyOtp: async (email, token) => {
     try {
-      const response = await apiClient.post('/auth/verify-email', { email, token })
+      const response = await apiClient.post('/auth/verify-otp', { email, token })
       const { session, user } = response.data
       if (session?.access_token) {
         accessToken = session.access_token
@@ -210,16 +210,18 @@ export const auth = {
 
   resetPassword: async (email) => {
     try {
-      await apiClient.post('/auth/password/forgot', { email })
+      // Отправляем OTP-код на email для сброса пароля.
+      // Пользователь вводит этот код на странице ResetPasswordPage.
+      await apiClient.post('/auth/send-otp', { email })
       return { error: null }
     } catch (err) {
       return { error: new Error(err.response?.data?.error || err.message) }
     }
   },
 
-  resetPasswordWithToken: async ({ token, password }) => {
+  resetPasswordWithToken: async ({ token, password, email }) => {
     try {
-      await apiClient.post('/auth/password/reset', { token, password })
+      await apiClient.post('/auth/password/reset', { email, token, password })
       clearAuthStorage()
       return { error: null }
     } catch (err) {
@@ -386,9 +388,26 @@ export const applications = {
     }
   },
 
-  async create(applicationData) {
+  /**
+   * Атомарная подача заявления — отправляет данные и все файлы за один запрос.
+   * @param {Object} applicationData — данные анкеты
+   * @param {Object} files — { passport_scan, passport_translation, photo, education_scan, olympiad_certificate }
+   */
+  async submitWithFiles(applicationData, files) {
     try {
-      const response = await apiClient.post('/applications', { app_data: applicationData })
+      const formData = new FormData()
+      formData.append('app_data', JSON.stringify(applicationData))
+
+      const fileFields = ['passport_scan', 'passport_translation', 'photo', 'education_scan', 'olympiad_certificate']
+      for (const key of fileFields) {
+        if (files[key]) {
+          formData.append(key, files[key])
+        }
+      }
+
+      const response = await apiClient.post('/applications/submit', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
       return { data: response.data.data, error: null }
     } catch (err) {
       const responseData = err.response?.data || {}
@@ -405,15 +424,6 @@ export const applications = {
   async update(id, applicationData) {
     try {
       const response = await apiClient.put(`/applications/${id}`, applicationData)
-      return { data: response.data.data, error: null }
-    } catch (err) {
-      return handleError(err)
-    }
-  },
-
-  async submit(id) {
-    try {
-      const response = await apiClient.post(`/applications/${id}/submit`)
       return { data: response.data.data, error: null }
     } catch (err) {
       return handleError(err)

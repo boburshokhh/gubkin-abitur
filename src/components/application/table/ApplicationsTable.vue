@@ -144,7 +144,6 @@ const emit = defineEmits([
 
 const getStatusType = (statusName) => {
   const types = {
-    'Черновик': 'info',
     'Подано': 'primary',
     'Принято': 'success',
     'Отклонено': 'danger',

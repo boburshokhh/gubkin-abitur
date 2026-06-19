@@ -186,33 +186,34 @@ export const useApplicationStore = defineStore('application', () => {
     }
   }
 
-  // Отправить заявку на рассмотрение
-  async function submitApplication(id) {
+  // Атомарная подача заявления с файлами (основной метод)
+  async function submitApplicationWithFiles(applicationData, files) {
     isLoading.value = true
     error.value = null
 
     try {
-      const { data, error: submitError } = await applicationsApi.submit(id)
-      
-      if (submitError) throw submitError
-      
-      if (data) {
-        // Обновляем в списке заявок
-        const index = userApplications.value.findIndex(app => app.id === id)
-        if (index !== -1) {
-          userApplications.value[index] = data
-        }
-        
-        // Обновляем текущую заявку если она загружена
-        if (currentApplication.value && currentApplication.value.id === id) {
-          currentApplication.value = data
-        }
+      const result = await applicationsApi.submitWithFiles(applicationData, files)
+      const { data, error: submitError } = result
+
+      if (submitError) {
+        const err = new Error(submitError)
+        err.code = result.code
+        err.status = result.status
+        err.applicationId = result.applicationId
+        throw err
       }
+
       return { success: true, data }
     } catch (err) {
-      console.error('Ошибка отправки заявки:', err)
-      error.value = err.message || 'Не удалось отправить заявку'
-      return { success: false, error: error.value }
+      console.error('Ошибка подачи заявки:', err)
+      error.value = err.message || 'Не удалось подать заявку'
+      return {
+        success: false,
+        error: error.value,
+        code: err.code,
+        status: err.status,
+        applicationId: err.applicationId
+      }
     } finally {
       isLoading.value = false
     }
@@ -462,7 +463,7 @@ export const useApplicationStore = defineStore('application', () => {
     loadApplication,
     createApplication,
     updateApplication,
-    submitApplication,
+    submitApplicationWithFiles,
     loadEducationData,
     loadDocuments,
     loadDocumentTypes,

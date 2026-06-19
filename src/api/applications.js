@@ -27,6 +27,10 @@ export const submit = async (id) => {
   return await applications.submit(id)
 }
 
+export const submitWithFiles = async (applicationData, files) => {
+  return await applications.submitWithFiles(applicationData, files)
+}
+
 export const getStatistics = async () => {
   return await applications.getStatistics()
 }
@@ -37,5 +41,6 @@ export default {
   create,
   update,
   submit,
+  submitWithFiles,
   getStatistics
 } 

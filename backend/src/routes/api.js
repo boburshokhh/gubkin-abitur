@@ -28,18 +28,68 @@ function normalizeApplicationData(appData = {}) {
     last_name: appData.last_name ?? appData.lastName,
     middle_name: appData.middle_name ?? appData.middleName,
     birth_date: normalizeOptionalString(appData.birth_date ?? appData.birthDate),
-    parent_phone: appData.parent_phone ?? appData.parentPhone,
+    parent_phone: normalizeOptionalString(appData.parent_phone ?? appData.parentPhone),
     address: normalizeOptionalString(appData.address),
     gender: normalizeOptionalString(appData.gender)
   };
 }
 
-function validateRequiredApplicantData(appData) {
-  if (!appData.birth_date) return 'Дата рождения обязательна для заполнения';
-  if (!appData.gender) return 'Пол обязателен для заполнения';
-  if (!appData.address) return 'Адрес проживания обязателен для заполнения';
+function validateApplicationSubmission(appData, files) {
+  const errors = [];
 
-  return null;
+  // Личные данные
+  if (!appData.last_name) errors.push('Фамилия обязательна для заполнения');
+  if (!appData.first_name) errors.push('Имя обязательно для заполнения');
+  if (!appData.birth_date) errors.push('Дата рождения обязательна для заполнения');
+  if (!appData.gender) errors.push('Пол обязателен для заполнения');
+  if (!appData.address) errors.push('Адрес проживания обязателен для заполнения');
+  if (!appData.phone) errors.push('Номер телефона обязателен для заполнения');
+  if (!appData.email) errors.push('Email обязателен для заполнения');
+
+  // Регион — обязателен, если не иностранный адрес (isForeignResidence передаётся отдельно)
+  if (!appData.is_foreign_residence && !appData.region_id) {
+    errors.push('Регион проживания обязателен для заполнения');
+  }
+
+  // Паспортные данные
+  if (!appData.passport_series) errors.push('Серия/номер паспорта обязательны для заполнения');
+  if (!appData.passport_issue_date) errors.push('Дата выдачи паспорта обязательна для заполнения');
+  if (!appData.passport_issued_by) errors.push('Орган, выдавший паспорт, обязателен для заполнения');
+
+  // Образование
+  if (!appData.education_level) errors.push('Уровень образования обязателен для заполнения');
+  if (!appData.education_institution) errors.push('Название учебного заведения обязательно для заполнения');
+  if (!appData.education_graduation_year) errors.push('Год окончания обязателен для заполнения');
+  if (!appData.education_document_number) errors.push('Номер документа об образовании обязателен для заполнения');
+  if (!appData.education_document_date) errors.push('Дата выдачи документа об образовании обязательна для заполнения');
+
+  // Программы
+  if (!appData.funding_form) errors.push('Форма финансирования обязательна для заполнения');
+  if (!appData.choices || !Array.isArray(appData.choices) || appData.choices.length === 0) {
+    errors.push('Необходимо выбрать хотя бы одну образовательную программу');
+  } else if (appData.choices.some(c => !c.profile_id)) {
+    errors.push('Некорректно заполнены выбранные образовательные программы');
+  }
+
+  // Обязательные файлы
+  const requiredFiles = [
+    { key: 'passport_scan', label: 'скан паспорта' },
+    { key: 'passport_translation', label: 'перевод паспорта' },
+    { key: 'photo', label: 'фотография 3×4' },
+    { key: 'education_scan', label: 'документ об образовании' },
+  ];
+  for (const { key, label } of requiredFiles) {
+    if (!files || !files[key] || !files[key][0]) {
+      errors.push(`Не загружен обязательный файл: ${label}`);
+    }
+  }
+
+  // Сертификат олимпиады — обязателен только при olympiad_participant
+  if (appData.olympiad_participant && (!files || !files.olympiad_certificate || !files.olympiad_certificate[0])) {
+    errors.push('Загрузите сертификат олимпиады');
+  }
+
+  return errors.length > 0 ? errors.join('; ') : null;
 }
 
 async function isAdmissionOpen() {
@@ -361,6 +411,42 @@ router.post('/auth/signout', (req, res) => {
   res.json({ success: true });
 });
 
+// Обновление токена — продлевает JWT по действующему токену
+router.post('/auth/refresh', requireAuth, async (req, res) => {
+  try {
+    const result = await db.query(
+      'SELECT id, email, first_name, last_name, middle_name, phone, role_id FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    const user = result.rows[0];
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role_id: user.role_id },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({
+      session: { access_token: token, expires_in: 604800 },
+      user: {
+        id: user.id,
+        email: user.email,
+        user_metadata: {
+          first_name: user.first_name,
+          last_name: user.last_name,
+          middle_name: user.middle_name,
+          phone: user.phone
+        },
+        email_confirmed_at: new Date().toISOString()
+      }
+    });
+  } catch (err) {
+    console.error('Ошибка обновления токена:', err);
+    res.status(500).json({ error: 'Ошибка обновления токена' });
+  }
+});
+
 // Получить сессию по токену
 router.get('/auth/session', requireAuth, async (req, res) => {
   try {
@@ -505,6 +591,99 @@ router.post('/auth/reset-password', async (req, res) => {
   } catch (err) {
     console.error('Ошибка сброса пароля:', err);
     res.status(500).json({ error: 'Ошибка сброса пароля' });
+  }
+});
+
+// Сброс пароля через OTP-токен (token = OTP-код, полученный из письма)
+// Принимает { token, password } — email ищется по токену в хранилище
+router.post('/auth/password/reset', async (req, res) => {
+  const { token, password, email: emailParam } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Код подтверждения и новый пароль обязательны' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Новый пароль должен содержать не менее 8 символов' });
+  }
+
+  // Ищем email по токену: либо передан явно, либо ищем по хранилищу
+  let targetEmail = emailParam || null;
+  if (!targetEmail) {
+    for (const [storedEmail, data] of otpStorage.entries()) {
+      if (data.code === token) {
+        targetEmail = storedEmail;
+        break;
+      }
+    }
+  }
+
+  if (!targetEmail) {
+    return res.status(400).json({ error: 'Код не найден или срок его действия истёк' });
+  }
+
+  const storedOtp = otpStorage.get(targetEmail);
+  if (!storedOtp) {
+    return res.status(400).json({ error: 'Код не запрашивался или срок его действия истёк' });
+  }
+
+  if (Date.now() > storedOtp.expiresAt) {
+    otpStorage.delete(targetEmail);
+    return res.status(400).json({ error: 'Срок действия кода истёк' });
+  }
+
+  if (storedOtp.code !== token) {
+    return res.status(400).json({ error: 'Неверный код подтверждения' });
+  }
+
+  otpStorage.delete(targetEmail);
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await db.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2 RETURNING id',
+      [passwordHash, targetEmail]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь с таким email не найден' });
+    }
+
+    res.json({ success: true, message: 'Пароль успешно обновлён' });
+  } catch (err) {
+    console.error('Ошибка установки нового пароля:', err);
+    res.status(500).json({ error: 'Ошибка обновления пароля' });
+  }
+});
+
+// Смена пароля авторизованным пользователем
+router.post('/auth/password/change', requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Текущий и новый пароль обязательны' });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Новый пароль должен содержать не менее 8 символов' });
+  }
+
+  try {
+    const result = await db.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Неверный текущий пароль' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, req.user.id]);
+
+    res.json({ success: true, message: 'Пароль успешно изменён' });
+  } catch (err) {
+    console.error('Ошибка смены пароля:', err);
+    res.status(500).json({ error: 'Ошибка смены пароля' });
   }
 });
 
@@ -1237,47 +1416,64 @@ router.get('/applications/:id', requireAuth, async (req, res) => {
   }
 });
 
-// Создать заявление
-router.post('/applications', requireAuth, async (req, res) => {
+// Загрузчик для атомарной подачи заявления (все файлы сразу)
+const submitUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }
+}).fields([
+  { name: 'passport_scan', maxCount: 1 },
+  { name: 'passport_translation', maxCount: 1 },
+  { name: 'photo', maxCount: 1 },
+  { name: 'education_scan', maxCount: 1 },
+  { name: 'olympiad_certificate', maxCount: 1 },
+]);
+
+// Атомарная подача заявления — создаёт запись сразу со статусом «Подано»
+router.post('/applications/submit', requireAuth, (req, res, next) => {
+  submitUpload(req, res, (multerErr) => {
+    if (multerErr) {
+      return res.status(400).json({ error: multerErr.message || 'Ошибка загрузки файлов' });
+    }
+    next();
+  });
+}, async (req, res) => {
   if (!(await ensureAdmissionOpenForApplicant(req, res))) return;
 
-  const { app_data } = req.body;
-  if (!app_data) {
-    return res.status(400).json({ error: 'Не переданы данные заявления' });
+  let appData;
+  try {
+    const raw = typeof req.body.app_data === 'string'
+      ? JSON.parse(req.body.app_data)
+      : req.body.app_data || {};
+    appData = normalizeApplicationData(raw);
+    // Пробрасываем флаг иностранного адреса из тела запроса
+    appData.is_foreign_residence = raw.isForeignResidence === true || raw.is_foreign_residence === true || raw.isForeignResidence === 'true';
+  } catch {
+    return res.status(400).json({ error: 'Не удалось разобрать данные заявления (app_data)' });
   }
 
-  const appData = normalizeApplicationData(app_data);
-  const validationError = validateRequiredApplicantData(appData);
+  const validationError = validateApplicationSubmission(appData, req.files);
   if (validationError) {
-    return res.status(400).json({ error: validationError });
+    return res.status(400).json({ error: validationError, code: 'VALIDATION_ERROR' });
   }
 
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
 
-    // Повторная подача разрешена, если прошлые заявления за год были отклонены.
     const currentYear = new Date().getFullYear();
     const checkApp = await client.query(
-      `SELECT id, status_id
-       FROM applications
-       WHERE user_id = $1
-         AND academic_year = $2
-         AND status_id <> 4
-       LIMIT 1`,
+      `SELECT id, status_id FROM applications WHERE user_id = $1 AND academic_year = $2 AND status_id <> 4 LIMIT 1`,
       [req.user.id, currentYear]
     );
-
     if (checkApp.rows.length > 0) {
-      const activeApplicationError = new Error('У вас уже есть активная заявка. Вы не можете подать новую заявку, пока текущая заявка находится на рассмотрении.');
-      activeApplicationError.code = 'ACTIVE_APPLICATION_EXISTS';
-      activeApplicationError.status = 409;
-      activeApplicationError.applicationId = checkApp.rows[0].id;
-      throw activeApplicationError;
+      const err = new Error('У вас уже есть активная заявка. Вы не можете подать новую заявку, пока текущая заявка находится на рассмотрении.');
+      err.code = 'ACTIVE_APPLICATION_EXISTS';
+      err.status = 409;
+      err.applicationId = checkApp.rows[0].id;
+      throw err;
     }
 
-    // Сохраняем персональные данные анкеты в профиле пользователя,
-    // чтобы админ-панель получала актуальные ФИО, телефон и дату рождения.
+    // Обновляем профиль пользователя
     await client.query(
       `UPDATE users
        SET first_name = COALESCE($1, first_name),
@@ -1290,73 +1486,109 @@ router.post('/applications', requireAuth, async (req, res) => {
            updated_at = NOW()
        WHERE id = $8`,
       [
-        appData.first_name,
-        appData.last_name,
-        appData.middle_name,
-        appData.phone,
-        appData.birth_date,
-        appData.gender,
-        appData.region_id,
-        req.user.id
+        appData.first_name, appData.last_name, appData.middle_name,
+        appData.phone, appData.birth_date, appData.gender,
+        appData.region_id, req.user.id
       ]
     );
 
-    // Создаем заявление
-    const insertAppResult = await client.query(
+    // Создаём заявление сразу со статусом «Подано» (status_id = 2)
+    const insertResult = await client.query(
       `INSERT INTO applications (
         user_id, status_id, passport_series, passport_issue_date, passport_issued_by,
         education_level, education_institution, education_graduation_year,
         document_number, document_date, study_form, funding_form,
         accommodation_needed, olympiad_participant, parent_phone, academic_year,
-        education_document_number, education_document_date, region_id, address
-      ) VALUES ($1, 1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        education_document_number, education_document_date, region_id, address,
+        is_foreign_residence
+      ) VALUES ($1, 2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING id`,
       [
         req.user.id,
-        appData.passport_series,
-        appData.passport_issue_date,
-        appData.passport_issued_by,
-        appData.education_level,
-        appData.education_institution,
-        appData.education_graduation_year,
-        appData.document_number,
-        appData.document_date,
-        appData.study_form || 'full-time',
-        appData.funding_form,
-        appData.accommodation_needed || false,
-        appData.olympiad_participant || false,
-        appData.parent_phone,
-        currentYear,
-        appData.education_document_number,
-        appData.education_document_date,
-        appData.region_id,
-        appData.address
+        appData.passport_series, appData.passport_issue_date, appData.passport_issued_by,
+        appData.education_level, appData.education_institution, appData.education_graduation_year,
+        appData.document_number || appData.education_document_number,
+        appData.document_date || appData.education_document_date,
+        appData.study_form || 'full-time', appData.funding_form,
+        appData.accommodation_needed || false, appData.olympiad_participant || false,
+        appData.parent_phone, currentYear,
+        appData.education_document_number, appData.education_document_date,
+        appData.region_id, appData.address,
+        appData.is_foreign_residence || false
       ]
     );
 
-    const applicationId = insertAppResult.rows[0].id;
+    const applicationId = insertResult.rows[0].id;
 
-    // Вставляем выбранные профили (choices)
-    if (appData.choices && Array.isArray(appData.choices)) {
-      for (const choice of appData.choices) {
-        await client.query(
-          'INSERT INTO application_choices (application_id, profile_id, priority) VALUES ($1, $2, $3)',
-          [applicationId, choice.profile_id, choice.priority]
-        );
-      }
+    // Выбранные программы
+    for (const choice of appData.choices) {
+      await client.query(
+        'INSERT INTO application_choices (application_id, profile_id, priority) VALUES ($1, $2, $3)',
+        [applicationId, choice.profile_id, choice.priority]
+      );
     }
 
-    // Добавляем запись в историю
+    // Загружаем файлы в S3 и сохраняем записи
+    const fileUploads = [
+      { key: 'passport_scan', isImage: false },
+      { key: 'passport_translation', isImage: false },
+      { key: 'photo', isImage: true },
+      { key: 'education_scan', isImage: false },
+    ];
+    for (const { key, isImage } of fileUploads) {
+      const fileArr = req.files[key];
+      if (!fileArr || !fileArr[0]) continue;
+      const file = fileArr[0];
+      const originalFileName = decodeUploadedFileName(file.originalname);
+      const fileExt = getFileExtension(originalFileName);
+      const s3Key = `${applicationId}/${key}/${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
+      await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
+      await client.query(
+        'SELECT upload_application_file($1, $2, $3, $4, $5, $6, $7)',
+        [applicationId, s3Key, originalFileName, file.mimetype, file.size, isImage, key]
+      );
+    }
+
+    // Сертификат олимпиады (если есть)
+    if (appData.olympiad_participant && req.files.olympiad_certificate && req.files.olympiad_certificate[0]) {
+      const file = req.files.olympiad_certificate[0];
+      const originalFileName = decodeUploadedFileName(file.originalname);
+      const fileExt = getFileExtension(originalFileName);
+      const s3Key = `${applicationId}/olympiad_${Date.now()}.${fileExt}`;
+      await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
+      await client.query(
+        'SELECT upload_olympiad_certificate($1, $2, $3, $4, $5, $6)',
+        [applicationId, originalFileName, s3Key, file.size, file.mimetype, currentYear]
+      );
+    }
+
+    // Одна запись в историю
     await client.query(
-      "INSERT INTO application_history (application_id, status_id, comment, created_by) VALUES ($1, 1, 'Черновик создан', $2)",
+      "INSERT INTO application_history (application_id, status_id, comment, created_by) VALUES ($1, 2, 'Заявление подано', $2)",
       [applicationId, req.user.id]
     );
 
     await client.query('COMMIT');
+
+    emitApplicationUpdated({
+      applicationId,
+      userId: req.user.id,
+      action: 'submitted',
+      status: { id: 2, name: 'Подано' }
+    });
+
+    // Уведомления сотрудникам
+    await createStaffNotifications({
+      type: 'new_application',
+      message: `Поступила новая заявка от ${appData.last_name || ''} ${appData.first_name || ''}`.trim(),
+      applicationId,
+      meta: { applicantUserId: req.user.id }
+    }).catch(() => {});
+
     res.status(201).json({ data: { application_id: applicationId, success: true } });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Ошибка транзакции создания заявления:', err);
+    console.error('Ошибка атомарной подачи заявления:', err);
     if (err.code === 'ACTIVE_APPLICATION_EXISTS') {
       return res.status(err.status).json({
         error: err.message,
@@ -1364,11 +1596,18 @@ router.post('/applications', requireAuth, async (req, res) => {
         application_id: err.applicationId
       });
     }
-
-    res.status(400).json({ error: err.message || 'Ошибка создания заявления' });
+    res.status(400).json({ error: err.message || 'Ошибка подачи заявления' });
   } finally {
     client.release();
   }
+});
+
+// Устаревший endpoint создания заявления — удалён, используйте POST /applications/submit
+router.post('/applications', requireAuth, (req, res) => {
+  res.status(410).json({
+    error: 'Этот метод устарел. Используйте POST /applications/submit для подачи заявления.',
+    code: 'ENDPOINT_DEPRECATED'
+  });
 });
 
 // Обновить заявление
@@ -1437,8 +1676,9 @@ router.put('/applications/:id', requireAuth, async (req, res) => {
            education_document_date = COALESCE($15, education_document_date),
            region_id = COALESCE($16, region_id),
            address = COALESCE($17, address),
+           is_foreign_residence = COALESCE($18, is_foreign_residence),
            updated_at = NOW()
-       WHERE id = $18`,
+       WHERE id = $19`,
       [
         appData.passport_series,
         appData.passport_issue_date,
@@ -1457,6 +1697,7 @@ router.put('/applications/:id', requireAuth, async (req, res) => {
         appData.education_document_date,
         appData.region_id,
         appData.address,
+        appData.is_foreign_residence ?? null,
         req.params.id
       ]
     );
@@ -1485,74 +1726,12 @@ router.put('/applications/:id', requireAuth, async (req, res) => {
   }
 });
 
-// Отправить заявление на рассмотрение (черновик -> подан)
-router.post('/applications/:id/submit', requireAuth, async (req, res) => {
-  if (!(await ensureAdmissionOpenForApplicant(req, res))) return;
-
-  const client = await db.pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    // Проверяем наличие всех обязательных файлов перед сменой статуса
-    const filesCheck = await client.query(
-      `SELECT ARRAY_AGG(DISTINCT file_category) AS categories FROM application_files
-       WHERE application_id = $1`,
-      [req.params.id]
-    );
-    const uploadedCategories = filesCheck.rows[0]?.categories || [];
-
-    const requiredCategories = [
-      { key: 'passport_scan', label: 'скан паспорта' },
-      { key: 'passport_translation', label: 'перевод паспорта' },
-      { key: 'photo', label: 'фотография 3×4' },
-      { key: 'education_scan', label: 'документ об образовании' },
-    ];
-    const missing = requiredCategories
-      .filter(r => !uploadedCategories.includes(r.key))
-      .map(r => r.label);
-
-    if (missing.length > 0) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({
-        error: `Не загружены обязательные документы: ${missing.join(', ')}. Загрузите все документы и попробуйте снова.`,
-        code: 'MISSING_REQUIRED_FILES',
-        missing,
-      });
-    }
-
-    const result = await client.query(
-      `UPDATE applications
-       SET status_id = 2, updated_at = NOW()
-       WHERE id = $1 AND user_id = $2 AND status_id = 1
-       RETURNING *`,
-      [req.params.id, req.user.id]
-    );
-
-    if (result.rows.length === 0) {
-      throw new Error('Заявление не найдено, уже отправлено или принадлежит другому пользователю');
-    }
-
-    // Запись в историю
-    await client.query(
-      'INSERT INTO application_history (application_id, status_id, comment, created_by) VALUES ($1, 2, $2, $3)',
-      [req.params.id, 'Заявление отправлено на рассмотрение', req.user.id]
-    );
-
-    await client.query('COMMIT');
-    emitApplicationUpdated({
-      applicationId: result.rows[0].id,
-      userId: result.rows[0].user_id,
-      action: 'submitted',
-      status: { id: 2, name: 'Подано' }
-    });
-    res.json({ data: result.rows[0] });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Ошибка отправки заявления:', err);
-    res.status(400).json({ error: err.message });
-  } finally {
-    client.release();
-  }
+// Старый endpoint отправки черновика — удалён, используйте POST /applications/submit
+router.post('/applications/:id/submit', requireAuth, (req, res) => {
+  res.status(410).json({
+    error: 'Этот метод устарел. Используйте POST /applications/submit для подачи заявления.',
+    code: 'ENDPOINT_DEPRECATED'
+  });
 });
 
 // Получить историю заявления
@@ -1907,7 +2086,7 @@ router.put('/files/documents/:docId', requireAuth, async (req, res) => {
   }
 });
 
-// Загрузить файл заявления (фотография)
+// Загрузить файл заявления
 router.post('/files/application-files/:appId', requireAuth, upload.single('file'), async (req, res) => {
   const { fileCategory, isImage } = req.body;
   const file = req.file;
@@ -1923,6 +2102,17 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
 
   try {
     if (!(await ensureApplicationAccess(req, res, appId))) return;
+
+    // Абитуриент может загружать файлы только к отклонённым заявкам
+    if (!isStaffUser(req.user)) {
+      const appCheck = await db.query('SELECT status_id FROM applications WHERE id = $1', [appId]);
+      if (appCheck.rows.length > 0 && appCheck.rows[0].status_id !== 4) {
+        return res.status(403).json({
+          error: 'Загрузка файлов доступна только для заявлений со статусом «Отклонено».',
+          code: 'UPLOAD_NOT_ALLOWED'
+        });
+      }
+    }
 
     const originalFileName = decodeUploadedFileName(file.originalname);
     const fileExt = getFileExtension(originalFileName);
@@ -2023,18 +2213,30 @@ router.post('/files/olympiad-certificates/:appId', requireAuth, upload.single('f
   try {
     if (!(await ensureApplicationAccess(req, res, appId))) return;
 
+    // Абитуриент может загружать файлы только к отклонённым заявкам
+    if (!isStaffUser(req.user)) {
+      const appCheck = await db.query('SELECT status_id FROM applications WHERE id = $1', [appId]);
+      if (appCheck.rows.length > 0 && appCheck.rows[0].status_id !== 4) {
+        return res.status(403).json({
+          error: 'Загрузка файлов доступна только для заявлений со статусом «Отклонено».',
+          code: 'UPLOAD_NOT_ALLOWED'
+        });
+      }
+    }
+
     const originalFileName = decodeUploadedFileName(file.originalname);
     const fileExt = getFileExtension(originalFileName);
     const s3Key = `${appId}/olympiad_${Date.now()}.${fileExt}`;
 
     await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
 
-    const rpcResult = await db.query('SELECT upload_olympiad_certificate($1, $2, $3, $4, $5, 2025) as cert_id', [
+    const rpcResult = await db.query('SELECT upload_olympiad_certificate($1, $2, $3, $4, $5, $6) as cert_id', [
       appId,
       originalFileName,
       s3Key,
       file.size,
-      file.mimetype
+      file.mimetype,
+      new Date().getFullYear()
     ]);
 
     res.json({ data: { id: rpcResult.rows[0]?.cert_id } });
