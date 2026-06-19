@@ -92,8 +92,29 @@ export function getUniqueFileName(fileName, usedNames) {
   return nextName
 }
 
+export function ensureTypedBlob(blob, fileName) {
+  if (!(blob instanceof Blob)) return blob
+
+  if (blob.type && blob.type !== 'application/octet-stream') return blob
+
+  const ext = String(fileName || '').split('.').pop()?.toLowerCase()
+  const mimeByExt = {
+    pdf: 'application/pdf',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp'
+  }
+  const mimeType = mimeByExt[ext]
+  if (!mimeType) return blob
+
+  return new Blob([blob], { type: mimeType })
+}
+
 export function downloadBlob(blob, fileName) {
-  const url = URL.createObjectURL(blob)
+  const typedBlob = ensureTypedBlob(blob, fileName)
+  const url = URL.createObjectURL(typedBlob)
   const link = document.createElement('a')
 
   link.href = url

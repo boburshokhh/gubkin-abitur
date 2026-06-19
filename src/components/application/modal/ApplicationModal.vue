@@ -499,6 +499,7 @@ import { ElMessage } from 'element-plus';
 import {
   createZipBlob,
   downloadBlob,
+  ensureTypedBlob,
   getApplicantFilePrefix,
   getApplicationFileLabel,
   getArchiveFileName,
@@ -1024,11 +1025,15 @@ function createOlympiadCertificateDownloadItem(certificate) {
 async function getDownloadBlob(item) {
   if (item.id) {
     const primary = await item.getBlob();
-    if (!primary.error && primary.data instanceof Blob) return primary.data;
+    if (!primary.error && primary.data instanceof Blob) {
+      return ensureTypedBlob(primary.data, item.originalFileName);
+    }
 
     if (item.filePath && item.getBlobByPath) {
       const fallback = await item.getBlobByPath();
-      if (!fallback.error && fallback.data instanceof Blob) return fallback.data;
+      if (!fallback.error && fallback.data instanceof Blob) {
+        return ensureTypedBlob(fallback.data, item.originalFileName);
+      }
     }
 
     if (primary.error) throw primary.error;
@@ -1040,7 +1045,8 @@ async function getDownloadBlob(item) {
   const response = await fetch(item.fallbackUrl);
   if (!response.ok) throw new Error('Не удалось скачать файл');
 
-  return response.blob();
+  const blob = await response.blob();
+  return ensureTypedBlob(blob, item.originalFileName);
 }
 
 async function downloadFileItem(item) {
@@ -1126,7 +1132,7 @@ async function downloadAllFilesAsZip() {
   }
 }
 
-async function openBlobFile({ key, getBlob, fallbackUrl }) {
+async function openBlobFile({ key, getBlob, fallbackUrl, fileName }) {
   openingFileKey.value = key;
   const previewWindow = window.open('about:blank', '_blank');
 
@@ -1143,13 +1149,16 @@ async function openBlobFile({ key, getBlob, fallbackUrl }) {
     const { data, error } = await getBlob();
     if (error) throw error;
 
-    const fileUrl = data instanceof Blob
-      ? URL.createObjectURL(data)
+    const typedBlob = data instanceof Blob
+      ? ensureTypedBlob(data, fileName)
+      : null;
+    const fileUrl = typedBlob
+      ? URL.createObjectURL(typedBlob)
       : fallbackUrl;
     if (!fileUrl || fileUrl === '#') throw new Error('Не удалось получить ссылку на файл');
 
     previewWindow.location.href = fileUrl;
-    if (data instanceof Blob) setTimeout(() => URL.revokeObjectURL(fileUrl), 60_000);
+    if (typedBlob) setTimeout(() => URL.revokeObjectURL(fileUrl), 60_000);
   } catch (error) {
     previewWindow.close();
     console.error('Ошибка открытия файла:', error);
@@ -1168,7 +1177,8 @@ function openApplicationFile(file) {
   return openBlobFile({
     key: getFileKey('application-file', file),
     getBlob: () => applicationFiles.downloadBlob(file.id),
-    fallbackUrl: getApplicationFileUrl(file)
+    fallbackUrl: getApplicationFileUrl(file),
+    fileName: file.file_name || file.file_path
   });
 }
 
@@ -1181,7 +1191,8 @@ function openDocumentFile(document) {
   return openBlobFile({
     key: getFileKey('document', document),
     getBlob: () => documents.downloadBlob(document.id),
-    fallbackUrl: getDocumentUrl(document)
+    fallbackUrl: getDocumentUrl(document),
+    fileName: document.file_name || document.file_path
   });
 }
 
@@ -1194,7 +1205,8 @@ function openOlympiadCertificate(certificate) {
   return openBlobFile({
     key: getFileKey('olympiad-certificate', certificate),
     getBlob: () => olympiadCertificates.downloadBlob(certificate.id),
-    fallbackUrl: getOlympiadCertificateUrl(certificate)
+    fallbackUrl: getOlympiadCertificateUrl(certificate),
+    fileName: certificate.file_name || certificate.name || certificate.file_path
   });
 }
 

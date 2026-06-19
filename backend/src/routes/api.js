@@ -241,6 +241,20 @@ function getSafeDownloadFileName(fileName, fallback = 'file') {
   return String(fileName || fallback).replace(/[\r\n"]/g, '_');
 }
 
+function inferContentType(fileName, storedType) {
+  if (storedType && storedType !== 'application/octet-stream') return storedType;
+  const ext = String(fileName || '').split('.').pop()?.toLowerCase();
+  const map = {
+    pdf: 'application/pdf',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp'
+  };
+  return map[ext] || storedType || 'application/octet-stream';
+}
+
 async function streamS3File(res, { bucket, buckets, keyCandidates, filePath, bucketAlias, fileName, contentType }) {
   const bucketList = buckets || s3.getFileBucketCandidates(bucket);
   const keys = keyCandidates || s3.getS3KeyCandidates(filePath, bucketAlias);
@@ -254,9 +268,10 @@ async function streamS3File(res, { bucket, buckets, keyCandidates, filePath, buc
         const command = new GetObjectCommand({ Bucket: bucketName, Key: key });
         const s3Response = await s3.s3Client.send(command);
         const safeFileName = getSafeDownloadFileName(fileName);
+        const resolvedType = inferContentType(fileName, s3Response.ContentType || contentType);
 
-        res.setHeader('Content-Type', s3Response.ContentType || contentType || 'application/octet-stream');
-        res.setHeader('Content-Disposition', `inline; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(safeFileName)}`);
+        res.setHeader('Content-Type', resolvedType);
+        res.setHeader('Content-Disposition', `inline; filename="download"; filename*=UTF-8''${encodeURIComponent(safeFileName)}`);
         if (s3Response.ContentLength) res.setHeader('Content-Length', s3Response.ContentLength);
 
         s3Response.Body.pipe(res);
