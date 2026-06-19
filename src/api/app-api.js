@@ -1,4 +1,8 @@
 import axios from 'axios'
+import {
+  MAX_APPLICATION_FILE_MB,
+  MAX_APPLICATION_SUBMIT_TOTAL_MB
+} from '@/config/upload-limits'
 
 // Инициализация Axios-клиента для работы с кастомным Express бэкендом
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
@@ -388,6 +392,15 @@ export const applications = {
     }
   },
 
+  async create() {
+    return {
+      data: null,
+      error: new Error('Создание заявки без файлов больше не поддерживается. Используйте submitWithFiles.'),
+      code: 'ENDPOINT_DEPRECATED',
+      status: 410
+    }
+  },
+
   /**
    * Атомарная подача заявления — отправляет данные и все файлы за один запрос.
    * @param {Object} applicationData — данные анкеты
@@ -414,8 +427,8 @@ export const applications = {
       if (err.response?.status === 413) {
         return {
           data: null,
-          error: 'Общий размер загружаемых файлов слишком большой. Убедитесь, что каждый файл не превышает 10 МБ, и попробуйте снова.',
-          code: 'PAYLOAD_TOO_LARGE',
+          error: responseData.error || `Суммарный размер файлов превышает лимит ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ. Каждый файл — до ${MAX_APPLICATION_FILE_MB} МБ. Сожмите сканы и попробуйте снова.`,
+          code: responseData.code || 'PAYLOAD_TOO_LARGE',
           status: 413
         }
       }
@@ -969,8 +982,10 @@ class ApiQueryBuilder {
       // ИМИТАЦИЯ ТАБЛИЦЫ: applications
       if (this.table === 'applications') {
         if (this.insertData) {
-          const res = await apiClient.post('/applications', { app_data: this.insertData })
-          return { data: res.data.data, error: null }
+          return {
+            data: null,
+            error: new Error('Создание заявки без файлов больше не поддерживается. Обновите страницу и подайте заявку через форму регистрации.')
+          }
         }
         if (this.updateData) {
           const id = this.filters.id
@@ -1157,8 +1172,10 @@ export const appApi = {
         return { data: res.data.data, error: null }
       }
       if (fnName === 'create_application') {
-        const res = await apiClient.post('/applications', { app_data: params.app_data })
-        return { data: res.data.data, error: null }
+        return {
+          data: null,
+          error: new Error('Создание заявки без файлов больше не поддерживается. Обновите страницу и подайте заявку через форму регистрации.')
+        }
       }
       if (fnName === 'add_application_comment') {
         const res = await apiClient.put(`/applications/${params.app_id}/status`, {

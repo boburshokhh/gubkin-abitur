@@ -181,6 +181,14 @@ import ConfirmationStep from '@/components/register/ConfirmationStep.vue';
 import SuccessMessage from '@/components/register/SuccessMessage.vue';
 import AdmissionClosedMessage from '@/components/register/AdmissionClosedMessage.vue';
 import { useAdmissionStatus } from '@/composables/useAdmissionStatus';
+import {
+  MAX_APPLICATION_FILE_BYTES,
+  MAX_APPLICATION_FILE_MB,
+  MAX_APPLICATION_SUBMIT_TOTAL_BYTES,
+  MAX_APPLICATION_SUBMIT_TOTAL_MB,
+  validateApplicationFiles,
+  formatFileSize
+} from '@/config/upload-limits';
 
 const appStore = useApplicationStore();
 const authStore = useAuthStore();
@@ -289,7 +297,9 @@ function validateSelectedFile(file, fieldName) {
   const hasValidType = rule.types.includes(file.type);
 
   if (!hasValidType && !hasValidExtension) return `Неподдерживаемый тип файла. Допустимые форматы: ${rule.description}.`;
-  if (file.size > 10 * 1024 * 1024) return 'Размер файла превышает допустимый максимум (10MB).';
+  if (file.size > MAX_APPLICATION_FILE_BYTES) {
+    return `Размер файла превышает допустимый максимум (${MAX_APPLICATION_FILE_MB} МБ).`;
+  }
 
   return '';
 }
@@ -630,6 +640,14 @@ async function submitForm() {
       education_scan: applicationPayload.educationScan,
       olympiad_certificate: applicationPayload.olympiadCertificate || null,
     };
+
+    const filesValidation = validateApplicationFiles(files);
+    if (!filesValidation.isValid) {
+      throw new Error(filesValidation.error);
+    }
+
+    submissionProgress.value = 20;
+    submissionStatus.value = `Проверка файлов пройдена (${formatFileSize(filesValidation.totalSize)} из ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ)...`;
 
     delete applicationPayload.passportScan;
     delete applicationPayload.passportTranslation;

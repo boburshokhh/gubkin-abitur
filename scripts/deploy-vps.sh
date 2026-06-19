@@ -22,6 +22,13 @@ BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 echo "==> Deploying version=$APP_VERSION gitSha=$GIT_SHA buildDate=$BUILD_DATE"
 
+echo "==> Applying database migrations"
+if [ -f init-db/06-is-foreign-residence.sql ]; then
+  docker compose -f "$COMPOSE_FILE" exec -T db \
+    psql -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-abitur}" -v ON_ERROR_STOP=1 \
+    < init-db/06-is-foreign-residence.sql
+fi
+
 echo "==> Building images"
 docker compose -f "$COMPOSE_FILE" build --pull $SERVICES
 

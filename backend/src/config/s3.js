@@ -5,6 +5,7 @@ const {
   HeadObjectCommand,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
   PutBucketVersioningCommand,
 } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
@@ -138,6 +139,20 @@ async function getPresignedDownloadUrl(bucket, key) {
   return await getSignedUrl(s3Client, command, { expiresIn: 3600 });
 }
 
+async function deleteFromS3(bucket, key) {
+  if (!bucket || !key) return;
+
+  try {
+    await s3Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  } catch (error) {
+    console.warn(`Не удалось удалить объект S3 ${bucket}/${key}:`, error.message);
+  }
+}
+
+async function deleteManyFromS3(objects = []) {
+  await Promise.all(objects.map(({ bucket, key }) => deleteFromS3(bucket, key)));
+}
+
 module.exports = {
   s3Client,
   BUCKET_DOCUMENTS,
@@ -148,4 +163,6 @@ module.exports = {
   resolveObjectKey,
   uploadToS3,
   getPresignedDownloadUrl,
+  deleteFromS3,
+  deleteManyFromS3,
 };

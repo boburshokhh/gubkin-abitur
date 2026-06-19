@@ -18,8 +18,18 @@ UPDATE applications
 SET address = 'Не указан'
 WHERE address IS NULL OR address = '';
 
--- 4. Привести address к NOT NULL
-ALTER TABLE applications
-  ALTER COLUMN address SET NOT NULL;
+-- 4. Привести address к NOT NULL (только если колонка ещё допускает NULL)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = 'applications'
+      AND column_name = 'address'
+      AND is_nullable = 'YES'
+  ) THEN
+    ALTER TABLE applications ALTER COLUMN address SET NOT NULL;
+  END IF;
+END $$;
 
 COMMIT;

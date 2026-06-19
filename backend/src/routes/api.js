@@ -10,9 +10,20 @@ const { createNotification, createStaffNotifications } = require('../services/no
 const { sendApplicationStatusChangeEmail } = require('../services/application-status-email');
 const { emitApplicationUpdated } = require('../socket/feedback');
 const { decodeUploadedFileName, getFileExtension, decodeApplicationFileNames, decodeFileRecord } = require('../utils/file-name');
+const {
+  MAX_APPLICATION_FILE_BYTES,
+  MAX_APPLICATION_SUBMIT_TOTAL_BYTES,
+  MAX_APPLICATION_SUBMIT_FILES,
+  MAX_APPLICATION_FILE_MB,
+  MAX_APPLICATION_SUBMIT_TOTAL_MB
+} = require('../config/upload-limits');
+const { formatMulterError } = require('../utils/multer-errors');
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_APPLICATION_FILE_BYTES }
+});
 
 function normalizeOptionalString(value) {
   if (typeof value !== 'string') return value ?? null;
@@ -90,6 +101,56 @@ function validateApplicationSubmission(appData, files) {
   }
 
   return errors.length > 0 ? errors.join('; ') : null;
+}
+
+function validateSubmitFileSizes(files) {
+  if (!files) return null;
+
+  let totalBytes = 0;
+  const fileEntries = [];
+
+  for (const [field, fileList] of Object.entries(files)) {
+    const file = fileList?.[0];
+    if (!file) continue;
+
+    fileEntries.push({ field, size: file.size, name: file.originalname });
+
+    if (!file.buffer?.length) {
+      return `Файл «${field}» пустой или повреждён. Выберите файл заново.`;
+    }
+
+    if (file.size > MAX_APPLICATION_FILE_BYTES) {
+      return `Файл «${field}» превышает лимит ${MAX_APPLICATION_FILE_MB} МБ.`;
+    }
+
+    totalBytes += file.size;
+  }
+
+  if (fileEntries.length > MAX_APPLICATION_SUBMIT_FILES) {
+    return `Можно загрузить не более ${MAX_APPLICATION_SUBMIT_FILES} файлов за один раз.`;
+  }
+
+  if (totalBytes > MAX_APPLICATION_SUBMIT_TOTAL_BYTES) {
+    return `Суммарный размер файлов (${Math.round(totalBytes / 1024 / 1024)} МБ) превышает лимит ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ. Сожмите сканы или фото.`;
+  }
+
+  return null;
+}
+
+async function uploadApplicationSubmitFile({ client, applicationId, file, fieldKey, isImage, uploadedS3Objects }) {
+  const originalFileName = decodeUploadedFileName(file.originalname);
+  const fileExt = getFileExtension(originalFileName);
+  const s3Key = `${applicationId}/${fieldKey}/${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
+
+  await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
+  uploadedS3Objects.push({ bucket: s3.BUCKET_FILES, key: s3Key });
+
+  await client.query(
+    'SELECT upload_application_file($1, $2, $3, $4, $5, $6, $7)',
+    [applicationId, s3Key, originalFileName, file.mimetype, file.size, isImage, fieldKey]
+  );
+
+  return { s3Key, originalFileName, size: file.size };
 }
 
 async function isAdmissionOpen() {
@@ -1419,7 +1480,11 @@ router.get('/applications/:id', requireAuth, async (req, res) => {
 // Загрузчик для атомарной подачи заявления (все файлы сразу)
 const submitUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: {
+    fileSize: MAX_APPLICATION_FILE_BYTES,
+    files: MAX_APPLICATION_SUBMIT_FILES,
+    fieldSize: 2 * 1024 * 1024
+  }
 }).fields([
   { name: 'passport_scan', maxCount: 1 },
   { name: 'passport_translation', maxCount: 1 },
@@ -1432,7 +1497,11 @@ const submitUpload = multer({
 router.post('/applications/submit', requireAuth, (req, res, next) => {
   submitUpload(req, res, (multerErr) => {
     if (multerErr) {
-      return res.status(400).json({ error: multerErr.message || 'Ошибка загрузки файлов' });
+      const status = multerErr.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+      return res.status(status).json({
+        error: formatMulterError(multerErr),
+        code: multerErr.code || 'UPLOAD_ERROR'
+      });
     }
     next();
   });
@@ -1456,7 +1525,13 @@ router.post('/applications/submit', requireAuth, (req, res, next) => {
     return res.status(400).json({ error: validationError, code: 'VALIDATION_ERROR' });
   }
 
+  const fileSizeError = validateSubmitFileSizes(req.files);
+  if (fileSizeError) {
+    return res.status(413).json({ error: fileSizeError, code: 'PAYLOAD_TOO_LARGE' });
+  }
+
   const client = await db.pool.connect();
+  const uploadedS3Objects = [];
   try {
     await client.query('BEGIN');
 
@@ -1528,39 +1603,60 @@ router.post('/applications/submit', requireAuth, (req, res, next) => {
       );
     }
 
-    // Загружаем файлы в S3 и сохраняем записи
+    // Загружаем файлы в S3 и сохраняем записи (все или ничего)
     const fileUploads = [
       { key: 'passport_scan', isImage: false },
       { key: 'passport_translation', isImage: false },
       { key: 'photo', isImage: true },
       { key: 'education_scan', isImage: false },
     ];
+    const uploadedFilesLog = [];
+
     for (const { key, isImage } of fileUploads) {
       const fileArr = req.files[key];
-      if (!fileArr || !fileArr[0]) continue;
-      const file = fileArr[0];
-      const originalFileName = decodeUploadedFileName(file.originalname);
-      const fileExt = getFileExtension(originalFileName);
-      const s3Key = `${applicationId}/${key}/${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
-      await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
-      await client.query(
-        'SELECT upload_application_file($1, $2, $3, $4, $5, $6, $7)',
-        [applicationId, s3Key, originalFileName, file.mimetype, file.size, isImage, key]
-      );
+      if (!fileArr?.[0]) {
+        throw new Error(`Не получен обязательный файл: ${key}`);
+      }
+
+      const uploaded = await uploadApplicationSubmitFile({
+        client,
+        applicationId,
+        file: fileArr[0],
+        fieldKey: key,
+        isImage,
+        uploadedS3Objects
+      });
+      uploadedFilesLog.push({ field: key, ...uploaded });
     }
 
     // Сертификат олимпиады (если есть)
-    if (appData.olympiad_participant && req.files.olympiad_certificate && req.files.olympiad_certificate[0]) {
+    if (appData.olympiad_participant) {
+      if (!req.files.olympiad_certificate?.[0]) {
+        throw new Error('Не получен сертификат олимпиады');
+      }
+
       const file = req.files.olympiad_certificate[0];
       const originalFileName = decodeUploadedFileName(file.originalname);
       const fileExt = getFileExtension(originalFileName);
       const s3Key = `${applicationId}/olympiad_${Date.now()}.${fileExt}`;
+
       await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
+      uploadedS3Objects.push({ bucket: s3.BUCKET_FILES, key: s3Key });
+
       await client.query(
         'SELECT upload_olympiad_certificate($1, $2, $3, $4, $5, $6)',
         [applicationId, originalFileName, s3Key, file.size, file.mimetype, currentYear]
       );
+      uploadedFilesLog.push({ field: 'olympiad_certificate', s3Key, originalFileName, size: file.size });
     }
+
+    console.log(JSON.stringify({
+      type: 'application_submit_files',
+      applicationId,
+      userId: req.user.id,
+      files: uploadedFilesLog,
+      totalBytes: uploadedFilesLog.reduce((sum, item) => sum + (item.size || 0), 0)
+    }));
 
     // Одна запись в историю
     await client.query(
@@ -1588,6 +1684,9 @@ router.post('/applications/submit', requireAuth, (req, res, next) => {
     res.status(201).json({ data: { application_id: applicationId, success: true } });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (uploadedS3Objects.length > 0) {
+      await s3.deleteManyFromS3(uploadedS3Objects);
+    }
     console.error('Ошибка атомарной подачи заявления:', err);
     if (err.code === 'ACTIVE_APPLICATION_EXISTS') {
       return res.status(err.status).json({
@@ -1602,10 +1701,10 @@ router.post('/applications/submit', requireAuth, (req, res, next) => {
   }
 });
 
-// Устаревший endpoint создания заявления — удалён, используйте POST /applications/submit
+// Устаревший endpoint — подсказка обновить страницу
 router.post('/applications', requireAuth, (req, res) => {
   res.status(410).json({
-    error: 'Этот метод устарел. Используйте POST /applications/submit для подачи заявления.',
+    error: 'Этот метод устарел. Обновите страницу (Ctrl+F5) и подайте заявку через актуальную форму — POST /applications/submit.',
     code: 'ENDPOINT_DEPRECATED'
   });
 });
@@ -2197,7 +2296,12 @@ router.get('/files/view/file/:fileId', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Ошибка просмотра файла заявления:', err.message, err.triedKeys || []);
-    res.status(404).json({ error: 'Файл не найден' });
+    const isMissingObject = err.name === 'NoSuchKey' || err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404;
+    res.status(404).json({
+      error: isMissingObject
+        ? 'Файл отсутствует в хранилище. Возможно, он не был загружен при подаче заявки — попросите абитуриента подать заявку заново.'
+        : 'Файл не найден'
+    });
   }
 });
 

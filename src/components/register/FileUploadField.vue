@@ -55,6 +55,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Document, UploadFilled } from '@element-plus/icons-vue';
+import { MAX_APPLICATION_FILE_MB, MAX_APPLICATION_SUBMIT_TOTAL_MB } from '@/config/upload-limits';
 
 const props = defineProps({
   fieldName: {
@@ -99,9 +100,11 @@ const isImagePreview = computed(() => {
 });
 
 const acceptDescription = computed(() => {
-  if (props.accept === '.pdf') return 'Только PDF, размер до 10MB';
-  if (props.accept === 'image/*') return 'JPG или PNG, размер до 10MB';
-  return 'JPG, PNG или PDF, размер до 10MB';
+  const perFile = `до ${MAX_APPLICATION_FILE_MB} МБ каждый`;
+  const total = `суммарно до ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ`;
+  if (props.accept === '.pdf') return `Только PDF, ${perFile} (${total})`;
+  if (props.accept === 'image/*') return `JPG или PNG, ${perFile} (${total})`;
+  return `JPG, PNG или PDF, ${perFile} (${total})`;
 });
 
 function handleFileChange(uploadFile) {
