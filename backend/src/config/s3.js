@@ -59,11 +59,10 @@ async function initBuckets() {
           console.log(`Bucket "${bucket}" успешно создан.`);
         } catch (createErr) {
           console.error(`Ошибка при создании бакета "${bucket}":`, createErr.message);
-          throw createErr;
+          // Не валим процесс — API должен подняться даже если MinIO временно недоступен
         }
       } else {
         console.error(`Ошибка проверки бакета "${bucket}":`, error.message);
-        throw error;
       }
     }
   }
