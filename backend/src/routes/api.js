@@ -131,7 +131,7 @@ function validateSubmitFileSizes(files) {
   }
 
   if (totalBytes > MAX_APPLICATION_SUBMIT_TOTAL_BYTES) {
-    return `Суммарный размер файлов (${Math.round(totalBytes / 1024 / 1024)} МБ) превышает лимит ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ. Сожмите сканы или фото.`;
+    return `Суммарный размер файлов (${Math.round(totalBytes / 1024 / 1024)} МБ) превышает лимит ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ.`;
   }
 
   return null;

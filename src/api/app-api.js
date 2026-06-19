@@ -427,7 +427,7 @@ export const applications = {
       if (err.response?.status === 413) {
         return {
           data: null,
-          error: responseData.error || `Суммарный размер файлов превышает лимит ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ. Каждый файл — до ${MAX_APPLICATION_FILE_MB} МБ. Сожмите сканы и попробуйте снова.`,
+          error: responseData.error || `Суммарный размер файлов превышает лимит ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ. Каждый файл — до ${MAX_APPLICATION_FILE_MB} МБ.`,
           code: responseData.code || 'PAYLOAD_TOO_LARGE',
           status: 413
         }
