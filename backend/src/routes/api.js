@@ -112,19 +112,52 @@ function getSafeDownloadFileName(fileName, fallback = 'file') {
   return String(fileName || fallback).replace(/[\r\n"]/g, '_');
 }
 
-async function removeApplicationFileRecords(appId, category, excludeFileId = null) {
-  const existing = await db.query(
-    `SELECT id, file_path
-     FROM application_files
+// Оставляет только самый свежий файл в категории и безопасно убирает остальные.
+// Важно: удаление в БД и в S3 устроено так, чтобы НИКОГДА не оставить запись,
+// ссылающуюся на удалённый объект (иначе просмотр файла вернёт 404).
+async function removeApplicationFileRecords(appId, category) {
+  // Атомарно удаляем все записи категории, кроме самой новой.
+  // Конкурентные загрузки сходятся к одному и тому же результату:
+  // выживает строка с максимальным created_at, поэтому взаимного удаления
+  // объектов друг друга (как в прежней реализации) не происходит.
+  const deleted = await db.query(
+    `DELETE FROM application_files
      WHERE application_id = $1
        AND file_category = $2
-       AND ($3::uuid IS NULL OR id <> $3)`,
-    [appId, category, excludeFileId]
+       AND id NOT IN (
+         SELECT id
+         FROM application_files
+         WHERE application_id = $1
+           AND file_category = $2
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1
+       )
+     RETURNING file_path`,
+    [appId, category]
   );
 
-  for (const row of existing.rows) {
-    await s3.deleteObjectWithCandidates(s3.BUCKET_FILES, row.file_path, 'application_files');
-    await db.query('DELETE FROM application_files WHERE id = $1', [row.id]);
+  if (deleted.rows.length === 0) return;
+
+  const deletedPaths = deleted.rows.map((row) => row.file_path).filter(Boolean);
+  if (deletedPaths.length === 0) return;
+
+  // Гарантия безопасности: удаляем объект в S3 только если на него больше
+  // не ссылается ни одна сохранившаяся запись (защита от совпадения ключей).
+  const referenced = await db.query(
+    'SELECT DISTINCT file_path FROM application_files WHERE file_path = ANY($1::text[])',
+    [deletedPaths]
+  );
+  const stillReferenced = new Set(referenced.rows.map((row) => row.file_path));
+
+  for (const filePath of new Set(deletedPaths)) {
+    if (stillReferenced.has(filePath)) continue;
+    try {
+      await s3.deleteObjectWithCandidates(s3.BUCKET_FILES, filePath, 'application_files');
+    } catch (err) {
+      // Объект-сирота в хранилище безвреден; падать из-за него нельзя,
+      // т.к. запись в БД уже консистентна.
+      console.error('Не удалось удалить устаревший файл из хранилища:', filePath, err.message);
+    }
   }
 }
 
@@ -1960,7 +1993,12 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
     ]);
 
     const fileId = rpcResult.rows[0]?.file_id;
-    await removeApplicationFileRecords(appId, category, fileId);
+
+    // Чистим дубликаты категории только если запись действительно создана,
+    // иначе можно случайно удалить единственный загруженный файл.
+    if (fileId) {
+      await removeApplicationFileRecords(appId, category);
+    }
 
     res.json({ data: { id: fileId } });
   } catch (err) {
