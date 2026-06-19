@@ -1551,7 +1551,8 @@ router.post('/applications/submit/init', requireAuth, async (req, res) => {
       });
     }
     console.error('Ошибка init подачи заявления:', err);
-    return res.status(err.status || 400).json({ error: err.message || 'Ошибка создания заявления' });
+    const status = err.status && err.status >= 400 && err.status < 600 ? err.status : 500;
+    return res.status(status).json({ error: err.message || 'Ошибка создания заявления' });
   }
 });
 

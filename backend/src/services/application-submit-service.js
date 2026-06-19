@@ -136,8 +136,7 @@ async function createDraftApplication({ userId, appData }) {
     );
 
     await updateUserProfile(client, userId, appData);
-    const applicationId = await insertApplication({
-      client,
+    const applicationId = await insertApplication(client, {
       userId,
       appData,
       statusId: 1,
