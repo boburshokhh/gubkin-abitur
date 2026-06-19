@@ -411,6 +411,14 @@ export const applications = {
       return { data: response.data.data, error: null }
     } catch (err) {
       const responseData = err.response?.data || {}
+      if (err.response?.status === 413) {
+        return {
+          data: null,
+          error: 'Общий размер загружаемых файлов слишком большой. Убедитесь, что каждый файл не превышает 10 МБ, и попробуйте снова.',
+          code: 'PAYLOAD_TOO_LARGE',
+          status: 413
+        }
+      }
       return {
         data: null,
         error: responseData.error || err.message,
