@@ -591,6 +591,45 @@ function prevStep() {
   }
 }
 
+// Сжимает изображение перед загрузкой через Canvas API (без внешних зависимостей)
+function compressImageFile(file, maxPx = 1600, quality = 0.85) {
+  if (!file.type.startsWith('image/')) return Promise.resolve(file);
+  if (file.size < 200 * 1024) return Promise.resolve(file); // уже маленький — не трогаем
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+
+      if (width > maxPx || height > maxPx) {
+        if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+        else { width = Math.round(width * maxPx / height); height = maxPx; }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob || blob.size >= file.size) { resolve(file); return; }
+          const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+          resolve(compressed);
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
+  });
+}
+
 // Отправка формы
 async function submitForm() {
   if (!validateStep()) {
@@ -604,7 +643,6 @@ async function submitForm() {
   
   try {
     // Этап 1: Подготовка данных (10%)
-    await new Promise(resolve => setTimeout(resolve, 500));
     submissionProgress.value = 10;
     submissionStatus.value = 'Обработка персональных данных...';
     
@@ -677,9 +715,9 @@ async function submitForm() {
       }
     }
     
-    // Этап 3: Подготовка файлов для загрузки (30%)
+    // Этап 3: Подготовка и сжатие файлов для загрузки (30%)
     submissionProgress.value = 30;
-    submissionStatus.value = 'Подготовка документов к загрузке...';
+    submissionStatus.value = 'Подготовка документов...';
 
     const MAX_UPLOAD_ATTEMPTS = 3;
 
@@ -714,50 +752,88 @@ async function submitForm() {
     if (form.value.passportScan) {
       filesToUpload.push({
         name: 'Скан паспорта',
-        fn: () => applicationFiles.upload(applicationId, form.value.passportScan, 'passport_scan', false),
+        file: form.value.passportScan,
+        category: 'passport_scan',
+        isImage: false,
+        useDocApi: false,
       });
     }
 
     if (form.value.passportTranslation) {
       filesToUpload.push({
         name: 'Перевод паспорта',
-        fn: () => applicationFiles.upload(applicationId, form.value.passportTranslation, 'passport_translation', false),
+        file: form.value.passportTranslation,
+        category: 'passport_translation',
+        isImage: false,
+        useDocApi: false,
       });
     }
 
     if (form.value.photoFile) {
+      submissionStatus.value = 'Оптимизация фотографии...';
+      const optimizedPhoto = await compressImageFile(form.value.photoFile, 1600, 0.85);
       filesToUpload.push({
         name: 'Фотография 3х4',
-        fn: () => applicationFiles.upload(applicationId, form.value.photoFile, 'photo', true),
+        file: optimizedPhoto,
+        category: 'photo',
+        isImage: true,
+        useDocApi: false,
       });
     }
 
     if (form.value.educationScan) {
       filesToUpload.push({
         name: 'Документ об образовании',
-        fn: () => applicationFiles.upload(applicationId, form.value.educationScan, 'education_scan', false),
+        file: form.value.educationScan,
+        category: 'education_scan',
+        isImage: false,
+        useDocApi: false,
       });
     }
 
     if (form.value.olympiad_participant && form.value.olympiadCertificate) {
       filesToUpload.push({
         name: 'Сертификат олимпиады',
-        fn: () => olympiadCertificates.upload(applicationId, form.value.olympiadCertificate),
+        file: form.value.olympiadCertificate,
+        category: null,
+        isImage: false,
+        useDocApi: 'olympiad',
       });
     }
 
-    // Этап 4: Загрузка файлов последовательно (30% -> 85%)
+    // Этап 4: Загрузка файлов параллельно (30% -> 85%)
     if (filesToUpload.length > 0) {
       const total = filesToUpload.length;
-      const progressPerFile = 55 / total;
+      // Побайтный прогресс: каждый файл вносит вклад пропорционально размеру
+      const fileSizes = filesToUpload.map(f => f.file?.size || 1);
+      const totalBytes = fileSizes.reduce((s, n) => s + n, 0);
+      const fileBytesLoaded = new Array(total).fill(0);
 
-      for (let i = 0; i < filesToUpload.length; i++) {
-        const { name, fn } = filesToUpload[i];
-        submissionProgress.value = Math.round(30 + i * progressPerFile);
-        await uploadWithRetry(fn, name);
-        submissionProgress.value = Math.round(30 + (i + 1) * progressPerFile);
-        submissionStatus.value = `Загружено: ${name} (${i + 1} из ${total})`;
+      function recalcProgress() {
+        const loaded = fileBytesLoaded.reduce((s, n) => s + n, 0);
+        submissionProgress.value = Math.round(30 + (loaded / totalBytes) * 55);
       }
+
+      let completedCount = 0;
+      submissionStatus.value = `Загрузка документов (0 из ${total})...`;
+
+      await Promise.all(filesToUpload.map(async (item, idx) => {
+        const onProgress = (pct) => {
+          fileBytesLoaded[idx] = Math.round(fileSizes[idx] * pct / 100);
+          recalcProgress();
+        };
+
+        const uploadFn = item.useDocApi === 'olympiad'
+          ? () => olympiadCertificates.upload(applicationId, item.file)
+          : () => applicationFiles.upload(applicationId, item.file, item.category, item.isImage, onProgress);
+
+        await uploadWithRetry(uploadFn, item.name);
+
+        fileBytesLoaded[idx] = fileSizes[idx]; // гарантируем 100% для файла
+        completedCount++;
+        recalcProgress();
+        submissionStatus.value = `Загружено: ${completedCount} из ${total} документов`;
+      }));
     } else {
       submissionProgress.value = 85;
     }
@@ -770,13 +846,11 @@ async function submitForm() {
     if (!submitResult.success) {
       throw new Error(submitResult.error || 'Не удалось отправить заявление на рассмотрение');
     }
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     submissionProgress.value = 100;
     submissionStatus.value = 'Заявление успешно отправлено!';
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
+    await new Promise(resolve => setTimeout(resolve, 400));
+
     isSubmitted.value = true;
     applicationNumber.value = applicationId;
     toast.success('Ваше заявление успешно отправлено!');

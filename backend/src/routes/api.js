@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const db = require('../config/db');
 const s3 = require('../config/s3');
-const { GetObjectCommand } = require('@aws-sdk/client-s3');
+const { GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const { JWT_SECRET, requireAuth, requireAdmin, requireAdminOrReviewer } = require('../middleware/auth');
 const { createNotification, createStaffNotifications } = require('../services/notification-service');
 const { sendApplicationStatusChangeEmail } = require('../services/application-status-email');
@@ -114,11 +114,39 @@ function getSafeDownloadFileName(fileName, fallback = 'file') {
 
 function getS3KeyCandidates(filePath, bucketAlias) {
   const normalizedPath = String(filePath || '').replace(/^\/+/, '');
-  const candidates = [normalizedPath];
+  if (!normalizedPath) return [];
 
-  if (bucketAlias) candidates.push(`${bucketAlias}/${normalizedPath}`);
+  const candidates = new Set([normalizedPath]);
 
-  return [...new Set(candidates.filter(Boolean))];
+  if (bucketAlias) {
+    const prefix = `${bucketAlias}/`;
+
+    if (normalizedPath.startsWith(prefix)) {
+      candidates.add(normalizedPath.slice(prefix.length));
+    } else {
+      candidates.add(`${prefix}${normalizedPath}`);
+    }
+  }
+
+  return [...candidates];
+}
+
+async function resolveS3ObjectKey({ bucket, filePath, bucketAlias }) {
+  const keyCandidates = getS3KeyCandidates(filePath, bucketAlias);
+  let lastError = null;
+
+  for (const key of keyCandidates) {
+    try {
+      await s3.s3Client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+      return key;
+    } catch (error) {
+      lastError = error;
+      const statusCode = error.$metadata?.httpStatusCode;
+      if (error.name !== 'NotFound' && statusCode !== 404) throw error;
+    }
+  }
+
+  throw lastError || new Error('Файл не найден');
 }
 
 async function streamS3File(res, { bucket, keyCandidates, fileName, contentType }) {
@@ -141,7 +169,9 @@ async function streamS3File(res, { bucket, keyCandidates, fileName, contentType 
     }
   }
 
-  throw lastError || new Error('Файл не найден');
+  const error = lastError || new Error('Файл не найден');
+  error.triedKeys = keyCandidates;
+  throw error;
 }
 
 async function getApplicationHistory(applicationId) {
@@ -1856,7 +1886,14 @@ router.get('/files/signed-url/document/:docId', requireAuth, async (req, res) =>
     }
     if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
-    const signedUrl = await s3.getPresignedDownloadUrl(s3.BUCKET_DOCUMENTS, result.rows[0].file_path);
+    const signedUrl = await s3.getPresignedDownloadUrl(
+      s3.BUCKET_DOCUMENTS,
+      await resolveS3ObjectKey({
+        bucket: s3.BUCKET_DOCUMENTS,
+        filePath: result.rows[0].file_path,
+        bucketAlias: 'application_documents'
+      })
+    );
     res.json({ data: { signedUrl } });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1882,7 +1919,7 @@ router.get('/files/view/document/:docId', requireAuth, async (req, res) => {
       contentType: result.rows[0].file_type
     });
   } catch (err) {
-    console.error('Ошибка просмотра документа:', err);
+    console.error('Ошибка просмотра документа:', err.message, err.triedKeys || []);
     res.status(404).json({ error: 'Файл не найден' });
   }
 });
@@ -1965,7 +2002,14 @@ router.get('/files/signed-url/file/:fileId', requireAuth, async (req, res) => {
     }
     if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
-    const signedUrl = await s3.getPresignedDownloadUrl(s3.BUCKET_FILES, result.rows[0].file_path);
+    const signedUrl = await s3.getPresignedDownloadUrl(
+      s3.BUCKET_FILES,
+      await resolveS3ObjectKey({
+        bucket: s3.BUCKET_FILES,
+        filePath: result.rows[0].file_path,
+        bucketAlias: 'application_files'
+      })
+    );
     res.json({ data: { signedUrl } });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1991,7 +2035,7 @@ router.get('/files/view/file/:fileId', requireAuth, async (req, res) => {
       contentType: result.rows[0].file_type
     });
   } catch (err) {
-    console.error('Ошибка просмотра файла заявления:', err);
+    console.error('Ошибка просмотра файла заявления:', err.message, err.triedKeys || []);
     res.status(404).json({ error: 'Файл не найден' });
   }
 });
@@ -2050,7 +2094,14 @@ router.get('/files/signed-url/certificate/:certId', requireAuth, async (req, res
     }
     if (!(await ensureApplicationAccess(req, res, result.rows[0].application_id))) return;
 
-    const signedUrl = await s3.getPresignedDownloadUrl(s3.BUCKET_FILES, result.rows[0].file_path);
+    const signedUrl = await s3.getPresignedDownloadUrl(
+      s3.BUCKET_FILES,
+      await resolveS3ObjectKey({
+        bucket: s3.BUCKET_FILES,
+        filePath: result.rows[0].file_path,
+        bucketAlias: 'application_files'
+      })
+    );
     res.json({ data: { signedUrl } });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2076,7 +2127,7 @@ router.get('/files/view/certificate/:certId', requireAuth, async (req, res) => {
       contentType: result.rows[0].file_type
     });
   } catch (err) {
-    console.error('Ошибка просмотра сертификата олимпиады:', err);
+    console.error('Ошибка просмотра сертификата олимпиады:', err.message, err.triedKeys || []);
     res.status(404).json({ error: 'Файл не найден' });
   }
 });
@@ -2088,23 +2139,16 @@ router.get('/files/download/:bucket/*', async (req, res) => {
 
   try {
     const bucket = bucketName === 'application_documents' ? s3.BUCKET_DOCUMENTS : s3.BUCKET_FILES;
-    const command = new GetObjectCommand({
-      Bucket: bucket,
-      Key: filePath,
-    });
+    const bucketAlias = bucketName === 'application_documents' ? 'application_documents' : 'application_files';
 
-    const s3Response = await s3.s3Client.send(command);
-    
-    if (s3Response.ContentType) {
-      res.setHeader('Content-Type', s3Response.ContentType);
-    }
-    if (s3Response.ContentLength) {
-      res.setHeader('Content-Length', s3Response.ContentLength);
-    }
-    
-    s3Response.Body.pipe(res);
+    await streamS3File(res, {
+      bucket,
+      keyCandidates: getS3KeyCandidates(filePath, bucketAlias),
+      fileName: String(filePath || '').split('/').pop() || 'file',
+      contentType: undefined
+    });
   } catch (err) {
-    console.error(`Ошибка скачивания файла ${bucketName}/${filePath}:`, err.message);
+    console.error(`Ошибка скачивания файла ${bucketName}/${filePath}:`, err.message, err.triedKeys || []);
     res.status(404).json({ error: 'Файл не найден' });
   }
 });

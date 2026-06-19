@@ -523,7 +523,7 @@ export const documents = {
 
 // 5. ФАЙЛЫ ЗАЯВЛЕНИЙ (Application Files)
 export const applicationFiles = {
-  async upload(applicationId, file, fileCategory = 'general', isImage = false) {
+  async upload(applicationId, file, fileCategory = 'general', isImage = false, onProgress = null) {
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -533,6 +533,9 @@ export const applicationFiles = {
       const response = await apiClient.post(`/files/application-files/${applicationId}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000,
+        onUploadProgress: onProgress
+          ? (e) => { if (e.total) onProgress(Math.round((e.loaded / e.total) * 100)); }
+          : undefined,
       })
       return { data: response.data.data, error: null }
     } catch (err) {
