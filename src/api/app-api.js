@@ -432,7 +432,7 @@ export const applications = {
       if (status === 413) {
         return {
           data: null,
-          error: responseData.error || `Запрос отклонён из‑за лимита размера (413). Проверьте nginx: client_max_body_size 420M. Файлы: до ${MAX_APPLICATION_FILE_MB} МБ каждый, до ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ суммарно.`,
+          error: responseData.error || 'Сервер отклонил загрузку (413). Администратор VPS: sudo bash scripts/configure-host-nginx-upload.sh && пересоберите frontend (docker compose build frontend && docker compose up -d frontend).',
           code: responseData.code || 'PAYLOAD_TOO_LARGE',
           status: 413
         }

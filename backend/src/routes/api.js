@@ -20,6 +20,17 @@ const {
 const { formatMulterError } = require('../utils/multer-errors');
 
 const router = express.Router();
+
+router.get('/config/upload-limits', (req, res) => {
+  res.json({
+    max_file_mb: MAX_APPLICATION_FILE_MB,
+    max_total_mb: MAX_APPLICATION_SUBMIT_TOTAL_MB,
+    max_files: MAX_APPLICATION_SUBMIT_FILES,
+    recommended_nginx_client_max_body_size: '420M',
+    note: 'Если браузер получает 413, увеличьте client_max_body_size на ВНЕШНЕМ nginx VPS: sudo bash scripts/configure-host-nginx-upload.sh'
+  });
+});
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_APPLICATION_FILE_BYTES }

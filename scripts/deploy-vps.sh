@@ -22,6 +22,17 @@ BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 echo "==> Deploying version=$APP_VERSION gitSha=$GIT_SHA buildDate=$BUILD_DATE"
 
+if [ -f scripts/configure-host-nginx-upload.sh ] && command -v nginx >/dev/null 2>&1; then
+  echo "==> Configuring host nginx upload limits (420M)"
+  if [ "$(id -u)" -eq 0 ]; then
+    bash scripts/configure-host-nginx-upload.sh
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo bash scripts/configure-host-nginx-upload.sh
+  else
+    echo "WARN: запустите вручную: sudo bash scripts/configure-host-nginx-upload.sh"
+  fi
+fi
+
 echo "==> Applying database migrations"
 if [ -f init-db/06-is-foreign-residence.sql ]; then
   docker compose -f "$COMPOSE_FILE" exec -T db \
