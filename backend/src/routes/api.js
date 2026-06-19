@@ -112,22 +112,6 @@ function getSafeDownloadFileName(fileName, fallback = 'file') {
   return String(fileName || fallback).replace(/[\r\n"]/g, '_');
 }
 
-async function removeApplicationFileRecords(appId, category, excludeFileId = null) {
-  const existing = await db.query(
-    `SELECT id, file_path
-     FROM application_files
-     WHERE application_id = $1
-       AND file_category = $2
-       AND ($3::uuid IS NULL OR id <> $3)`,
-    [appId, category, excludeFileId]
-  );
-
-  for (const row of existing.rows) {
-    await s3.deleteObjectWithCandidates(s3.BUCKET_FILES, row.file_path, 'application_files');
-    await db.query('DELETE FROM application_files WHERE id = $1', [row.id]);
-  }
-}
-
 async function streamS3File(res, { bucket, keyCandidates, fileName, contentType }) {
   let lastError = null;
 
@@ -1960,7 +1944,6 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
     ]);
 
     const fileId = rpcResult.rows[0]?.file_id;
-    await removeApplicationFileRecords(appId, category, fileId);
 
     res.json({ data: { id: fileId } });
   } catch (err) {
@@ -2120,12 +2103,15 @@ router.get('/files/view/certificate/:certId', requireAuth, async (req, res) => {
   }
 });
 
-// ЭНДПОИНТ СКАЧИВАНИЯ/СТРИМИНГА ФАЙЛА НАПРЯМУЮ
-router.get('/files/download/:bucket/*', async (req, res) => {
+// ЭНДПОИНТ СКАЧИВАНИЯ/СТРИМИНГА ФАЙЛА (только для авторизованных с доступом к заявлению)
+router.get('/files/download/:bucket/*', requireAuth, async (req, res) => {
   const bucketName = req.params.bucket;
   const filePath = req.params[0] || req.params.filePath;
 
   try {
+    const applicationId = String(filePath || '').split('/')[0];
+    if (!applicationId || !(await ensureApplicationAccess(req, res, applicationId))) return;
+
     const bucket = bucketName === 'application_documents' ? s3.BUCKET_DOCUMENTS : s3.BUCKET_FILES;
     const bucketAlias = bucketName === 'application_documents' ? 'application_documents' : 'application_files';
 

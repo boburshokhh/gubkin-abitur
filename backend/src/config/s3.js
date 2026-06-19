@@ -5,7 +5,7 @@ const {
   HeadObjectCommand,
   PutObjectCommand,
   GetObjectCommand,
-  DeleteObjectCommand,
+  PutBucketVersioningCommand,
 } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 require('dotenv').config();
@@ -46,6 +46,18 @@ function getS3KeyCandidates(filePath, bucketAlias) {
   return [...candidates];
 }
 
+async function enableBucketVersioning(bucket) {
+  try {
+    await s3Client.send(new PutBucketVersioningCommand({
+      Bucket: bucket,
+      VersioningConfiguration: { Status: 'Enabled' },
+    }));
+    console.log(`Versioning включён для бакета "${bucket}".`);
+  } catch (error) {
+    console.warn(`Не удалось включить versioning для "${bucket}":`, error.message);
+  }
+}
+
 async function initBuckets() {
   const buckets = [BUCKET_DOCUMENTS, BUCKET_FILES, BUCKET_SITE_ASSETS];
   for (const bucket of buckets) {
@@ -66,6 +78,8 @@ async function initBuckets() {
         throw error;
       }
     }
+
+    await enableBucketVersioning(bucket);
   }
 }
 
@@ -116,20 +130,6 @@ async function uploadToS3(bucket, key, buffer, mimeType) {
   return key;
 }
 
-async function deleteObjectWithCandidates(bucket, filePath, bucketAlias) {
-  for (const key of getS3KeyCandidates(filePath, bucketAlias)) {
-    try {
-      await s3Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
-      return key;
-    } catch (error) {
-      const statusCode = error.$metadata?.httpStatusCode;
-      if (error.name !== 'NotFound' && statusCode !== 404) throw error;
-    }
-  }
-
-  return null;
-}
-
 async function getPresignedDownloadUrl(bucket, key) {
   const command = new GetObjectCommand({
     Bucket: bucket,
@@ -147,6 +147,5 @@ module.exports = {
   ensureBucketsReady,
   resolveObjectKey,
   uploadToS3,
-  deleteObjectWithCandidates,
   getPresignedDownloadUrl,
 };

@@ -45,6 +45,29 @@ services:
       retries: 10
       start_period: 20s
 
+  # 2b. Инициализация MinIO: versioning + IAM без права удаления
+  minio-init:
+    image: quay.io/minio/minio:RELEASE.2025-01-20T14-49-07Z
+    container_name: abitur-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command: /setup/setup.sh
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadminpassword}
+      S3_BUCKET_DOCUMENTS: ${S3_BUCKET_DOCUMENTS:-application-documents}
+      S3_BUCKET_FILES: ${S3_BUCKET_FILES:-application-files}
+      S3_BUCKET_SITE_ASSETS: ${S3_BUCKET_SITE_ASSETS:-site-assets}
+      S3_BACKEND_ACCESS_KEY: ${S3_BACKEND_ACCESS_KEY:-abitur-backend}
+      S3_BACKEND_SECRET_KEY: ${S3_BACKEND_SECRET_KEY:-change-this-minio-backend-secret}
+    volumes:
+      - ./init-minio:/setup:ro
+    networks:
+      - abitur-network
+    restart: "no"
+
   # 3. Бэкенд на Node.js/Express
   backend:
     build:
@@ -73,10 +96,11 @@ services:
       INVITATION_TOKEN_TTL_DAYS: ${INVITATION_TOKEN_TTL_DAYS:-7}
       S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
       S3_REGION: ${S3_REGION:-us-east-1}
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
-      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadminpassword}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-abitur-backend}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-change-this-minio-backend-secret}
       S3_BUCKET_DOCUMENTS: ${S3_BUCKET_DOCUMENTS:-application-documents}
       S3_BUCKET_FILES: ${S3_BUCKET_FILES:-application-files}
+      S3_BUCKET_SITE_ASSETS: ${S3_BUCKET_SITE_ASSETS:-site-assets}
       SMTP_HOST: ${SMTP_HOST:-smtp.example.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}
@@ -89,6 +113,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     networks:
       - abitur-network
     healthcheck:
