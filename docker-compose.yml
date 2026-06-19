@@ -47,7 +47,7 @@ services:
 
   # 2b. Инициализация MinIO: versioning + IAM без права удаления
   minio-init:
-    image: quay.io/minio/minio:RELEASE.2025-01-20T14-49-07Z-cpuv1-cpuv1
+    image: quay.io/minio/minio:RELEASE.2025-01-20T14-49-07Z-cpuv1
     container_name: abitur-minio-init
     depends_on:
       minio:
