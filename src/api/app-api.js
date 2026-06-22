@@ -3,7 +3,7 @@ import {
   MAX_APPLICATION_FILE_MB,
   MAX_APPLICATION_SUBMIT_TOTAL_MB
 } from '@/config/upload-limits'
-import { isUploadableBlob, resolveUploadFile, compressPhotoForUpload, isPreparedPhotoFile } from '@/utils/upload-file'
+import { isUploadableBlob, resolveUploadFile } from '@/utils/upload-file'
 
 // Инициализация Axios-клиента для работы с кастомным Express бэкендом
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
@@ -127,7 +127,7 @@ async function handleDownloadError(err) {
 const SUBMIT_FILE_LABELS = {
   passport_scan: 'скан паспорта',
   passport_translation: 'перевод паспорта',
-  photo: 'фотография',
+  photo: 'фотография (PDF)',
   education_scan: 'документ об образовании',
   olympiad_certificate: 'сертификат олимпиады'
 }
@@ -170,10 +170,7 @@ async function uploadSubmitFile({ applicationId, fieldKey, file, onUploadProgres
   await ensureFreshSessionForUpload()
 
   const fieldLabel = SUBMIT_FILE_LABELS[fieldKey] || fieldKey
-  let resolvedFile = await resolveUploadFile(file, fieldLabel)
-  if (fieldKey === 'photo' && !isPreparedPhotoFile(resolvedFile)) {
-    resolvedFile = await compressPhotoForUpload(resolvedFile)
-  }
+  const resolvedFile = await resolveUploadFile(file, fieldLabel)
 
   const response = await apiClient.post(
     `/applications/${applicationId}/submit/file`,
@@ -613,7 +610,7 @@ export const applications = {
     const fileFields = [
       { key: 'passport_scan', label: 'Загрузка скана паспорта...' },
       { key: 'passport_translation', label: 'Загрузка перевода паспорта...' },
-      { key: 'photo', label: 'Загрузка фотографии...' },
+      { key: 'photo', label: 'Загрузка фотографии (PDF)...' },
       { key: 'education_scan', label: 'Загрузка документа об образовании...' },
       { key: 'olympiad_certificate', label: 'Загрузка сертификата олимпиады...' }
     ]

@@ -6,7 +6,7 @@ const { MAX_APPLICATION_FILE_BYTES, MAX_APPLICATION_FILE_MB } = require('../conf
 const SUBMIT_FILE_FIELDS = [
   { key: 'passport_scan', isImage: false, label: 'скан паспорта' },
   { key: 'passport_translation', isImage: false, label: 'перевод паспорта' },
-  { key: 'photo', isImage: true, label: 'фотография 3×4' },
+  { key: 'photo', isImage: false, label: 'фотография 3×4 (PDF)' },
   { key: 'education_scan', isImage: false, label: 'документ об образовании' },
   { key: 'olympiad_certificate', isImage: false, label: 'сертификат олимпиады', optional: true }
 ];

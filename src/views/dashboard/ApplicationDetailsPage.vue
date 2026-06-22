@@ -605,7 +605,7 @@ function getEducationLevelText(level) {
 
 function getFileDisplayName(file) {
   const names = {
-    photo: 'Фотография 3x4',
+    photo: 'Фотография 3x4 (PDF)',
     education_scan: 'Документ об образовании',
     passport_scan: 'Паспорт',
     passport_translation: 'Нотариально заверенный перевод паспорта'

@@ -564,8 +564,8 @@ const requiredFileRows = computed(() => [
   },
   {
     category: 'photo',
-    label: 'Фотография 3x4',
-    description: 'Фотография абитуриента',
+    label: 'Фотография 3x4 (PDF)',
+    description: 'Фотография абитуриента в формате PDF',
     required: true,
     emptyText: 'Фотография не загружена',
     files: getFilesByCategory('photo')

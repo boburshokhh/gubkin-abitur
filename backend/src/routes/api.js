@@ -1773,7 +1773,7 @@ router.post('/applications/submit', requireAuth, (req, res, next) => {
     const fileUploads = [
       { key: 'passport_scan', isImage: false },
       { key: 'passport_translation', isImage: false },
-      { key: 'photo', isImage: true },
+      { key: 'photo', isImage: false },
       { key: 'education_scan', isImage: false },
     ];
     const uploadedFilesLog = [];

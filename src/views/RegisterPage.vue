@@ -190,11 +190,7 @@ import {
 } from '@/config/upload-limits';
 import {
   isImageBlob,
-  isAcceptedPhotoFile,
-  preparePhotoFile,
   materializeUploadFile,
-  compressPhotoForUpload,
-  isPreparedPhotoFile,
   readBlobAsDataUrl
 } from '@/utils/upload-file';
 
@@ -223,7 +219,7 @@ const phoneFields = ['phone', 'parentPhone'];
 const fileRules = {
   passportScan: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' },
   passportTranslation: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' },
-  photoFile: { types: ['image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/webp'], extensions: ['.jpg', '.jpeg', '.png', '.webp', '.jfif'], description: 'JPG, PNG или WEBP' },
+  photoFile: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' },
   educationScan: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' },
   olympiadCertificate: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' }
 };
@@ -319,14 +315,6 @@ function prepareFieldsForValidation() {
 function validateSelectedFile(file, fieldName) {
   if (!(file instanceof Blob)) return 'Не удалось прочитать файл. Выберите его снова.';
   if (!file.size) return 'Файл пустой. Выберите другой файл.';
-
-  if (fieldName === 'photoFile') {
-    if (!isAcceptedPhotoFile(file)) return 'Неподдерживаемый тип файла. Допустимые форматы: JPG, PNG или WEBP.';
-    if (file.size > MAX_APPLICATION_FILE_BYTES) {
-      return `Размер файла превышает допустимый максимум (${MAX_APPLICATION_FILE_MB} МБ).`;
-    }
-    return '';
-  }
 
   const rule = fileRules[fieldName] || {
     types: ['image/jpeg', 'image/png', 'application/pdf'],
@@ -484,7 +472,7 @@ function validateStep() {
     
     // Проверка обязательных файлов
     if (!(f.photoFile instanceof Blob) || !f.photoFile.size) {
-      errors.value.photoFile = 'Загрузка фотографии 3х4 см обязательна.';
+      errors.value.photoFile = 'Загрузка фотографии 3х4 см (PDF) обязательна.';
     }
     if (!(f.educationScan instanceof Blob) || !f.educationScan.size) {
       errors.value.educationScan = 'Загрузка документа об образовании обязательна.';
@@ -520,7 +508,7 @@ function validateStep() {
       errors.value.passportTranslation = 'Загрузка нотариально заверенного перевода паспорта обязательна.';
     }
     if (!(f.photoFile instanceof Blob) || !f.photoFile.size) {
-      errors.value.photoFile = 'Загрузка фотографии 3х4 см обязательна.';
+      errors.value.photoFile = 'Загрузка фотографии 3х4 см (PDF) обязательна.';
     }
     if (!(f.educationScan instanceof Blob) || !f.educationScan.size) {
       errors.value.educationScan = 'Загрузка документа об образовании обязательна.';
@@ -624,7 +612,7 @@ function nextStep() {
         education_graduation_year: 'Год окончания',
         education_document_number: 'Номер документа об образовании',
         education_document_date: 'Дата выдачи документа',
-        photoFile: 'Фотография 3х4',
+        photoFile: 'Фотография 3х4 (PDF)',
         educationScan: 'Документ об образовании',
         choices: 'Выбор образовательных программ',
         funding_form: 'Форма финансирования'
@@ -727,7 +715,7 @@ async function submitForm() {
         const labels = {
           passport_scan: 'скана паспорта',
           passport_translation: 'перевода паспорта',
-          photo: 'фотографии',
+          photo: 'фотографии (PDF)',
           education_scan: 'документа об образовании',
           olympiad_certificate: 'сертификата олимпиады'
         };
@@ -776,12 +764,7 @@ const onFileChange = async (file, fieldName) => {
     const fileError = validateSelectedFile(file, fieldName);
     if (fileError) throw new Error(fileError);
 
-    let inMemory
-    if (fieldName === 'photoFile') {
-      inMemory = await preparePhotoFile(file)
-    } else {
-      inMemory = await materializeUploadFile(file)
-    }
+    const inMemory = await materializeUploadFile(file);
     form.value[fieldName] = inMemory;
 
     if (isImageBlob(inMemory)) {

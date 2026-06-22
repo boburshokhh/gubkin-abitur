@@ -3,7 +3,7 @@
     <el-alert type="info" show-icon :closable="false">
       <template #title>Обязательные документы для загрузки</template>
       <ul class="list-disc list-inside space-y-1 text-sm">
-        <li>Фотография 3х4 см: цветное фото на белом фоне.</li>
+        <li>Фотография 3х4 см: цветное фото на белом фоне, файл в формате PDF.</li>
         <li>Копия документа об образовании: аттестат, диплом или аналогичный документ.</li>
       </ul>
     </el-alert>
@@ -72,19 +72,19 @@
     <div class="space-y-6">
       <div class="space-y-2">
         <el-alert
-          title="Название файла: Ф_И_О_фото.jpg или .png (например, Иванов_Иван_Иванович_фото.jpg)"
-          description="Рекомендуется выбирать готовое фото из Галереи телефона, а не делать снимок напрямую через камеру браузера. На многих устройствах Android прямой снимок с камеры блокируется системой безопасности."
+          title="Название файла: Ф_И_О_фото.pdf, например Иванов_Иван_Иванович_фото.pdf"
+          description="Пожалуйста, загрузите вашу фотографию 3х4 см в формате PDF."
           type="warning"
           show-icon
           :closable="false"
         />
         <FileUploadField
           fieldName="photoFile"
-          label="Фотография 3х4 см"
+          label="Фотография 3х4 см (в формате PDF)"
           :isUploading="fileUploading.photoFile"
           :preview="filePreview.photoFile"
           :error="errors.photoFile"
-          accept="image/*"
+          accept=".pdf"
           required
           @change="(file) => emit('file-change', file, 'photoFile')"
           @view="() => emit('file-view', 'photoFile')"
