@@ -24,11 +24,28 @@ function decodeUploadedFileName(fileName) {
   return fileName;
 }
 
-function getFileExtension(fileName) {
+function inferExtensionFromMime(mimeType) {
+  const type = String(mimeType || '').toLowerCase();
+  const map = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/pjpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+    'image/heic': 'heic',
+    'image/heif': 'heif',
+    'application/pdf': 'pdf'
+  };
+  return map[type] || '';
+}
+
+function getFileExtension(fileName, mimeType) {
   const decodedName = decodeUploadedFileName(fileName);
   const parts = decodedName.split('.');
-
-  return parts.length > 1 ? parts.pop() : '';
+  const ext = parts.length > 1 ? parts.pop() : '';
+  if (ext) return ext;
+  return inferExtensionFromMime(mimeType);
 }
 
 function decodeFileRecord(record = {}) {
@@ -52,6 +69,7 @@ function decodeApplicationFileNames(details = {}) {
 
 module.exports = {
   decodeUploadedFileName,
+  inferExtensionFromMime,
   getFileExtension,
   decodeFileRecord,
   decodeApplicationFileNames

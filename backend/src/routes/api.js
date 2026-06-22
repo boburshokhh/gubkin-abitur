@@ -157,7 +157,7 @@ function validateSubmitFileSizes(files) {
 
 async function uploadApplicationSubmitFile({ client, applicationId, file, fieldKey, isImage, uploadedS3Objects }) {
   const originalFileName = decodeUploadedFileName(file.originalname);
-  const fileExt = getFileExtension(originalFileName);
+  const fileExt = getFileExtension(originalFileName, file.mimetype);
   const s3Key = `${applicationId}/${fieldKey}/${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
 
   await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
@@ -250,7 +250,9 @@ function inferContentType(fileName, storedType) {
     jpg: 'image/jpeg',
     jpeg: 'image/jpeg',
     gif: 'image/gif',
-    webp: 'image/webp'
+    webp: 'image/webp',
+    heic: 'image/heic',
+    heif: 'image/heif'
   };
   return map[ext] || storedType || 'application/octet-stream';
 }
@@ -1801,7 +1803,7 @@ router.post('/applications/submit', requireAuth, (req, res, next) => {
 
       const file = req.files.olympiad_certificate[0];
       const originalFileName = decodeUploadedFileName(file.originalname);
-      const fileExt = getFileExtension(originalFileName);
+      const fileExt = getFileExtension(originalFileName, file.mimetype);
       const s3Key = `${applicationId}/olympiad_${Date.now()}.${fileExt}`;
 
       await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
@@ -2265,7 +2267,7 @@ router.post('/files/documents/:appId', requireAuth, upload.single('file'), async
     if (!(await ensureApplicationAccess(req, res, appId))) return;
 
     const originalFileName = decodeUploadedFileName(file.originalname);
-    const fileExt = getFileExtension(originalFileName);
+    const fileExt = getFileExtension(originalFileName, file.mimetype);
     const fileId = crypto.randomUUID ? crypto.randomUUID() : require('crypto').randomUUID();
     const s3Key = `${appId}/${fileId}.${fileExt}`;
 
@@ -2387,7 +2389,7 @@ router.post('/files/application-files/:appId', requireAuth, upload.single('file'
     }
 
     const originalFileName = decodeUploadedFileName(file.originalname);
-    const fileExt = getFileExtension(originalFileName);
+    const fileExt = getFileExtension(originalFileName, file.mimetype);
     const category = fileCategory || 'general';
     const s3Key = `${appId}/${category}/${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
 
@@ -2504,7 +2506,7 @@ router.post('/files/olympiad-certificates/:appId', requireAuth, upload.single('f
     }
 
     const originalFileName = decodeUploadedFileName(file.originalname);
-    const fileExt = getFileExtension(originalFileName);
+    const fileExt = getFileExtension(originalFileName, file.mimetype);
     const s3Key = `${appId}/olympiad_${Date.now()}.${fileExt}`;
 
     await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);

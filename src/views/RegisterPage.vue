@@ -190,7 +190,11 @@ import {
 } from '@/config/upload-limits';
 import {
   isImageBlob,
+  isAcceptedPhotoFile,
+  preparePhotoFile,
   materializeUploadFile,
+  compressPhotoForUpload,
+  isPreparedPhotoFile,
   readBlobAsDataUrl
 } from '@/utils/upload-file';
 
@@ -219,7 +223,7 @@ const phoneFields = ['phone', 'parentPhone'];
 const fileRules = {
   passportScan: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' },
   passportTranslation: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' },
-  photoFile: { types: ['image/jpeg', 'image/png'], extensions: ['.jpg', '.jpeg', '.png'], description: 'JPG или PNG' },
+  photoFile: { types: ['image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/webp'], extensions: ['.jpg', '.jpeg', '.png', '.webp', '.jfif'], description: 'JPG, PNG или WEBP' },
   educationScan: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' },
   olympiadCertificate: { types: ['application/pdf'], extensions: ['.pdf'], description: 'PDF' }
 };
@@ -315,6 +319,14 @@ function prepareFieldsForValidation() {
 function validateSelectedFile(file, fieldName) {
   if (!(file instanceof Blob)) return 'Не удалось прочитать файл. Выберите его снова.';
   if (!file.size) return 'Файл пустой. Выберите другой файл.';
+
+  if (fieldName === 'photoFile') {
+    if (!isAcceptedPhotoFile(file)) return 'Неподдерживаемый тип файла. Допустимые форматы: JPG, PNG или WEBP.';
+    if (file.size > MAX_APPLICATION_FILE_BYTES) {
+      return `Размер файла превышает допустимый максимум (${MAX_APPLICATION_FILE_MB} МБ).`;
+    }
+    return '';
+  }
 
   const rule = fileRules[fieldName] || {
     types: ['image/jpeg', 'image/png', 'application/pdf'],
@@ -764,16 +776,29 @@ const onFileChange = async (file, fieldName) => {
     const fileError = validateSelectedFile(file, fieldName);
     if (fileError) throw new Error(fileError);
 
-    const inMemory = await materializeUploadFile(file);
+    let inMemory
+    if (fieldName === 'photoFile') {
+      inMemory = await preparePhotoFile(file)
+    } else {
+      inMemory = await materializeUploadFile(file)
+    }
     form.value[fieldName] = inMemory;
 
     if (isImageBlob(inMemory)) {
-      const dataUrl = await readBlobAsDataUrl(inMemory);
-      filePreview.value[fieldName] = {
-        url: dataUrl,
-        type: inMemory.type || 'image/jpeg',
-        name: inMemory.name
-      };
+      try {
+        const dataUrl = await readBlobAsDataUrl(inMemory);
+        filePreview.value[fieldName] = {
+          url: dataUrl,
+          type: inMemory.type || 'image/jpeg',
+          name: inMemory.name
+        };
+      } catch {
+        filePreview.value[fieldName] = {
+          url: null,
+          type: inMemory.type || 'image/jpeg',
+          name: inMemory.name
+        };
+      }
     } else {
       filePreview.value[fieldName] = {
         url: null,

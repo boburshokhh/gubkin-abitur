@@ -136,7 +136,7 @@ const acceptDescription = computed(() => {
   const perFile = `до ${MAX_APPLICATION_FILE_MB} МБ`;
   const total = `суммарно до ${MAX_APPLICATION_SUBMIT_TOTAL_MB} МБ`;
   if (props.accept === '.pdf') return `Только PDF, ${perFile} (${total})`;
-  if (props.accept === 'image/*') return `JPG или PNG, ${perFile} (${total})`;
+  if (props.accept === 'image/*') return `JPG, PNG или WEBP, ${perFile} (${total})`;
   return `JPG, PNG или PDF, ${perFile} (${total})`;
 });
 

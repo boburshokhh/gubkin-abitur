@@ -3,7 +3,7 @@ import {
   MAX_APPLICATION_FILE_MB,
   MAX_APPLICATION_SUBMIT_TOTAL_MB
 } from '@/config/upload-limits'
-import { isUploadableBlob, resolveUploadFile } from '@/utils/upload-file'
+import { isUploadableBlob, resolveUploadFile, compressPhotoForUpload, isPreparedPhotoFile } from '@/utils/upload-file'
 
 // Инициализация Axios-клиента для работы с кастомным Express бэкендом
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
@@ -170,7 +170,10 @@ async function uploadSubmitFile({ applicationId, fieldKey, file, onUploadProgres
   await ensureFreshSessionForUpload()
 
   const fieldLabel = SUBMIT_FILE_LABELS[fieldKey] || fieldKey
-  const resolvedFile = await resolveUploadFile(file, fieldLabel)
+  let resolvedFile = await resolveUploadFile(file, fieldLabel)
+  if (fieldKey === 'photo' && !isPreparedPhotoFile(resolvedFile)) {
+    resolvedFile = await compressPhotoForUpload(resolvedFile)
+  }
 
   const response = await apiClient.post(
     `/applications/${applicationId}/submit/file`,

@@ -233,7 +233,7 @@ async function uploadDraftFile({ applicationId, userId, fieldKey, file }) {
     }
 
     const originalFileName = decodeUploadedFileName(file.originalname);
-    const fileExt = getFileExtension(originalFileName);
+    const fileExt = getFileExtension(originalFileName, file.mimetype);
     const s3Key = `${applicationId}/olympiad_${Date.now()}.${fileExt}`;
 
     await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
@@ -252,7 +252,7 @@ async function uploadDraftFile({ applicationId, userId, fieldKey, file }) {
   await removeExistingFileForCategory(applicationId, fieldKey);
 
   const originalFileName = decodeUploadedFileName(file.originalname);
-  const fileExt = getFileExtension(originalFileName);
+  const fileExt = getFileExtension(originalFileName, file.mimetype);
   const s3Key = `${applicationId}/${fieldKey}/${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
 
   await s3.uploadToS3(s3.BUCKET_FILES, s3Key, file.buffer, file.mimetype);
