@@ -77,39 +77,46 @@
       <template #header>
         <span class="font-medium">Дополнительные параметры</span>
       </template>
-      <div class="space-y-4">
-        <el-checkbox
-          :model-value="modelValue.accommodation_needed"
-          @update:model-value="updateField('accommodation_needed', $event)"
-        >
-          Нуждаюсь в общежитии
-        </el-checkbox>
-        <el-checkbox
-          :model-value="modelValue.olympiad_participant"
-          @update:model-value="updateField('olympiad_participant', $event)"
-        >
-          Участвовал в Республиканской олимпиаде по математике / Губкинской предметной олимпиаде
-        </el-checkbox>
-        <el-alert
-          v-if="modelValue.olympiad_participant"
-          title="Загрузите цветную копию диплома победителя, призёра или участника олимпиады. Файл должен быть PDF."
-          type="warning"
-          show-icon
-          :closable="false"
-        />
-        <FileUploadField
-          v-if="modelValue.olympiad_participant"
-          fieldName="olympiadCertificate"
-          label="Сертификат олимпиады"
-          required
-          accept=".pdf"
-          :isUploading="fileUploading.olympiadCertificate"
-          :preview="filePreview.olympiadCertificate"
-          :error="errors.olympiadCertificate"
-          @change="(file) => emit('file-change', file, 'olympiadCertificate')"
-          @view="() => emit('file-view', 'olympiadCertificate')"
-          @reset="() => emit('file-reset', 'olympiadCertificate')"
-        />
+      <div class="space-y-5">
+        <!-- Общежитие -->
+        <label class="flex cursor-pointer items-start gap-3">
+          <el-checkbox
+            :model-value="modelValue.accommodation_needed"
+            @update:model-value="updateField('accommodation_needed', $event)"
+          />
+          <span class="text-sm leading-relaxed text-gray-700">Нуждаюсь в общежитии</span>
+        </label>
+
+        <!-- Олимпиада -->
+        <label class="flex cursor-pointer items-start gap-3">
+          <el-checkbox
+            :model-value="modelValue.olympiad_participant"
+            @update:model-value="updateField('olympiad_participant', $event)"
+          />
+          <span class="text-sm leading-relaxed text-gray-700">
+            Участвовал в Республиканской олимпиаде по математике / Губкинской предметной олимпиаде
+          </span>
+        </label>
+
+        <!-- Блок загрузки сертификата (появляется при отметке) -->
+        <div v-if="modelValue.olympiad_participant" class="rounded-lg border border-yellow-200 bg-yellow-50 p-4 space-y-4">
+          <div class="flex items-start gap-2 text-sm text-yellow-800">
+            <el-icon class="mt-0.5 flex-shrink-0"><Warning /></el-icon>
+            <span>Загрузите цветную копию диплома победителя, призёра или участника олимпиады. Файл должен быть <strong>PDF</strong>.</span>
+          </div>
+          <FileUploadField
+            fieldName="olympiadCertificate"
+            label="Сертификат / диплом олимпиады"
+            required
+            accept=".pdf"
+            :isUploading="fileUploading.olympiadCertificate"
+            :preview="filePreview.olympiadCertificate"
+            :error="errors.olympiadCertificate"
+            @change="(file) => emit('file-change', file, 'olympiadCertificate')"
+            @view="() => emit('file-view', 'olympiadCertificate')"
+            @reset="() => emit('file-reset', 'olympiadCertificate')"
+          />
+        </div>
       </div>
     </el-card>
   </div>
@@ -117,6 +124,7 @@
 
 <script setup>
 import { computed, onMounted, ref, onBeforeUnmount } from 'vue';
+import { Warning } from '@element-plus/icons-vue';
 import FileUploadField from './FileUploadField.vue';
 import { useApplicationStore } from '@/stores/application';
 
@@ -248,5 +256,17 @@ function getProfileExams(profileId) {
 <style scoped>
 .confirmation-exams-alert {
   margin-top: 12px;
+}
+
+/* Мобильный паддинг карточек */
+@media (max-width: 639px) {
+  :deep(.el-card__body) {
+    padding: 12px;
+  }
+  :deep(.el-descriptions__label),
+  :deep(.el-descriptions__content) {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
 }
 </style>

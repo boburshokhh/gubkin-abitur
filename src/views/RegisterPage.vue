@@ -246,8 +246,20 @@ function formatInternationalPhone(value) {
   return digits ? `+${digits}` : '+';
 }
 
+// Кириллические буквы-омоглифы → латиница (частая ошибка на телефонах с RU-клавиатурой)
+const CYRILLIC_TO_LATIN = {
+  'А':'A','а':'A','В':'B','в':'B','С':'C','с':'C','Е':'E','е':'E','Ё':'E','ё':'E',
+  'К':'K','к':'K','М':'M','м':'M','Н':'H','н':'H','О':'O','о':'O',
+  'Р':'P','р':'P','Т':'T','т':'T','Х':'X','х':'X','У':'Y','у':'Y'
+};
+
+function normalizeCyrillicToLatin(str) {
+  return String(str || '').replace(/[а-яёА-ЯЁ]/g, ch => CYRILLIC_TO_LATIN[ch] || '');
+}
+
 function normalizePassportSeries(value, isForeignResidence) {
-  const normalized = String(value || '').toUpperCase().replace(/[^A-Z0-9 -]/g, '').replace(/\s+/g, ' ').trimStart();
+  const latinOnly = normalizeCyrillicToLatin(value);
+  const normalized = latinOnly.toUpperCase().replace(/[^A-Z0-9 -]/g, '').replace(/\s+/g, ' ').trimStart();
   if (isForeignResidence) return normalized.slice(0, 20);
 
   const compact = normalized.replace(/[^A-Z0-9]/g, '').slice(0, 9);

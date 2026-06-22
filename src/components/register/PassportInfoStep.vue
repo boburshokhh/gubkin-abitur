@@ -3,6 +3,7 @@
     <el-alert type="info" show-icon :closable="false">
       <template #title>Требования к документу</template>
       <ul class="list-disc list-inside space-y-1 text-sm">
+        <li>Серия паспорта — <strong>2 латинские буквы A–Z</strong>, номер — 7 цифр. Пример: <code>AA 1234567</code>.</li>
         <li>Сканированная цветная копия оригинала первой страницы паспорта и нотариально заверенный перевод загружаются отдельно.</li>
         <li>Для ID-карты: лицевая и обратная стороны в одном PDF-файле.</li>
         <li>Абитуриент должен достичь 16-летнего возраста на момент подачи документов.</li>
@@ -10,18 +11,27 @@
     </el-alert>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <el-form-item label="Серия и номер паспорта" required :error="errors.passport_series">
+      <el-form-item
+        :label="isForeignResidence ? 'Номер паспорта' : 'Серия и номер паспорта'"
+        required
+        :error="errors.passport_series"
+      >
         <el-input
           :model-value="modelValue.passport_series"
           :placeholder="isForeignResidence ? 'A12345678' : 'AA 1234567'"
           autocapitalize="characters"
           autocomplete="off"
+          autocorrect="off"
           spellcheck="false"
+          inputmode="text"
           clearable
           @update:model-value="updateField('passport_series', $event)"
           @input="() => emit('passport-format')"
           @blur="() => emit('passport-format')"
         />
+        <div v-if="!isForeignResidence" class="mt-1 text-xs text-gray-500">
+          Только латинские буквы A–Z и цифры. Пример: <strong>AA 1234567</strong>
+        </div>
       </el-form-item>
 
       <el-form-item label="Дата выдачи" required :error="errors.passport_issue_date">
