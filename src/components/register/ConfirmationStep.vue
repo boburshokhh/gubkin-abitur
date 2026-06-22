@@ -4,7 +4,7 @@
       <template #header>
         <span class="font-medium">Личные данные</span>
       </template>
-      <el-descriptions :column="2" border>
+      <el-descriptions :column="descriptionColumn" border>
         <el-descriptions-item label="Ф.И.О.">{{ modelValue.lastName }} {{ modelValue.firstName }} {{ modelValue.middleName }}</el-descriptions-item>
         <el-descriptions-item label="Дата рождения">{{ formatDate(modelValue.birthDate) }}</el-descriptions-item>
         <el-descriptions-item label="Регион">{{ getRegionName(modelValue.region_id) }}</el-descriptions-item>
@@ -20,7 +20,7 @@
       <template #header>
         <span class="font-medium">Паспортные данные</span>
       </template>
-      <el-descriptions :column="2" border>
+      <el-descriptions :column="descriptionColumn" border>
         <el-descriptions-item label="Серия и номер">{{ modelValue.passport_series }}</el-descriptions-item>
         <el-descriptions-item label="Дата выдачи">{{ formatDate(modelValue.passport_issue_date) }}</el-descriptions-item>
         <el-descriptions-item label="Кем выдан">{{ modelValue.passport_issued_by }}</el-descriptions-item>
@@ -31,7 +31,7 @@
       <template #header>
         <span class="font-medium">Образование</span>
       </template>
-      <el-descriptions :column="2" border>
+      <el-descriptions :column="descriptionColumn" border>
         <el-descriptions-item label="Уровень образования">{{ getEducationLevelName(modelValue.education_level) }}</el-descriptions-item>
         <el-descriptions-item label="Учебное заведение">{{ modelValue.education_institution }}</el-descriptions-item>
         <el-descriptions-item label="Год окончания">{{ modelValue.education_graduation_year }}</el-descriptions-item>
@@ -116,7 +116,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref, onBeforeUnmount } from 'vue';
 import FileUploadField from './FileUploadField.vue';
 import { useApplicationStore } from '@/stores/application';
 
@@ -154,6 +154,18 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'file-change', 'file-view', 'file-reset']);
 
 const appStore = useApplicationStore();
+
+const isMobileWidth = ref(typeof window !== 'undefined' && window.innerWidth < 640);
+function handleResize() {
+  isMobileWidth.value = window.innerWidth < 640;
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', handleResize);
+}
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') window.removeEventListener('resize', handleResize);
+});
+const descriptionColumn = computed(() => isMobileWidth.value ? 1 : 2);
 
 function updateField(key, value) {
   emit('update:modelValue', {

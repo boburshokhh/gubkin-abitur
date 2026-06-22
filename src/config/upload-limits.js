@@ -1,3 +1,5 @@
+import { extractUploadBlob } from '@/utils/upload-file'
+
 /** Лимиты загрузки файлов заявления (синхронизировать с backend/src/config/upload-limits.js) */
 const MB = 1024 * 1024;
 
@@ -13,17 +15,28 @@ export function formatFileSize(bytes) {
 }
 
 export function getTotalFilesSize(files = {}) {
-  return Object.values(files).reduce((sum, file) => sum + (file?.size || 0), 0);
+  return Object.values(files).reduce((sum, file) => {
+    const blob = extractUploadBlob(file)
+    return sum + (blob?.size || 0)
+  }, 0);
 }
 
 export function validateApplicationFiles(files = {}) {
   const entries = Object.entries(files).filter(([, file]) => Boolean(file));
 
   for (const [field, file] of entries) {
-    if (file.size > MAX_APPLICATION_FILE_BYTES) {
+    const blob = extractUploadBlob(file)
+    if (!blob || !blob.size) {
       return {
         isValid: false,
-        error: `Файл «${field}» (${formatFileSize(file.size)}) превышает лимит ${MAX_APPLICATION_FILE_MB} МБ на один файл.`
+        error: `Файл «${field}» не выбран или пустой. Загрузите его снова перед отправкой.`
+      };
+    }
+
+    if (blob.size > MAX_APPLICATION_FILE_BYTES) {
+      return {
+        isValid: false,
+        error: `Файл «${field}» (${formatFileSize(blob.size)}) превышает лимит ${MAX_APPLICATION_FILE_MB} МБ на один файл.`
       };
     }
   }

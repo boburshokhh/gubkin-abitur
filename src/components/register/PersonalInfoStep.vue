@@ -67,9 +67,13 @@
         <el-input
           :model-value="modelValue.phone"
           :placeholder="modelValue.isForeignResidence ? '+71234567890' : '+998 90 123 45 67'"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel"
           clearable
           @update:model-value="updateField('phone', $event)"
           @input="() => emit('phone-format', 'phone')"
+          @blur="() => emit('phone-format', 'phone')"
         />
       </el-form-item>
 
@@ -77,9 +81,13 @@
         <el-input
           :model-value="modelValue.parentPhone"
           :placeholder="modelValue.isForeignResidence ? '+71234567890' : '+998 90 123 45 67'"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel"
           clearable
           @update:model-value="updateField('parentPhone', $event)"
           @input="() => emit('phone-format', 'parentPhone')"
+          @blur="() => emit('phone-format', 'parentPhone')"
         />
       </el-form-item>
     </div>

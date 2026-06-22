@@ -45,7 +45,8 @@ app.use((req, res, next) => {
       userAgent: req.get('user-agent') || null,
       ...(req.originalUrl.includes('/submit/file') ? {
         uploadField: req.body?.field_key || req.body?.fieldKey || null,
-        contentLength: Number(req.headers['content-length']) || null
+        contentLength: Number(req.headers['content-length']) || null,
+        contentType: req.headers['content-type'] || null
       } : {})
     }));
   });

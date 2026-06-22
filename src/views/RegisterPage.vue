@@ -5,20 +5,17 @@
   <!-- Если прием открыт, показываем форму -->
   <div v-else class="min-h-screen bg-slate-50">
     <!-- Заголовок страницы -->
-    <section class="py-10 md:py-16 bg-gradient-to-r from-primary-600 to-primary-800 text-white">
-      <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="max-w-4xl mx-auto">
-          <h1 class="text-3xl md:text-4xl font-bold mb-4">
-            Подача документов
-          </h1>
-        </div>
+    <section class="py-6 sm:py-10 md:py-16 bg-gradient-to-r from-primary-600 to-primary-800 text-white">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold">
+          Подача документов
+        </h1>
       </div>
     </section>
 
     <!-- Содержимое страницы -->
-    <section class="py-12 md:py-16">
-      <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="max-w-3xl mx-auto">
+    <section class="py-6 sm:py-10 md:py-16">
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <!-- Прогресс -->
           <ProgressBar 
             :currentStep="currentStep" 
@@ -53,12 +50,14 @@
           <!-- Форма подачи заявления -->
           <el-card v-if="!isSubmitted" class="register-card" shadow="always">
             <template #header>
-              <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex items-center justify-between gap-2">
                 <div>
-                  <p class="text-sm text-gray-500">Шаг {{ currentStep }} из {{ totalSteps }}</p>
-                  <h2 class="text-xl font-bold text-gray-900">{{ stepTitle }}</h2>
+                  <p class="text-xs text-gray-500 sm:text-sm">Шаг {{ currentStep }} из {{ totalSteps }}</p>
+                  <h2 class="text-lg font-bold text-gray-900 sm:text-xl">{{ stepTitle }}</h2>
                 </div>
-                <el-tag type="primary" effect="light">{{ Math.round((currentStep / totalSteps) * 100) }}% завершено</el-tag>
+                <el-tag type="primary" effect="light" class="hidden sm:inline-flex">
+                  {{ Math.round((currentStep / totalSteps) * 100) }}% завершено
+                </el-tag>
               </div>
             </template>
             
@@ -120,35 +119,36 @@
             />
             
             <!-- Кнопки навигации -->
-            <div class="mt-8 flex justify-between">
+            <div class="mt-6 flex flex-col-reverse gap-3 sm:mt-8 sm:flex-row sm:justify-between">
               <el-button
                 v-if="currentStep > 1"
                 size="large"
+                class="w-full sm:w-auto"
                 @click="prevStep"
               >
                 Назад
               </el-button>
-              <div v-else></div>
-              
-              <div>
-                <el-button
-                  v-if="currentStep < totalSteps" 
-                  type="primary"
-                  size="large"
-                  @click="nextStep"
-                >
-                  Далее
-                </el-button>
-                <el-button
-                  v-else 
-                  type="primary"
-                  size="large"
-                  @click="submitForm"
-                  :loading="isSubmitting"
-                >
-                  Отправить заявление
-                </el-button>
-              </div>
+              <div v-else class="hidden sm:block" />
+
+              <el-button
+                v-if="currentStep < totalSteps"
+                type="primary"
+                size="large"
+                class="w-full sm:w-auto"
+                @click="nextStep"
+              >
+                Далее
+              </el-button>
+              <el-button
+                v-else
+                type="primary"
+                size="large"
+                class="w-full sm:w-auto"
+                @click="submitForm"
+                :loading="isSubmitting"
+              >
+                Отправить заявление
+              </el-button>
             </div>
           </el-card>
           
@@ -157,7 +157,6 @@
             v-if="isSubmitted"
             :applicationNumber="applicationNumber"
           />
-        </div>
       </div>
     </section>
   </div>
@@ -270,23 +269,36 @@ function validatePhoneValue(value, label) {
     return '';
   }
 
-  if (getDigits(value).replace(/^998/, '').length !== 9) return `${label}: введите корректный номер Узбекистана.`;
+  // Нормализуем перед проверкой — autofill/paste на мобильных может не вызвать @input
+  const digits = getDigits(value).replace(/^998/, '');
+  if (digits.length !== 9) return `${label}: введите корректный номер Узбекистана.`;
   return '';
 }
 
 function validatePassportValue(value) {
   if (!value?.trim()) return 'Серия и номер паспорта обязательны для заполнения.';
 
+  // Нормализуем перед проверкой — учитывает строчные буквы и отсутствие пробела
+  const normalized = normalizePassportSeries(value, isForeignResidenceSelected());
+
   if (isForeignResidenceSelected()) {
-    if (!foreignPassportPattern.test(value.trim())) return 'Введите корректный номер паспорта: 5-20 символов, латиница, цифры, пробел или дефис.';
+    if (!foreignPassportPattern.test(normalized.trim())) return 'Введите корректный номер паспорта: 5-20 символов, латиница, цифры, пробел или дефис.';
     return '';
   }
 
-  if (!uzbekPassportPattern.test(value.trim())) return 'Введите серию паспорта в формате AA 1234567.';
+  if (!uzbekPassportPattern.test(normalized.trim())) return 'Введите серию паспорта в формате AA 1234567.';
   return '';
 }
 
+function prepareFieldsForValidation() {
+  phoneFields.forEach(f => formatPhoneNumber(f));
+  formatPassportSeries();
+}
+
 function validateSelectedFile(file, fieldName) {
+  if (!(file instanceof Blob)) return 'Не удалось прочитать файл. Выберите его снова.';
+  if (!file.size) return 'Файл пустой. Выберите другой файл.';
+
   const rule = fileRules[fieldName] || {
     types: ['image/jpeg', 'image/png', 'application/pdf'],
     extensions: ['.jpg', '.jpeg', '.png', '.pdf'],
@@ -394,6 +406,7 @@ const stepTitle = computed(() => {
 
 // Валидация текущего шага
 function validateStep() {
+  prepareFieldsForValidation();
   errors.value = {};
   const f = form.value;
   
@@ -425,11 +438,10 @@ function validateStep() {
     if (!f.passport_issued_by?.trim()) errors.value.passport_issued_by = 'Орган, выдавший паспорт, обязателен для заполнения.';
     
     // Проверка загрузки файла паспорта
-    if (!f.passportScan && !filePreview.value.passportScan) {
+    if (!(f.passportScan instanceof Blob) || !f.passportScan.size) {
       errors.value.passportScan = 'Загрузка скана паспорта обязательна.';
     }
-    // Проверка загрузки перевода паспорта
-    if (!f.passportTranslation && !filePreview.value.passportTranslation) {
+    if (!(f.passportTranslation instanceof Blob) || !f.passportTranslation.size) {
       errors.value.passportTranslation = 'Загрузка нотариально заверенного перевода паспорта обязательна.';
     }
     
@@ -442,10 +454,10 @@ function validateStep() {
     if (!f.education_document_date) errors.value.education_document_date = 'Дата выдачи документа об образовании обязательна для заполнения.';
     
     // Проверка обязательных файлов
-    if (!f.photoFile && !filePreview.value.photoFile) {
+    if (!(f.photoFile instanceof Blob) || !f.photoFile.size) {
       errors.value.photoFile = 'Загрузка фотографии 3х4 см обязательна.';
     }
-    if (!f.educationScan && !filePreview.value.educationScan) {
+    if (!(f.educationScan instanceof Blob) || !f.educationScan.size) {
       errors.value.educationScan = 'Загрузка документа об образовании обязательна.';
     }
     
@@ -472,8 +484,19 @@ function validateStep() {
       errors.value.funding_form = 'Форма финансирования обязательна для заполнения.';
     }
   } else if (currentStep.value === 5) {
-    // На шаге подтверждения: если выбран олимпиады, сертификат обязателен
-    if (f.olympiad_participant && !f.olympiadCertificate && !filePreview.value.olympiadCertificate) {
+    if (!(f.passportScan instanceof Blob) || !f.passportScan.size) {
+      errors.value.passportScan = 'Загрузка скана паспорта обязательна.';
+    }
+    if (!(f.passportTranslation instanceof Blob) || !f.passportTranslation.size) {
+      errors.value.passportTranslation = 'Загрузка нотариально заверенного перевода паспорта обязательна.';
+    }
+    if (!(f.photoFile instanceof Blob) || !f.photoFile.size) {
+      errors.value.photoFile = 'Загрузка фотографии 3х4 см обязательна.';
+    }
+    if (!(f.educationScan instanceof Blob) || !f.educationScan.size) {
+      errors.value.educationScan = 'Загрузка документа об образовании обязательна.';
+    }
+    if (f.olympiad_participant && (!(f.olympiadCertificate instanceof Blob) || !f.olympiadCertificate.size)) {
       errors.value.olympiadCertificate = 'Загрузка сертификата олимпиады обязательна.';
     }
   }
@@ -507,8 +530,8 @@ const isCurrentStepValid = computed(() => {
       !validatePassportValue(f.passport_series) &&
       f.passport_issue_date &&
       f.passport_issued_by?.trim() &&
-      (f.passportScan || filePreview.value.passportScan) &&
-      (f.passportTranslation || filePreview.value.passportTranslation)
+      (f.passportScan instanceof Blob && f.passportScan.size > 0) &&
+      (f.passportTranslation instanceof Blob && f.passportTranslation.size > 0)
     );
   } else if (currentStep.value === 3) {
     const currentYear = new Date().getFullYear();
@@ -522,8 +545,8 @@ const isCurrentStepValid = computed(() => {
       isYearValid &&
       f.education_document_number?.trim() &&
       f.education_document_date &&
-      (f.photoFile || filePreview.value.photoFile) &&
-      (f.educationScan || filePreview.value.educationScan)
+      (f.photoFile instanceof Blob && f.photoFile.size > 0) &&
+      (f.educationScan instanceof Blob && f.educationScan.size > 0)
     );
   } else if (currentStep.value === 4) {
     return !!(
@@ -535,7 +558,7 @@ const isCurrentStepValid = computed(() => {
   } else if (currentStep.value === 5) {
     // На шаге подтверждения: если выбран олимпиады, сертификат обязателен
     if (f.olympiad_participant) {
-      return !!(f.olympiadCertificate || filePreview.value.olympiadCertificate);
+      return !!(f.olympiadCertificate instanceof Blob && f.olympiadCertificate.size > 0);
     }
     return true;
   }

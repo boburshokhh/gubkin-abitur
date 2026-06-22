@@ -201,8 +201,9 @@ async function uploadDraftFile({ applicationId, userId, fieldKey, file }) {
   }
 
   if (!file?.buffer?.length) {
-    const err = new Error('Файл пустой или не был получен сервером');
+    const err = new Error('Файл пустой или не был получен сервером. Выберите файл снова и повторите отправку.');
     err.status = 400;
+    err.code = 'UPLOAD_EMPTY_FILE';
     throw err;
   }
 

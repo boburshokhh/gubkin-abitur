@@ -14,9 +14,13 @@
         <el-input
           :model-value="modelValue.passport_series"
           :placeholder="isForeignResidence ? 'A12345678' : 'AA 1234567'"
+          autocapitalize="characters"
+          autocomplete="off"
+          spellcheck="false"
           clearable
           @update:model-value="updateField('passport_series', $event)"
           @input="() => emit('passport-format')"
+          @blur="() => emit('passport-format')"
         />
       </el-form-item>
 

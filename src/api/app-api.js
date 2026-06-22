@@ -3,6 +3,7 @@ import {
   MAX_APPLICATION_FILE_MB,
   MAX_APPLICATION_SUBMIT_TOTAL_MB
 } from '@/config/upload-limits'
+import { isUploadableBlob, resolveUploadFile } from '@/utils/upload-file'
 
 // Инициализация Axios-клиента для работы с кастомным Express бэкендом
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
@@ -25,6 +26,13 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
+  }
+  if (config.data instanceof FormData) {
+    if (typeof config.headers.delete === 'function') {
+      config.headers.delete('Content-Type')
+    } else {
+      delete config.headers['Content-Type']
+    }
   }
   return config
 }, (error) => {
@@ -152,7 +160,8 @@ async function ensureFreshSessionForUpload() {
 
 function buildSubmitFileFormData(fieldKey, file) {
   const formData = new FormData()
-  formData.append('file', file)
+  const fileName = file.name || 'upload'
+  formData.append('file', file, fileName)
   formData.append('field_key', fieldKey)
   return formData
 }
@@ -160,9 +169,12 @@ function buildSubmitFileFormData(fieldKey, file) {
 async function uploadSubmitFile({ applicationId, fieldKey, file, onUploadProgress }) {
   await ensureFreshSessionForUpload()
 
+  const fieldLabel = SUBMIT_FILE_LABELS[fieldKey] || fieldKey
+  const resolvedFile = await resolveUploadFile(file, fieldLabel)
+
   const response = await apiClient.post(
     `/applications/${applicationId}/submit/file`,
-    buildSubmitFileFormData(fieldKey, file),
+    buildSubmitFileFormData(fieldKey, resolvedFile),
     {
       timeout: SUBMIT_UPLOAD_TIMEOUT_MS,
       maxContentLength: Infinity,
@@ -225,10 +237,29 @@ function mapSubmitUploadError(err, { applicationId, fieldKey } = {}) {
   }
 
   if (!err.response) {
+    if (err.code === 'UPLOAD_FILE_INVALID') {
+      return {
+        ...base,
+        error: err.message,
+        code: err.code,
+        fieldKey
+      }
+    }
+
     return {
       ...base,
       error: `Сетевая ошибка при загрузке «${fieldLabel}». Проверьте соединение и нажмите «Отправить» ещё раз — уже загруженные файлы сохранены.`,
       code: 'NETWORK_ERROR',
+      fieldKey
+    }
+  }
+
+  if (status === 400 && responseData.error?.includes('пустой')) {
+    return {
+      ...base,
+      error: `Файл «${fieldLabel}» не дошёл до сервера. Выберите файл снова и повторите отправку.`,
+      code: responseData.code || 'UPLOAD_EMPTY_FILE',
+      status: 400,
       fieldKey
     }
   }
@@ -583,7 +614,7 @@ export const applications = {
       { key: 'education_scan', label: 'Загрузка документа об образовании...' },
       { key: 'olympiad_certificate', label: 'Загрузка сертификата олимпиады...' }
     ]
-    const filesToUpload = fileFields.filter(({ key }) => files[key])
+    const filesToUpload = fileFields.filter(({ key }) => isUploadableBlob(files[key]))
     const totalSteps = 2 + filesToUpload.length
     let step = 0
     let applicationId = null
