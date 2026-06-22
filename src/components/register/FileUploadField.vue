@@ -30,15 +30,13 @@
       <el-card v-if="preview" class="mt-3" shadow="never">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="flex min-w-0 items-center gap-3">
-            <!-- Изображение: показываем thumbnail -->
-            <el-image
-              v-if="isImagePreview"
+            <img
+              v-if="showImageThumbnail"
               :src="preview.url"
-              fit="contain"
-              class="h-16 w-16 flex-shrink-0 rounded border bg-gray-50"
-              :preview-src-list="[preview.url]"
+              :alt="preview.name"
+              class="h-16 w-16 flex-shrink-0 rounded border bg-gray-50 object-contain"
+              @error="imageLoadFailed = true"
             />
-            <!-- PDF или другой файл: иконка документа -->
             <div
               v-else
               class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded border bg-red-50"
@@ -66,7 +64,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Document, UploadFilled } from '@element-plus/icons-vue';
 import { MAX_APPLICATION_FILE_MB, MAX_APPLICATION_SUBMIT_TOTAL_MB } from '@/config/upload-limits';
 
@@ -103,14 +101,29 @@ const props = defineProps({
 
 const emit = defineEmits(['change', 'view', 'reset']);
 
+const imageLoadFailed = ref(false);
+
+watch(
+  () => props.preview?.url,
+  () => {
+    imageLoadFailed.value = false;
+  }
+);
+
 const isMobile = computed(() => {
   if (typeof window === 'undefined') return false;
   return window.matchMedia('(max-width: 639px)').matches;
 });
 
 const isImagePreview = computed(() => {
-  return Boolean(props.preview?.url && props.preview?.type?.startsWith('image/'));
+  if (!props.preview?.url) return false;
+  if (props.preview.type?.startsWith('image/')) return true;
+  if (String(props.preview.url).startsWith('data:image/')) return true;
+  const name = props.preview.name?.toLowerCase() || '';
+  return ['.jpg', '.jpeg', '.png', '.webp', '.gif'].some((ext) => name.endsWith(ext));
 });
+
+const showImageThumbnail = computed(() => isImagePreview.value && !imageLoadFailed.value);
 
 const isPdfPreview = computed(() => {
   return Boolean(
@@ -128,14 +141,16 @@ const acceptDescription = computed(() => {
 });
 
 function handleFileChange(uploadFile) {
-  const file = uploadFile.raw;
-  if (!file) return;
+  const file = uploadFile?.raw ?? uploadFile;
+  if (!(file instanceof Blob)) return;
   emit('change', file);
 }
 
 function handleExceed(files) {
-  const [file] = files;
-  if (file) emit('change', file.raw || file);
+  const uploadFile = files[0];
+  if (!uploadFile) return;
+  const file = uploadFile.raw ?? uploadFile;
+  if (file instanceof Blob) emit('change', file);
 }
 </script>
 

@@ -11,6 +11,45 @@ export function isUploadableBlob(file) {
   return Boolean(blob && blob.size > 0)
 }
 
+export function isImageBlob(blob) {
+  if (!blob) return false
+  if (blob.type?.startsWith('image/')) return true
+  const name = blob.name?.toLowerCase() || ''
+  return ['.jpg', '.jpeg', '.png', '.webp', '.gif'].some((ext) => name.endsWith(ext))
+}
+
+export async function materializeUploadFile(file) {
+  const blob = extractUploadBlob(file)
+  if (!blob) {
+    throw new Error('Не удалось прочитать файл. Выберите его снова.')
+  }
+
+  const name = blob.name || 'upload'
+  const type = blob.type || 'application/octet-stream'
+
+  let buffer
+  try {
+    buffer = await blob.arrayBuffer()
+  } catch {
+    buffer = null
+  }
+
+  if (!buffer?.byteLength) {
+    throw new Error('Файл пустой или недоступен. Выберите файл снова на устройстве.')
+  }
+
+  return new File([buffer], name, { type })
+}
+
+export function readBlobAsDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('Не удалось создать превью изображения.'))
+    reader.readAsDataURL(blob)
+  })
+}
+
 export async function resolveUploadFile(file, label = 'файл') {
   const blob = extractUploadBlob(file)
   if (!blob) {

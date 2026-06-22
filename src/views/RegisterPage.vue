@@ -188,6 +188,11 @@ import {
   validateApplicationFiles,
   formatFileSize
 } from '@/config/upload-limits';
+import {
+  isImageBlob,
+  materializeUploadFile,
+  readBlobAsDataUrl
+} from '@/utils/upload-file';
 
 const appStore = useApplicationStore();
 const authStore = useAuthStore();
@@ -752,30 +757,31 @@ const filePreview = ref({});
 // Обработка файлов
 const onFileChange = async (file, fieldName) => {
   if (!file) return;
-  
+
   try {
     fileUploading.value[fieldName] = true;
-    
+
     const fileError = validateSelectedFile(file, fieldName);
     if (fileError) throw new Error(fileError);
-    
-    form.value[fieldName] = file;
-    
-    if (file.type.includes('image')) {
-      const fileUrl = URL.createObjectURL(file);
+
+    const inMemory = await materializeUploadFile(file);
+    form.value[fieldName] = inMemory;
+
+    if (isImageBlob(inMemory)) {
+      const dataUrl = await readBlobAsDataUrl(inMemory);
       filePreview.value[fieldName] = {
-        url: fileUrl,
-        type: file.type,
-        name: file.name
+        url: dataUrl,
+        type: inMemory.type || 'image/jpeg',
+        name: inMemory.name
       };
     } else {
       filePreview.value[fieldName] = {
         url: null,
-        type: file.type,
-        name: file.name
+        type: inMemory.type,
+        name: inMemory.name
       };
     }
-    
+
     if (errors.value[fieldName]) {
       delete errors.value[fieldName];
     }
@@ -792,23 +798,15 @@ const onFileChange = async (file, fieldName) => {
 const viewFile = (fieldName) => {
   const file = form.value[fieldName];
   if (!file) return;
-  
-  if (filePreview.value[fieldName]?.url) {
-    window.open(filePreview.value[fieldName].url, '_blank');
-  } else {
-    const fileUrl = URL.createObjectURL(file);
-    window.open(fileUrl, '_blank');
-  }
+
+  const objectUrl = URL.createObjectURL(file);
+  window.open(objectUrl, '_blank');
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 };
 
 // Сброс файла
 const resetFile = (fieldName) => {
   form.value[fieldName] = null;
-  
-  if (filePreview.value[fieldName]?.url) {
-    URL.revokeObjectURL(filePreview.value[fieldName].url);
-  }
-  
   filePreview.value[fieldName] = null;
 };
 
