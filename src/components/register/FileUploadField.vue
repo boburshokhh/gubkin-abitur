@@ -1,6 +1,11 @@
 <template>
-  <el-form-item :label="label" :required="required" :error="error">
-    <div class="w-full">
+  <el-form-item
+    class="file-upload-field"
+    :label="label"
+    :required="required"
+    :error="error"
+  >
+    <div class="w-full min-w-0">
       <el-upload
         class="w-full"
         drag
@@ -135,36 +140,57 @@ function handleExceed(files) {
 </script>
 
 <style scoped>
-:deep(.el-form-item) {
-  display: block;
+.file-upload-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   margin-bottom: 18px;
 }
 
-:deep(.el-form-item__label) {
+.file-upload-field :deep(.el-form-item__label) {
   justify-content: flex-start;
+  align-self: stretch;
+  width: 100% !important;
+  max-width: 100%;
   height: auto;
   margin-bottom: 8px;
+  padding: 0;
   color: #374151;
   font-weight: 500;
   line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
 }
 
-:deep(.el-form-item__content) {
+.file-upload-field :deep(.el-form-item__content) {
   display: block;
   width: 100%;
+  max-width: 100%;
+  margin-left: 0 !important;
 }
 
-:deep(.el-upload),
-:deep(.el-upload-dragger) {
+.file-upload-field :deep(.el-upload),
+.file-upload-field :deep(.el-upload-dragger) {
   width: 100%;
 }
 
-/* На мобильном чуть меньше высота зоны загрузки */
+.file-upload-field :deep(.el-upload__text) {
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.file-upload-field :deep(.el-upload__tip) {
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: normal;
+}
+
 @media (max-width: 639px) {
-  :deep(.el-upload-dragger) {
+  .file-upload-field :deep(.el-upload-dragger) {
     padding: 16px 12px;
   }
-  :deep(.el-icon--upload) {
+
+  .file-upload-field :deep(.el-icon--upload) {
     font-size: 36px;
     margin-bottom: 8px;
   }

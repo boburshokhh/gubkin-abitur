@@ -99,11 +99,12 @@
         </label>
 
         <!-- Блок загрузки сертификата (появляется при отметке) -->
-        <div v-if="modelValue.olympiad_participant" class="rounded-lg border border-yellow-200 bg-yellow-50 p-4 space-y-4">
+        <div v-if="modelValue.olympiad_participant" class="min-w-0 rounded-lg border border-yellow-200 bg-yellow-50 p-4 space-y-4">
           <div class="flex items-start gap-2 text-sm text-yellow-800">
             <el-icon class="mt-0.5 flex-shrink-0"><Warning /></el-icon>
-            <span>Загрузите цветную копию диплома победителя, призёра или участника олимпиады. Файл должен быть <strong>PDF</strong>.</span>
+            <span class="min-w-0 break-words">Загрузите цветную копию диплома победителя, призёра или участника олимпиады. Файл должен быть <strong>PDF</strong>.</span>
           </div>
+          <el-form label-position="top" class="olympiad-upload-form">
           <FileUploadField
             fieldName="olympiadCertificate"
             label="Сертификат / диплом олимпиады"
@@ -116,6 +117,7 @@
             @view="() => emit('file-view', 'olympiadCertificate')"
             @reset="() => emit('file-reset', 'olympiadCertificate')"
           />
+          </el-form>
         </div>
       </div>
     </el-card>
@@ -256,6 +258,14 @@ function getProfileExams(profileId) {
 <style scoped>
 .confirmation-exams-alert {
   margin-top: 12px;
+}
+
+.olympiad-upload-form {
+  min-width: 0;
+}
+
+.olympiad-upload-form :deep(.file-upload-field) {
+  margin-bottom: 0;
 }
 
 /* Мобильный паддинг карточек */
