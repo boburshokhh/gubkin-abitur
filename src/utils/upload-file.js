@@ -79,24 +79,38 @@ function isLikelyCameraPhoto(blob) {
 async function readBlobBufferOnce(blob) {
   try {
     const buffer = await blob.arrayBuffer()
-    if (buffer?.byteLength) return buffer
-  } catch {
+    if (buffer && buffer.byteLength > 0) {
+      return buffer
+    }
+    if (buffer && buffer.byteLength === 0) {
+      const err = new Error('Empty buffer')
+      err.name = 'EmptyBufferError'
+      throw err
+    }
+  } catch (err) {
+    if (err.name === 'SecurityError' || err.name === 'NotReadableError' || err.name === 'EmptyBufferError') {
+      throw err
+    }
     // Android иногда отдаёт файл только через FileReader
   }
 
-  try {
-    const buffer = await new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = () => reject(reader.error || new Error('FileReader failed'))
-      reader.readAsArrayBuffer(blob)
-    })
-    if (buffer?.byteLength) return buffer
-  } catch {
-    return null
-  }
-
-  return null
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const res = reader.result
+      if (res && res.byteLength > 0) {
+        resolve(res)
+      } else {
+        const err = new Error('Empty file')
+        err.name = 'EmptyBufferError'
+        reject(err)
+      }
+    }
+    reader.onerror = () => {
+      reject(reader.error || new Error('FileReader failed'))
+    }
+    reader.readAsArrayBuffer(blob)
+  })
 }
 
 async function readBlobBuffer(blob, { retryForCamera = false } = {}) {
@@ -104,12 +118,26 @@ async function readBlobBuffer(blob, { retryForCamera = false } = {}) {
     ? READ_RETRY_DELAYS_MS
     : [0]
 
+  let lastError = null
   for (const delayMs of delays) {
-    if (delayMs > 0) await sleep(delayMs)
-    const buffer = await readBlobBufferOnce(blob)
-    if (buffer) return buffer
+    if (delayMs > 0) {
+      await sleep(delayMs)
+    }
+    try {
+      const buffer = await readBlobBufferOnce(blob)
+      if (buffer) return buffer
+    } catch (err) {
+      lastError = err
+      if (err.name === 'SecurityError' || err.name === 'NotReadableError') {
+        // Логгируем для отладки, но продолжаем попытки в случае задержки синхронизации ОС
+        console.warn('Read attempt failed with security/permission error:', err.name)
+      }
+    }
   }
 
+  if (lastError) {
+    throw lastError
+  }
   return null
 }
 
@@ -122,13 +150,24 @@ export async function materializeUploadFile(file, { retryForCamera = false } = {
   const name = blob.name || 'upload'
   const type = blob.type || inferMimeFromExtension(blob) || 'application/octet-stream'
   const shouldRetry = retryForCamera || isLikelyCameraPhoto(blob)
-  const buffer = await readBlobBuffer(blob, { retryForCamera: shouldRetry })
 
-  if (!buffer) {
-    throw new Error('Файл пустой или недоступен. Выберите файл снова на устройстве.')
+  try {
+    const buffer = await readBlobBuffer(blob, { retryForCamera: shouldRetry })
+    if (!buffer) {
+      throw new Error('Файл пустой или недоступен.')
+    }
+    return new File([buffer], name, { type })
+  } catch (err) {
+    console.error('Materialization of file failed:', err)
+    
+    if (shouldRetry || isLikelyCameraPhoto(blob) || err.name === 'SecurityError' || err.name === 'NotReadableError') {
+      throw new Error(
+        'Не удалось получить доступ к фото на Android из-за ограничений разрешений системы. Пожалуйста, сделайте снимок через стандартную Камеру телефона, а затем выберите готовый файл из Галереи (папка Недавние или Альбомы).'
+      )
+    }
+    
+    throw new Error(err.message || 'Файл пустой или недоступен. Выберите файл снова.')
   }
-
-  return new File([buffer], name, { type })
 }
 
 export function readBlobAsDataUrl(blob) {
