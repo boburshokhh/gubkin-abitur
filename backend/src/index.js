@@ -42,7 +42,11 @@ app.use((req, res, next) => {
       status: res.statusCode,
       durationMs: Number(durationMs.toFixed(1)),
       ip,
-      userAgent: req.get('user-agent') || null
+      userAgent: req.get('user-agent') || null,
+      ...(req.originalUrl.includes('/submit/file') ? {
+        uploadField: req.body?.field_key || req.body?.fieldKey || null,
+        contentLength: Number(req.headers['content-length']) || null
+      } : {})
     }));
   });
 

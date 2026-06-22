@@ -34,7 +34,12 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use((response) => response, async (error) => {
   const originalRequest = error.config
   const isAuthRefresh = originalRequest?.url?.includes('/auth/refresh')
-  const shouldRefresh = error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRefresh
+  const isMultipartUpload = originalRequest?.data instanceof FormData
+  const shouldRefresh = error.response?.status === 401
+    && originalRequest
+    && !originalRequest._retry
+    && !isAuthRefresh
+    && !isMultipartUpload
 
   if (!shouldRefresh) return Promise.reject(error)
 
@@ -109,6 +114,132 @@ async function handleDownloadError(err) {
   const apiError = new Error(message)
   apiError.status = err.response?.status
   return { data: null, error: apiError }
+}
+
+const SUBMIT_FILE_LABELS = {
+  passport_scan: 'скан паспорта',
+  passport_translation: 'перевод паспорта',
+  photo: 'фотография',
+  education_scan: 'документ об образовании',
+  olympiad_certificate: 'сертификат олимпиады'
+}
+
+const UPLOAD_RETRY_ATTEMPTS = 3
+const UPLOAD_RETRY_DELAYS_MS = [2000, 4000]
+const SUBMIT_UPLOAD_TIMEOUT_MS = 900000
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isRetryableUploadError(err) {
+  if (!err) return false
+  if (!err.response) return true
+  if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) return true
+  const status = err.response.status
+  return status === 401 || status === 408 || status === 429 || status >= 500
+}
+
+async function ensureFreshSessionForUpload() {
+  const { data, error } = await auth.refreshSession()
+  if (error || !data?.session?.access_token) {
+    const sessionError = new Error('Сессия истекла. Войдите снова и повторите отправку заявления.')
+    sessionError.code = 'SESSION_EXPIRED'
+    sessionError.status = 401
+    throw sessionError
+  }
+}
+
+function buildSubmitFileFormData(fieldKey, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('field_key', fieldKey)
+  return formData
+}
+
+async function uploadSubmitFile({ applicationId, fieldKey, file, onUploadProgress }) {
+  await ensureFreshSessionForUpload()
+
+  const response = await apiClient.post(
+    `/applications/${applicationId}/submit/file`,
+    buildSubmitFileFormData(fieldKey, file),
+    {
+      timeout: SUBMIT_UPLOAD_TIMEOUT_MS,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      onUploadProgress
+    }
+  )
+
+  return response.data
+}
+
+async function uploadSubmitFileWithRetry({ applicationId, fieldKey, file, onUploadProgress }) {
+  let lastError = null
+
+  for (let attempt = 1; attempt <= UPLOAD_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      return await uploadSubmitFile({ applicationId, fieldKey, file, onUploadProgress })
+    } catch (err) {
+      lastError = err
+      if (!isRetryableUploadError(err) || attempt === UPLOAD_RETRY_ATTEMPTS) throw err
+      await sleep(UPLOAD_RETRY_DELAYS_MS[attempt - 1] ?? 4000)
+    }
+  }
+
+  throw lastError
+}
+
+function mapSubmitUploadError(err, { applicationId, fieldKey } = {}) {
+  const responseData = err.response?.data || {}
+  const status = err.response?.status
+  const fieldLabel = SUBMIT_FILE_LABELS[fieldKey] || fieldKey
+  const base = { applicationId }
+
+  if (err.code === 'SESSION_EXPIRED') {
+    return {
+      ...base,
+      error: err.message,
+      code: err.code,
+      status: err.status
+    }
+  }
+
+  if (status === 413) {
+    return {
+      ...base,
+      error: responseData.error || `Файл «${fieldLabel}» слишком большой (макс. ${MAX_APPLICATION_FILE_MB} МБ).`,
+      code: responseData.code || 'PAYLOAD_TOO_LARGE',
+      status: 413
+    }
+  }
+
+  if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+    return {
+      ...base,
+      error: `Превышено время загрузки файла «${fieldLabel}». Проверьте интернет и попробуйте снова.`,
+      code: 'UPLOAD_TIMEOUT',
+      status: 408,
+      fieldKey
+    }
+  }
+
+  if (!err.response) {
+    return {
+      ...base,
+      error: `Сетевая ошибка при загрузке «${fieldLabel}». Проверьте соединение и нажмите «Отправить» ещё раз — уже загруженные файлы сохранены.`,
+      code: 'NETWORK_ERROR',
+      fieldKey
+    }
+  }
+
+  return {
+    ...base,
+    error: responseData.error || err.message,
+    code: responseData.code,
+    status,
+    fieldKey
+  }
 }
 
 // 1. АУТЕНТИФИКАЦИЯ (Auth)
@@ -444,95 +575,107 @@ export const applications = {
    * Пошаговая подача: метаданные → каждый файл отдельным запросом → финализация.
    * Обходит лимит nginx на размер одного multipart-запроса.
    */
-  async submitWithFiles(applicationData, files, { onProgress } = {}) {
-    const uploadTimeout = 900000;
+  async submitWithFiles(applicationData, files, { onProgress, onUploadProgress } = {}) {
     const fileFields = [
       { key: 'passport_scan', label: 'Загрузка скана паспорта...' },
       { key: 'passport_translation', label: 'Загрузка перевода паспорта...' },
       { key: 'photo', label: 'Загрузка фотографии...' },
       { key: 'education_scan', label: 'Загрузка документа об образовании...' },
       { key: 'olympiad_certificate', label: 'Загрузка сертификата олимпиады...' }
-    ];
-    const filesToUpload = fileFields.filter(({ key }) => files[key]);
-    const totalSteps = 2 + filesToUpload.length;
-    let step = 0;
+    ]
+    const filesToUpload = fileFields.filter(({ key }) => files[key])
+    const totalSteps = 2 + filesToUpload.length
+    let step = 0
+    let applicationId = null
+    let failedFieldKey = null
 
-    const report = (label) => {
-      step += 1;
-      onProgress?.({ step, total: totalSteps, label });
-    };
+    const report = (label, extra = {}) => {
+      step += 1
+      onProgress?.({ step, total: totalSteps, label, ...extra })
+    }
 
     try {
-      report('Сохранение данных заявления...');
+      report('Сохранение данных заявления...')
+      await ensureFreshSessionForUpload()
+
       const initResponse = await apiClient.post('/applications/submit/init', {
         app_data: applicationData
-      }, { timeout: 60000 });
+      }, { timeout: 60000 })
 
-      const applicationId = initResponse.data?.data?.application_id;
+      applicationId = initResponse.data?.data?.application_id
       if (!applicationId) {
-        return { data: null, error: 'Не удалось создать заявление', code: 'INIT_FAILED' };
+        return { data: null, error: 'Не удалось создать заявление', code: 'INIT_FAILED' }
       }
 
       for (const { key, label } of filesToUpload) {
-        report(label);
-        const formData = new FormData();
-        formData.append('file', files[key]);
-        formData.append('field_key', key);
+        failedFieldKey = key
+        report(label, { fieldKey: key, applicationId })
 
-        await apiClient.post(`/applications/${applicationId}/submit/file`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          timeout: uploadTimeout,
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity
-        });
+        await uploadSubmitFileWithRetry({
+          applicationId,
+          fieldKey: key,
+          file: files[key],
+          onUploadProgress: onUploadProgress
+            ? (event) => onUploadProgress({ fieldKey: key, ...event })
+            : undefined
+        })
       }
 
-      report('Завершение подачи заявления...');
+      failedFieldKey = null
+      report('Завершение подачи заявления...', { applicationId })
+      await ensureFreshSessionForUpload()
+
       const finalizeResponse = await apiClient.post(
         `/applications/${applicationId}/submit/finalize`,
         {},
         { timeout: 60000 }
-      );
+      )
 
-      return { data: finalizeResponse.data.data, error: null };
+      return { data: finalizeResponse.data.data, error: null }
     } catch (err) {
-      const responseData = err.response?.data || {};
-      const status = err.response?.status;
+      const responseData = err.response?.data || {}
+      const status = err.response?.status
 
-      if (status === 413) {
+      if (status === 409 && responseData.code === 'ACTIVE_APPLICATION_EXISTS') {
         return {
           data: null,
-          error: responseData.error || `Файл слишком большой (макс. ${MAX_APPLICATION_FILE_MB} МБ на один файл).`,
-          code: responseData.code || 'PAYLOAD_TOO_LARGE',
-          status: 413,
+          error: responseData.error,
+          code: responseData.code,
+          status: 409,
           applicationId: responseData.application_id
-        };
+        }
       }
 
-      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+      if (failedFieldKey) {
+        return { data: null, ...mapSubmitUploadError(err, { applicationId, fieldKey: failedFieldKey }) }
+      }
+
+      if (err.code === 'SESSION_EXPIRED') {
         return {
           data: null,
-          error: 'Превышено время загрузки. Проверьте интернет и попробуйте снова.',
-          code: 'UPLOAD_TIMEOUT',
-          status: 408
-        };
+          error: err.message,
+          code: err.code,
+          status: err.status,
+          applicationId
+        }
       }
 
       if (!err.response) {
         return {
           data: null,
           error: 'Сетевая ошибка при отправке заявки. Проверьте соединение и попробуйте снова.',
-          code: 'NETWORK_ERROR'
-        };
+          code: 'NETWORK_ERROR',
+          applicationId
+        }
       }
 
       return {
         data: null,
         error: responseData.error || err.message,
         code: responseData.code,
-        status: err.response?.status,
-        applicationId: responseData.application_id
-      };
+        status,
+        applicationId: responseData.application_id || applicationId
+      }
     }
   },
 

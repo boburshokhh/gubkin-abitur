@@ -668,6 +668,18 @@ async function submitForm() {
       onProgress: ({ step, total, label }) => {
         submissionProgress.value = 15 + Math.round((step / total) * 80);
         submissionStatus.value = label;
+      },
+      onUploadProgress: ({ fieldKey, loaded, total }) => {
+        if (!total) return;
+        const percent = Math.min(100, Math.round((loaded / total) * 100));
+        const labels = {
+          passport_scan: 'скана паспорта',
+          passport_translation: 'перевода паспорта',
+          photo: 'фотографии',
+          education_scan: 'документа об образовании',
+          olympiad_certificate: 'сертификата олимпиады'
+        };
+        submissionStatus.value = `Загрузка ${labels[fieldKey] || 'файла'}... ${percent}%`;
       }
     });
     const { success, data, error, code } = result;
