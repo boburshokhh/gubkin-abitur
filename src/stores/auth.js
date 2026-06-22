@@ -299,10 +299,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Подтверждение email по коду
-  const verifyEmail = async (email, token) => {
+  // Подтверждение email по ссылке из письма
+  const verifyEmail = async (_email, token) => {
+    if (!token) {
+      return { success: false, error: 'Ссылка подтверждения некорректна или устарела' }
+    }
+
     try {
-      const { data, error: verifyError } = await authApi.verifyOtp(email, token)
+      const { data, error: verifyError } = await authApi.verifyEmail(token)
       
       if (verifyError) throw verifyError
       
@@ -310,16 +314,14 @@ export const useAuthStore = defineStore('auth', () => {
       emailToVerify.value = null
       
       if (user.value) {
-        // Передаем пользователя чтобы избежать дублирующего запроса
         const profileData = await loadUserProfile(user.value)
-        // Передаем загруженный профиль, чтобы избежать дополнительного запроса к БД
         await loadUserRole(profileData)
       }
       
       return { success: true }
     } catch (err) {
       console.error('Ошибка подтверждения email:', err)
-      error.value = err.message || 'Неверный код подтверждения'
+      error.value = err.message || 'Ссылка подтверждения некорректна или устарела'
       return { success: false, error: error.value }
     }
   }

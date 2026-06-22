@@ -207,7 +207,7 @@ export const auth = {
 
   sendEmailVerification: async (email) => {
     try {
-      await apiClient.post('/auth/send-otp', { email })
+      await apiClient.post('/auth/resend-verification', { email })
       return { error: null }
     } catch (err) {
       return { error: new Error(err.response?.data?.error || err.message) }
@@ -223,6 +223,21 @@ export const auth = {
     }
   },
   
+  verifyEmail: async (token) => {
+    try {
+      const response = await apiClient.post('/auth/verify-email', { token })
+      const { session, user } = response.data
+      if (session?.access_token) {
+        accessToken = session.access_token
+        session.user = user
+        triggerAuthChange('SIGNED_IN', session)
+      }
+      return { data: { session, user }, error: null }
+    } catch (err) {
+      return handleError(err)
+    }
+  },
+
   verifyOtp: async (email, token) => {
     try {
       const response = await apiClient.post('/auth/verify-otp', { email, token })
@@ -240,9 +255,7 @@ export const auth = {
 
   resetPassword: async (email) => {
     try {
-      // Отправляем OTP-код на email для сброса пароля.
-      // Пользователь вводит этот код на странице ResetPasswordPage.
-      await apiClient.post('/auth/send-otp', { email })
+      await apiClient.post('/auth/password/forgot', { email })
       return { error: null }
     } catch (err) {
       return { error: new Error(err.response?.data?.error || err.message) }
